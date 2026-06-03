@@ -1,0 +1,30 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+build/
+android/
+ios/
+linux/
+macos/
+windows/
+web/
+*.iml
+*.ipr
+*.iws
+.idea/
+.DS_Store
+*.class
+*.log
+*.pyc
+*.swp
+.project
+.settings
+.classpath
+local.properties
+
+# Generated
+*.g.dart
+*.freezed.dart

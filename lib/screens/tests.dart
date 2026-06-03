@@ -1,0 +1,229 @@
+import 'package:flutter/material.dart';
+import '../core/api.dart';
+import '../core/theme.dart';
+import '../widgets/common.dart';
+import 'test_scores.dart';
+
+class TestsScreen extends StatefulWidget {
+  const TestsScreen({super.key});
+
+  @override
+  State<TestsScreen> createState() => _TestsScreenState();
+}
+
+class _TestsScreenState extends State<TestsScreen> {
+  List<TestSummary>? _tests;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await ApiClient.getTests();
+      // Sort: most recent first
+      data.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      setState(() { _tests = data; _loading = false; });
+    } on ApiError catch (e) {
+      setState(() { _error = e.message; _loading = false; });
+    } catch (_) {
+      setState(() { _error = 'Failed to load tests'; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Text('My Tests'),
+        backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.muted),
+            onPressed: _load,
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('😕', style: TextStyle(fontSize: 40)),
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(color: AppColors.muted)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : _tests == null || _tests!.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('📝', style: TextStyle(fontSize: 40)),
+                          SizedBox(height: 12),
+                          Text(
+                            'No tests yet',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Create tests in Assessment Studio on the web',
+                            style: TextStyle(color: AppColors.muted, fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: AppColors.sun,
+                      onRefresh: _load,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                        itemCount: _tests!.length,
+                        itemBuilder: (_, i) => _TestCard(
+                          test: _tests![i],
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TestScoresScreen(test: _tests![i]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+    );
+  }
+}
+
+class _TestCard extends StatelessWidget {
+  final TestSummary test;
+  final VoidCallback onTap;
+
+  const _TestCard({required this.test, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border, width: 1.5),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Icon
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.violet, Color(0xFF7C3AED)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                        child: Text('📝', style: TextStyle(fontSize: 20))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                test.title,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ),
+                            statusBadgeForTest(test.status),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${test.subject} · ${test.className}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Footer
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(
+                color: AppColors.bg,
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+              ),
+              child: Row(
+                children: [
+                  _FooterChip('${test.totalMarks.toInt()} marks', AppColors.violetLight, AppColors.violet),
+                  const SizedBox(width: 8),
+                  _FooterChip('${test.questionCount} questions', AppColors.skyLight, AppColors.sky),
+                  if (test.scoreCount > 0) ...[
+                    const SizedBox(width: 8),
+                    _FooterChip('${test.scoreCount} scored', AppColors.greenLight, AppColors.green),
+                  ],
+                  const Spacer(),
+                  if (test.scheduledDate != null)
+                    Text(
+                      fmtDate(test.scheduledDate!.toIso8601String()),
+                      style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                    ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.muted),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterChip extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  const _FooterChip(this.label, this.bg, this.fg);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+        child: Text(label,
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: fg)),
+      );
+}

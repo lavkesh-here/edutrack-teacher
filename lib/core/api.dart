@@ -240,7 +240,7 @@ class AnalysisInsight {
 // ── API Client ───────────────────────────────────────────────────────────────
 
 class ApiClient {
-  static const _defaultBaseUrl = 'http://10.0.2.2:8000';
+  static const _defaultBaseUrl = 'https://edutrack-api-6382035856.asia-south1.run.app';
   static const _prefKeyUrl = 'server_url';
   static const _prefKeyToken = 'auth_token';
 

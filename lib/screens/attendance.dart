@@ -200,35 +200,53 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             if (_students != null)
               Container(
                 color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StatChip('✓ $present Present', AppColors.tealLight, AppColors.teal),
-                    const SizedBox(width: 8),
-                    _StatChip('✗ $absent Absent', AppColors.coralLight, AppColors.coral),
-                    if (unmarked > 0) ...[
-                      const SizedBox(width: 8),
-                      _StatChip('? $unmarked Unmarked', AppColors.amberLight, AppColors.amber),
-                    ],
-                    const Spacer(),
-                    // Mark all present
-                    GestureDetector(
-                      onTap: () => _markAll('present'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.tealLight,
-                          borderRadius: BorderRadius.circular(20),
+                    Row(
+                      children: [
+                        _StatChip('✓ $present Present', AppColors.tealLight, AppColors.teal),
+                        const SizedBox(width: 8),
+                        _StatChip('✗ $absent Absent', AppColors.coralLight, AppColors.coral),
+                        if (unmarked > 0) ...[
+                          const SizedBox(width: 8),
+                          _StatChip('? $unmarked Unmarked', AppColors.amberLight, AppColors.amber),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Mark-all buttons row
+                    Row(
+                      children: [
+                        _MarkAllBtn(
+                          label: 'All Present',
+                          bg: AppColors.tealLight,
+                          fg: AppColors.teal,
+                          onTap: () => _markAll('present'),
                         ),
-                        child: const Text(
-                          'All Present',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.teal,
-                          ),
+                        const SizedBox(width: 6),
+                        _MarkAllBtn(
+                          label: 'All Absent',
+                          bg: AppColors.coralLight,
+                          fg: AppColors.coral,
+                          onTap: () => _markAll('absent'),
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        _MarkAllBtn(
+                          label: 'All Late',
+                          bg: AppColors.amberLight,
+                          fg: AppColors.amber,
+                          onTap: () => _markAll('late'),
+                        ),
+                        const SizedBox(width: 6),
+                        _MarkAllBtn(
+                          label: 'Reset',
+                          bg: const Color(0xFFF3F4F6),
+                          fg: AppColors.muted,
+                          onTap: () => _markAll(''),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -268,45 +286,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 color: Colors.white,
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _markAll(''),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(40)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        'Reset',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _saving ? null : _submit,
-                        child: _saving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2.5),
-                              )
-                            : const Text('Save Attendance'),
-                      ),
-                    ),
-                  ),
-                ],
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _submit,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text('Save Attendance'),
+                ),
               ),
             ),
           ],
@@ -350,6 +343,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _loadStudents();
     }
   }
+}
+
+class _MarkAllBtn extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+
+  const _MarkAllBtn({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: fg,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class _StatChip extends StatelessWidget {

@@ -237,6 +237,153 @@ class AnalysisInsight {
       );
 }
 
+// ── New Models ────────────────────────────────────────────────────────────────
+
+class Announcement {
+  final int id;
+  final String title;
+  final String body;
+  final String audience;
+  final bool isPinned;
+  final String createdAt;
+  final int? authorId;
+
+  const Announcement({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.audience,
+    required this.isPinned,
+    required this.createdAt,
+    this.authorId,
+  });
+
+  factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
+        id: j['id'] as int,
+        title: j['title'] as String? ?? '',
+        body: j['body'] as String? ?? '',
+        audience: j['audience'] as String? ?? 'all',
+        isPinned: j['is_pinned'] as bool? ?? false,
+        createdAt: j['created_at'] as String? ?? '',
+        authorId: j['author_id'] as int?,
+      );
+}
+
+class CalendarEvent {
+  final int id;
+  final String title;
+  final String eventType;
+  final String startDate;
+  final String endDate;
+
+  const CalendarEvent({
+    required this.id,
+    required this.title,
+    required this.eventType,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  factory CalendarEvent.fromJson(Map<String, dynamic> j) => CalendarEvent(
+        id: j['id'] as int,
+        title: j['title'] as String? ?? '',
+        eventType: j['event_type'] as String? ?? 'event',
+        startDate: j['start_date'] as String? ?? '',
+        endDate: j['end_date'] as String? ?? '',
+      );
+}
+
+class WorkLogEntry {
+  final int id;
+  final int classSectionId;
+  final String sectionLabel;
+  final int? subjectId;
+  final String? subjectName;
+  final String date;
+  final String logType;
+  final String description;
+  final String? dueDate;
+  final String createdAt;
+
+  const WorkLogEntry({
+    required this.id,
+    required this.classSectionId,
+    required this.sectionLabel,
+    this.subjectId,
+    this.subjectName,
+    required this.date,
+    required this.logType,
+    required this.description,
+    this.dueDate,
+    required this.createdAt,
+  });
+
+  factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
+        id: j['id'] as int,
+        classSectionId: j['class_section_id'] as int? ?? 0,
+        sectionLabel: j['section_label'] as String? ?? '',
+        subjectId: j['subject_id'] as int?,
+        subjectName: j['subject_name'] as String?,
+        date: (j['date'] as String? ?? ''),
+        logType: j['log_type'] as String? ?? 'classwork',
+        description: j['description'] as String? ?? '',
+        dueDate: j['due_date'] as String?,
+        createdAt: j['created_at'] as String? ?? '',
+      );
+}
+
+class PayslipRecord {
+  final int month;
+  final int year;
+  final double baseSalary;
+  final double bonus;
+  final double deductions;
+  final double netPay;
+  final String status;
+
+  const PayslipRecord({
+    required this.month,
+    required this.year,
+    required this.baseSalary,
+    required this.bonus,
+    required this.deductions,
+    required this.netPay,
+    required this.status,
+  });
+
+  factory PayslipRecord.fromJson(Map<String, dynamic> j) => PayslipRecord(
+        month: j['month'] as int,
+        year: j['year'] as int,
+        baseSalary: (j['base_salary'] as num?)?.toDouble() ?? 0,
+        bonus: (j['bonus'] as num?)?.toDouble() ?? 0,
+        deductions: (j['deductions'] as num?)?.toDouble() ?? 0,
+        netPay: (j['net_pay'] as num?)?.toDouble() ?? 0,
+        status: j['status'] as String? ?? 'pending',
+      );
+}
+
+class ParentNotificationResult {
+  final int id;
+  final String message;
+  final String sentAt;
+  final int recipientCount;
+
+  const ParentNotificationResult({
+    required this.id,
+    required this.message,
+    required this.sentAt,
+    required this.recipientCount,
+  });
+
+  factory ParentNotificationResult.fromJson(Map<String, dynamic> j) =>
+      ParentNotificationResult(
+        id: j['id'] as int,
+        message: j['message'] as String? ?? '',
+        sentAt: j['sent_at'] as String? ?? '',
+        recipientCount: j['recipient_count'] as int? ?? 0,
+      );
+}
+
 // ── API Client ───────────────────────────────────────────────────────────────
 
 class ApiClient {
@@ -407,6 +554,131 @@ class ApiClient {
       'end_date': endDate,
       if (reason != null && reason.isNotEmpty) 'reason': reason,
     });
+  }
+
+  // ── Announcements ─────────────────────────────────────────────────────────
+
+  static Future<List<Announcement>> getAnnouncements() async {
+    final data = await _get('/api/v1/admin/announcements');
+    final list = data as List<dynamic>;
+    return list
+        .map((e) => Announcement.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> createAnnouncement({
+    required String title,
+    required String body,
+    required String audience,
+    bool isPinned = false,
+  }) async {
+    await _post('/api/v1/admin/announcements', {
+      'title': title,
+      'body': body,
+      'audience': audience,
+      'is_pinned': isPinned,
+    });
+  }
+
+  // ── Calendar ──────────────────────────────────────────────────────────────
+
+  static Future<List<CalendarEvent>> getCalendarEvents({
+    required int month,
+    required int year,
+  }) async {
+    final data = await _get('/api/v1/admin/calendar?month=$month&year=$year');
+    List<dynamic> list;
+    if (data is List) {
+      list = data;
+    } else {
+      list = (data as Map<String, dynamic>)['events'] as List<dynamic>? ?? [];
+    }
+    return list
+        .map((e) => CalendarEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> createCalendarEvent({
+    required String title,
+    required String eventType,
+    required String startDate,
+    required String endDate,
+  }) async {
+    await _post('/api/v1/admin/calendar', {
+      'title': title,
+      'event_type': eventType,
+      'start_date': startDate,
+      'end_date': endDate,
+    });
+  }
+
+  // ── Work Log ──────────────────────────────────────────────────────────────
+
+  static Future<List<WorkLogEntry>> getWorkLogs({String? date}) async {
+    final path = date != null
+        ? '/api/v1/teacher/work-log?date=$date'
+        : '/api/v1/teacher/work-log';
+    final data = await _get(path);
+    final list = data as List<dynamic>;
+    return list
+        .map((e) => WorkLogEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> createWorkLog({
+    required int classSectionId,
+    int? subjectId,
+    required String date,
+    required String logType,
+    required String description,
+    String? dueDate,
+  }) async {
+    await _post('/api/v1/teacher/work-log', {
+      'class_section_id': classSectionId,
+      if (subjectId != null) 'subject_id': subjectId,
+      'date': date,
+      'log_type': logType,
+      'description': description,
+      if (dueDate != null) 'due_date': dueDate,
+    });
+  }
+
+  // ── Payslip ───────────────────────────────────────────────────────────────
+
+  static Future<PayslipRecord?> getPayslip({
+    required int month,
+    required int year,
+  }) async {
+    final data = await _get('/api/v1/teacher/payslip?month=$month&year=$year');
+    if (data == null) return null;
+    return PayslipRecord.fromJson(data as Map<String, dynamic>);
+  }
+
+  static Future<List<PayslipRecord>> getPayslipHistory() async {
+    final data = await _get('/api/v1/teacher/payslip/history');
+    final list = data as List<dynamic>;
+    return list
+        .map((e) => PayslipRecord.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Notify Parents ────────────────────────────────────────────────────────
+
+  static Future<ParentNotificationResult> notifyParents({
+    required String message,
+    required String notificationType,
+    required String targetType,
+    int? classSectionId,
+    int? studentId,
+  }) async {
+    final data = await _post('/api/v1/teacher/notify-parents', {
+      'message': message,
+      'notification_type': notificationType,
+      'target_type': targetType,
+      if (classSectionId != null) 'class_section_id': classSectionId,
+      if (studentId != null) 'student_id': studentId,
+    });
+    return ParentNotificationResult.fromJson(data as Map<String, dynamic>);
   }
 }
 

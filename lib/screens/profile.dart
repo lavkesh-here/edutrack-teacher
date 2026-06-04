@@ -5,6 +5,8 @@ import '../core/auth.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import 'leave.dart';
+import 'payslip.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -107,14 +109,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 16),
 
-              // Quick actions
+              // My Info section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'QUICK ACTIONS',
+                      'MY INFO',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -124,18 +126,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     _ProfileRow(
-                      icon: '🧠',
-                      iconColor: AppColors.violetLight,
-                      label: 'Assessment Studio',
-                      sub: 'Generate tests, view AI analysis',
-                      onTap: () => _openUrl('http://localhost:3000'),
+                      icon: '👤',
+                      iconColor: AppColors.sunLight,
+                      label: 'Personal Details',
+                      sub: 'Name, email, contact info',
+                      onTap: () {},
                     ),
                     _ProfileRow(
-                      icon: '📊',
-                      iconColor: AppColors.skyLight,
-                      label: 'Admin Panel',
-                      sub: 'School management dashboard',
-                      onTap: () => _openUrl('http://localhost:3001'),
+                      icon: '🎓',
+                      iconColor: AppColors.violetLight,
+                      label: 'Qualifications',
+                      sub: 'Degrees & certifications',
+                      onTap: () {},
+                    ),
+                    _ProfileRow(
+                      icon: '🗓️',
+                      iconColor: AppColors.coralLight,
+                      label: 'My Leaves',
+                      sub: 'Balance, history & apply',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const LeaveScreen())),
+                    ),
+                    _ProfileRow(
+                      icon: '💰',
+                      iconColor: AppColors.greenLight,
+                      label: 'Payroll History',
+                      sub: 'Monthly salary & payslips',
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const PayslipScreen())),
+                    ),
+                    _ProfileRow(
+                      icon: '📋',
+                      iconColor: AppColors.tealLight,
+                      label: 'My Attendance',
+                      sub: 'Your attendance record',
+                      onTap: () {},
                     ),
                   ],
                 ),

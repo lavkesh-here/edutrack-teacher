@@ -9,6 +9,13 @@ import 'timetable.dart';
 import 'leave.dart';
 import 'tests.dart';
 import 'profile.dart';
+import 'feed.dart';
+import 'chat.dart';
+import 'calendar_screen.dart';
+import 'worklog.dart';
+import 'notify_parents.dart';
+import 'payslip.dart';
+import 'my_students.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,8 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _screens = [
     _HomeTab(),
     AttendanceScreen(),
-    TimetableScreen(),
-    LeaveScreen(),
+    ChatScreen(),
+    FeedScreen(),
     ProfileScreen(),
   ];
 
@@ -51,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _NavItem(icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) => setState(() => _idx = i)),
                 _NavItem(icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '🕐', label: 'Timetable', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '🗓️', label: 'Leave', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(icon: '💬', label: 'Chat', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(icon: '📢', label: 'Feed', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
                 _NavItem(icon: '👤', label: 'Profile', index: 4, current: _idx, onTap: (i) => setState(() => _idx = i)),
               ],
             ),
@@ -143,7 +150,7 @@ class _HomeTabState extends State<_HomeTab> {
   Future<void> _load() async {
     try {
       final slots = await ApiClient.getMyTimetable();
-      final today = DateTime.now().weekday; // Mon=1 … Sun=7
+      final today = DateTime.now().weekday;
       setState(() {
         _todaySlots = slots.where((s) => s.dayOfWeek == today).toList()
           ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
@@ -220,40 +227,58 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
 
-            // Stat tiles
+            // 4 Stat tiles (2x2 grid)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _StatTile(
-                        icon: '📝',
-                        label: 'My Tests',
-                        color: AppColors.sun,
-                        lightColor: AppColors.sunLight,
-                        onTap: () => _navigateTo(context, 2), // tests in more
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatTile(
+                            icon: '📋',
+                            label: 'Students Today',
+                            color: AppColors.sun,
+                            lightColor: AppColors.sunLight,
+                            onTap: () => _navigateTab(context, 1),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatTile(
+                            icon: '📅',
+                            label: 'Events This Week',
+                            color: AppColors.sky,
+                            lightColor: AppColors.skyLight,
+                            onTap: () => _openScreen(context, const CalendarScreen()),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatTile(
-                        icon: '🗓️',
-                        label: 'Apply Leave',
-                        color: AppColors.violet,
-                        lightColor: AppColors.violetLight,
-                        onTap: () => _navigateTab(context, 3),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatTile(
-                        icon: '📋',
-                        label: 'Attendance',
-                        color: AppColors.teal,
-                        lightColor: AppColors.tealLight,
-                        onTap: () => _navigateTab(context, 1),
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatTile(
+                            icon: '🗓️',
+                            label: 'Leaves Left',
+                            color: AppColors.violet,
+                            lightColor: AppColors.violetLight,
+                            onTap: () => _openScreen(context, const LeaveScreen()),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatTile(
+                            icon: '📚',
+                            label: 'Work Logs Today',
+                            color: AppColors.teal,
+                            lightColor: AppColors.tealLight,
+                            onTap: () => _openScreen(context, const WorkLogScreen()),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -265,7 +290,7 @@ class _HomeTabState extends State<_HomeTab> {
               child: SectionHeader(
                 title: "Today's Schedule",
                 action: 'Full Week →',
-                onAction: () => _navigateTab(context, 2),
+                onAction: () => _openScreen(context, const TimetableScreen()),
               ),
             ),
             SliverToBoxAdapter(
@@ -276,7 +301,7 @@ class _HomeTabState extends State<_HomeTab> {
                     )
                   : _todaySlots == null || _todaySlots!.isEmpty
                       ? Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                           child: AppCard(
                             child: const Center(
                               child: Text(
@@ -301,14 +326,60 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
             ),
 
-            // Recent leave alerts
+            // Quick actions
+            const SliverToBoxAdapter(
+              child: SectionHeader(title: 'Quick Actions'),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _QuickPill(
+                      label: '📋 Mark Attendance',
+                      color: AppColors.sun,
+                      onTap: () => _navigateTab(context, 1),
+                    ),
+                    _QuickPill(
+                      label: '📚 Add Homework',
+                      color: AppColors.coral,
+                      onTap: () => _openScreen(context, const WorkLogScreen()),
+                    ),
+                    _QuickPill(
+                      label: '📅 Calendar',
+                      color: AppColors.sky,
+                      onTap: () => _openScreen(context, const CalendarScreen()),
+                    ),
+                    _QuickPill(
+                      label: '📝 Apply Leave',
+                      color: AppColors.violet,
+                      onTap: () => _openScreen(context, const LeaveScreen()),
+                    ),
+                    _QuickPill(
+                      label: '🔔 Notify Parents',
+                      color: AppColors.teal,
+                      onTap: () => _openScreen(context, const NotifyParentsScreen()),
+                    ),
+                    _QuickPill(
+                      label: '📊 Post Results',
+                      color: AppColors.amber,
+                      onTap: () => _openScreen(context, const TestsScreen()),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Leave alerts
             if (_recentLeaves != null && _recentLeaves!.isNotEmpty) ...[
               const SliverToBoxAdapter(
                 child: SectionHeader(title: '🔔 Leave Status'),
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Column(
                     children: _recentLeaves!.map((l) => _LeaveAlert(leave: l)).toList(),
                   ),
@@ -316,52 +387,86 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ],
 
-            // Open assessment studio
+            // Features list
+            const SliverToBoxAdapter(
+              child: SectionHeader(title: 'All Features'),
+            ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                child: InkWell(
-                  onTap: () => _openTests(context),
-                  borderRadius: BorderRadius.circular(20),
-                  child: AppCard(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.violet, Color(0xFF7C3AED)],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Center(
-                              child: Text('🧠', style: TextStyle(fontSize: 22))),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Assessment Studio',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              Text(
-                                'Generate tests, view scores & AI analysis',
-                                style: TextStyle(fontSize: 11, color: AppColors.muted),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.muted),
-                      ],
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: Column(
+                  children: [
+                    _FeatureRow(
+                      icon: '📚',
+                      iconBg: AppColors.coralLight,
+                      title: 'Work Log',
+                      sub: 'Daily homework & classwork tracker',
+                      onTap: () => _openScreen(context, const WorkLogScreen()),
                     ),
-                  ),
+                    _FeatureRow(
+                      icon: '📊',
+                      iconBg: AppColors.violetLight,
+                      title: 'Academics & Results',
+                      sub: 'Post & view student results',
+                      onTap: () => _openScreen(context, const TestsScreen()),
+                    ),
+                    _FeatureRow(
+                      icon: '👥',
+                      iconBg: AppColors.skyLight,
+                      title: 'My Students',
+                      sub: 'View and manage your class',
+                      onTap: () => _openScreen(context, const MyStudentsScreen()),
+                    ),
+                    _FeatureRow(
+                      icon: '🗓️',
+                      iconBg: AppColors.violetLight,
+                      title: 'My Leaves',
+                      sub: 'Balance & history',
+                      onTap: () => _openScreen(context, const LeaveScreen()),
+                    ),
+                    _FeatureRow(
+                      icon: '💰',
+                      iconBg: AppColors.greenLight,
+                      title: 'Payslips',
+                      sub: 'Monthly salary details',
+                      onTap: () => _openScreen(context, const PayslipScreen()),
+                    ),
+                    _FeatureRow(
+                      icon: '🕐',
+                      iconBg: AppColors.sunLight,
+                      title: 'My Schedule',
+                      sub: "Today's full timetable",
+                      onTap: () => _openScreen(context, const TimetableScreen()),
+                    ),
+                    _FeatureRow(
+                      icon: '💬',
+                      iconBg: AppColors.tealLight,
+                      title: 'Chat',
+                      sub: 'Messages with parents',
+                      onTap: () => _navigateTab(context, 2),
+                    ),
+                    _FeatureRow(
+                      icon: '📢',
+                      iconBg: AppColors.amberLight,
+                      title: 'Feed',
+                      sub: 'School announcements',
+                      onTap: () => _navigateTab(context, 3),
+                    ),
+                    _FeatureRow(
+                      icon: '📅',
+                      iconBg: AppColors.skyLight,
+                      title: 'Calendar',
+                      sub: 'School events & holidays',
+                      onTap: () => _openScreen(context, const CalendarScreen()),
+                    ),
+                    _FeatureRow(
+                      icon: '🔔',
+                      iconBg: AppColors.tealLight,
+                      title: 'Notify Parents',
+                      sub: 'Send homework & announcements',
+                      onTap: () => _openScreen(context, const NotifyParentsScreen()),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -376,13 +481,8 @@ class _HomeTabState extends State<_HomeTab> {
     home?.setState(() => home._idx = tab);
   }
 
-  void _navigateTo(BuildContext context, int tab) {
-    final home = context.findAncestorStateOfType<_HomeScreenState>();
-    home?.setState(() => home._idx = tab);
-  }
-
-  void _openTests(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestsScreen()));
+  void _openScreen(BuildContext context, Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   String _roleLabel(String role) {
@@ -438,16 +538,123 @@ class _StatTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border, width: 1.5),
           ),
-          child: Column(
+          child: Row(
             children: [
-              Text(icon, style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w700, color: color),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: lightColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 14, color: color.withOpacity(0.5)),
+            ],
+          ),
+        ),
+      );
+}
+
+class _QuickPill extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickPill({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: color.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(40),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ),
+      );
+}
+
+class _FeatureRow extends StatelessWidget {
+  final String icon;
+  final Color iconBg;
+  final String title;
+  final String sub;
+  final VoidCallback onTap;
+
+  const _FeatureRow({
+    required this.icon,
+    required this.iconBg,
+    required this.title,
+    required this.sub,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
+                    ),
+                    Text(
+                      sub,
+                      style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.muted),
             ],
           ),
         ),

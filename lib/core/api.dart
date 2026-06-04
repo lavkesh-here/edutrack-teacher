@@ -246,7 +246,7 @@ class Announcement {
   final String audience;
   final bool isPinned;
   final String createdAt;
-  final int? authorId;
+  final String? authorName;
 
   const Announcement({
     required this.id,
@@ -255,7 +255,7 @@ class Announcement {
     required this.audience,
     required this.isPinned,
     required this.createdAt,
-    this.authorId,
+    this.authorName,
   });
 
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
@@ -265,7 +265,7 @@ class Announcement {
         audience: j['audience'] as String? ?? 'all',
         isPinned: j['is_pinned'] as bool? ?? false,
         createdAt: j['created_at'] as String? ?? '',
-        authorId: j['author_id'] as int?,
+        authorName: j['author_name'] as String?,
       );
 }
 

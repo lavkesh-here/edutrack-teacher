@@ -47,10 +47,12 @@ jobs:
           sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
           sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle
 
-      # Rule 17: Add INTERNET permission
+      # Rule 17: Add INTERNET permission + allow cleartext HTTP for dev
       - name: Add INTERNET permission
         run: |
           sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET"/>' \
+            android/app/src/main/AndroidManifest.xml
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' \
             android/app/src/main/AndroidManifest.xml
 
       # Rule 6: Write local.properties — NEVER set FLUTTER_ROOT as env var (Rule 9)

@@ -35,10 +35,11 @@ jobs:
         run: flutter --version
 
       # Rule 2: Generate android/ fresh — never commit it
+      # --project-name required: directory has hyphens which are invalid Dart identifiers
       - name: Generate Android project
         run: |
           rm -rf android
-          flutter create --platforms=android --org com.edutrack .
+          flutter create --platforms=android --org com.edutrack --project-name edutrack_teacher .
 
       # Rule 3: shrinkResources must match minifyEnabled — both false
       - name: Disable minify/shrink

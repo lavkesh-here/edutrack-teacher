@@ -22,6 +22,9 @@ import 'admin_transport.dart';
 import 'admin_school_settings.dart';
 import 'admin_work_logs.dart';
 import 'admin_attenders.dart';
+import 'admin_fee_management.dart';
+import 'admin_leave_config.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -222,22 +225,37 @@ class _HomeTabState extends State<_HomeTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${greeting()} 👋',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    user.teacherName,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${greeting()} 👋',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white70),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user.teacherName,
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _openScreen(context, const NotificationsScreen()),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -546,6 +564,20 @@ class _HomeTabState extends State<_HomeTab> {
                         title: 'Attenders',
                         sub: 'Authorized pickup persons for all students',
                         onTap: () => _openScreen(context, const AdminAttendersScreen()),
+                      ),
+                      _FeatureRow(
+                        icon: '💰',
+                        iconBg: AppColors.amberLight,
+                        title: 'Fee Management',
+                        sub: 'Fee components, structures & payment status',
+                        onTap: () => _openScreen(context, const AdminFeeManagementScreen()),
+                      ),
+                      _FeatureRow(
+                        icon: '⚙️',
+                        iconBg: AppColors.skyLight,
+                        title: 'Leave Config',
+                        sub: 'Casual, sick & working day settings',
+                        onTap: () => _openScreen(context, const AdminLeaveConfigScreen()),
                       ),
                     ],
                   ],

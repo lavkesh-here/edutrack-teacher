@@ -119,19 +119,44 @@ class _AdminAttendersScreenState extends State<AdminAttendersScreen> {
   }
 }
 
-class _AttenderRow extends StatelessWidget {
+class _AttenderRow extends StatefulWidget {
   final Map<String, dynamic> attender;
-
   const _AttenderRow({required this.attender});
 
   @override
+  State<_AttenderRow> createState() => _AttenderRowState();
+}
+
+class _AttenderRowState extends State<_AttenderRow> {
+  late bool _flagged;
+
+  @override
+  void initState() {
+    super.initState();
+    _flagged = widget.attender['is_flagged'] as bool? ?? false;
+  }
+
+  Future<void> _toggleFlag() async {
+    final next = !_flagged;
+    setState(() => _flagged = next);
+    try {
+      await ApiClient.adminFlagAttender(widget.attender['id'] as int, isFlagged: next);
+    } on ApiError catch (e) {
+      setState(() => _flagged = !next);
+      if (mounted) showSnack(context, e.message, error: true);
+    } catch (_) {
+      setState(() => _flagged = !next);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final name = attender['attender_name'] as String? ?? attender['name'] as String? ?? '';
-    final relation = attender['relation'] as String? ?? attender['relation_type'] as String? ?? '';
-    final phone = attender['phone'] as String? ?? '';
-    final studentName = attender['student_name'] as String? ?? '';
-    final classLabel = attender['class_label'] as String? ?? '';
-    final photoUrl = attender['photo_url'] as String?;
+    final name = widget.attender['attender_name'] as String? ?? widget.attender['name'] as String? ?? '';
+    final relation = widget.attender['relation'] as String? ?? widget.attender['relation_type'] as String? ?? '';
+    final phone = widget.attender['phone'] as String? ?? '';
+    final studentName = widget.attender['student_name'] as String? ?? '';
+    final classLabel = widget.attender['class_label'] as String? ?? '';
+    final photoUrl = widget.attender['photo_url'] as String?;
 
     final initials = name.isNotEmpty
         ? name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
@@ -139,29 +164,20 @@ class _AttenderRow extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: _flagged ? AppColors.coralLight : Colors.white,
+        border: const Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
-          // Avatar
           photoUrl != null && photoUrl.isNotEmpty
-              ? CircleAvatar(
-                  radius: 24,
-                  backgroundImage: NetworkImage(photoUrl),
-                )
+              ? CircleAvatar(radius: 24, backgroundImage: NetworkImage(photoUrl))
               : CircleAvatar(
                   radius: 24,
-                  backgroundColor: AppColors.coralLight,
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.coral,
-                    ),
-                  ),
+                  backgroundColor: _flagged ? AppColors.coral.withOpacity(0.2) : AppColors.coralLight,
+                  child: Text(initials,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800,
+                          color: _flagged ? AppColors.coral : AppColors.coral)),
                 ),
           const SizedBox(width: 12),
           Expanded(
@@ -171,71 +187,50 @@ class _AttenderRow extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                        ),
-                      ),
+                      child: Text(name,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
                     ),
                     if (relation.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.violetLight,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _capitalise(relation),
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.violet,
-                          ),
-                        ),
+                            color: AppColors.violetLight, borderRadius: BorderRadius.circular(20)),
+                        child: Text(_capitalise(relation),
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.violet)),
                       ),
                   ],
                 ),
                 if (phone.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      phone,
-                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
-                    ),
+                    child: Text(phone, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
                   ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     const Icon(Icons.person_outline, size: 13, color: AppColors.muted),
                     const SizedBox(width: 4),
-                    Text(
-                      studentName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text2,
-                      ),
-                    ),
+                    Text(studentName,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text2)),
                     if (classLabel.isNotEmpty) ...[
                       const Text(' · ', style: TextStyle(color: AppColors.muted)),
-                      Text(
-                        classLabel,
-                        style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                      ),
+                      Text(classLabel, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
                     ],
                   ],
                 ),
               ],
             ),
           ),
+          IconButton(
+            icon: Icon(_flagged ? Icons.flag : Icons.flag_outlined,
+                color: _flagged ? AppColors.coral : AppColors.muted, size: 20),
+            tooltip: _flagged ? 'Unflag attender' : 'Flag as suspicious',
+            onPressed: _toggleFlag,
+          ),
         ],
       ),
     );
   }
 
-  String _capitalise(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+  String _capitalise(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }

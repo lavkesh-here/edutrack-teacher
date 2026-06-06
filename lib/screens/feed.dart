@@ -319,13 +319,42 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
-class _AnnouncementCard extends StatelessWidget {
+class _AnnouncementCard extends StatefulWidget {
   final Announcement a;
   final VoidCallback? onCommentTap;
   const _AnnouncementCard({required this.a, this.onCommentTap});
 
   @override
+  State<_AnnouncementCard> createState() => _AnnouncementCardState();
+}
+
+class _AnnouncementCardState extends State<_AnnouncementCard> {
+  late bool _liked;
+  late int _likeCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _liked = widget.a.likedByMe;
+    _likeCount = widget.a.likeCount;
+  }
+
+  Future<void> _toggleLike() async {
+    final wasLiked = _liked;
+    setState(() {
+      _liked = !_liked;
+      _likeCount += _liked ? 1 : -1;
+    });
+    try {
+      await ApiClient.toggleAnnouncementLike(widget.a.id);
+    } catch (_) {
+      if (mounted) setState(() { _liked = wasLiked; _likeCount += wasLiked ? 1 : -1; });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final a = widget.a;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -400,7 +429,28 @@ class _AnnouncementCard extends StatelessWidget {
                 Text(a.authorName!, style: const TextStyle(fontSize: 10, color: AppColors.muted)),
               ],
               const Spacer(),
-              if (a.allowComments)
+              GestureDetector(
+                onTap: _toggleLike,
+                child: Row(
+                  children: [
+                    Icon(
+                      _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      size: 15,
+                      color: _liked ? AppColors.coral : AppColors.muted,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$_likeCount',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: _liked ? AppColors.coral : AppColors.muted,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              if (a.allowComments) ...[
+                const SizedBox(width: 12),
                 GestureDetector(
                   onTap: onCommentTap,
                   child: Row(
@@ -414,6 +464,7 @@ class _AnnouncementCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
         ],

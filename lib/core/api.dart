@@ -355,6 +355,8 @@ class Announcement {
   final String? authorName;
   final List<AnnouncementImage> images;
   final int commentCount;
+  final int likeCount;
+  final bool likedByMe;
 
   const Announcement({
     required this.id,
@@ -367,6 +369,8 @@ class Announcement {
     this.authorName,
     this.images = const [],
     this.commentCount = 0,
+    this.likeCount = 0,
+    this.likedByMe = false,
   });
 
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
@@ -382,6 +386,8 @@ class Announcement {
             .map((e) => AnnouncementImage.fromJson(e as Map<String, dynamic>))
             .toList(),
         commentCount: j['comment_count'] as int? ?? 0,
+        likeCount: j['like_count'] as int? ?? 0,
+        likedByMe: j['liked_by_me'] as bool? ?? false,
       );
 }
 
@@ -784,6 +790,10 @@ class ApiClient {
     await _delete('/api/v1/admin/announcements/$announcementId/images/$imageId');
   }
 
+  static Future<void> toggleAnnouncementLike(int announcementId) async {
+    await _post('/api/v1/admin/announcements/$announcementId/like', {});
+  }
+
   static Future<List<AnnouncementComment>> getComments(int announcementId) async {
     final data = await _get('/api/v1/admin/announcements/$announcementId/comments');
     return (data as List<dynamic>)
@@ -1053,6 +1063,62 @@ class ApiClient {
         : '/api/v1/admin/attenders';
     final data = await _get(path);
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> adminFlagAttender(int attenderId, {required bool isFlagged}) async {
+    await _patch('/api/v1/admin/attenders/$attenderId/flag', {'is_flagged': isFlagged});
+  }
+
+  // ── Admin: Fee Management ─────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminListFeeComponents() async {
+    final data = await _get('/api/v1/admin/fees/components');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> adminCreateFeeComponent({required String name, String? description, bool isOptional = false}) async {
+    await _post('/api/v1/admin/fees/components', {'name': name, 'description': description, 'is_optional': isOptional});
+  }
+
+  static Future<void> adminDeleteFeeComponent(int id) async {
+    await _delete('/api/v1/admin/fees/components/$id');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminListFeeStructures({int? sectionId, String? status}) async {
+    final params = <String>[];
+    if (sectionId != null) params.add('section_id=$sectionId');
+    if (status != null) params.add('status=$status');
+    final path = '/api/v1/admin/fees/structures${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> adminUpdateFeeStatus(int structureId, String status) async {
+    await _post('/api/v1/admin/fees/structures/$structureId/status', {'status': status});
+  }
+
+  static Future<List<Map<String, dynamic>>> adminListFeePayments({int? structureId}) async {
+    final path = structureId != null
+        ? '/api/v1/admin/fees/structures/$structureId/payments'
+        : '/api/v1/admin/fees/payments';
+    final data = await _get(path);
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> adminRecordPayment({required int structureId, required double amount, String method = 'cash', String? reference}) async {
+    await _post('/api/v1/admin/fees/structures/$structureId/payments',
+        {'amount': amount, 'payment_method': method, if (reference != null) 'reference_number': reference});
+  }
+
+  // ── Admin: Leave Config ───────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> adminGetLeaveConfig() async {
+    final data = await _get('/api/v1/admin/leave-config');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> adminUpdateLeaveConfig(Map<String, dynamic> updates) async {
+    await _patch('/api/v1/admin/leave-config', updates);
   }
 
   // ── Push tokens ────────────────────────────────────────────────────────────

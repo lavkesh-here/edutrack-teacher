@@ -4,6 +4,7 @@ import '../core/auth.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import 'force_change_password.dart';
 
 // ── Step 1: Enter school code ─────────────────────────────────────────────────
 

@@ -318,14 +318,43 @@ class AnalysisInsight {
 
 // ── New Models ────────────────────────────────────────────────────────────────
 
+class AnnouncementImage {
+  final int id;
+  final String gcsUrl;
+  final int position;
+  const AnnouncementImage({required this.id, required this.gcsUrl, required this.position});
+  factory AnnouncementImage.fromJson(Map<String, dynamic> j) => AnnouncementImage(
+        id: j['id'] as int,
+        gcsUrl: j['gcs_url'] as String,
+        position: j['position'] as int? ?? 0,
+      );
+}
+
+class AnnouncementComment {
+  final int id;
+  final String body;
+  final String? authorName;
+  final String createdAt;
+  const AnnouncementComment({required this.id, required this.body, this.authorName, required this.createdAt});
+  factory AnnouncementComment.fromJson(Map<String, dynamic> j) => AnnouncementComment(
+        id: j['id'] as int,
+        body: j['body'] as String? ?? '',
+        authorName: j['author_name'] as String?,
+        createdAt: j['created_at'] as String? ?? '',
+      );
+}
+
 class Announcement {
   final int id;
   final String title;
   final String body;
   final String audience;
   final bool isPinned;
+  final bool allowComments;
   final String createdAt;
   final String? authorName;
+  final List<AnnouncementImage> images;
+  final int commentCount;
 
   const Announcement({
     required this.id,
@@ -333,8 +362,11 @@ class Announcement {
     required this.body,
     required this.audience,
     required this.isPinned,
+    required this.allowComments,
     required this.createdAt,
     this.authorName,
+    this.images = const [],
+    this.commentCount = 0,
   });
 
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
@@ -343,8 +375,13 @@ class Announcement {
         body: j['body'] as String? ?? '',
         audience: j['audience'] as String? ?? 'all',
         isPinned: j['is_pinned'] as bool? ?? false,
+        allowComments: j['allow_comments'] as bool? ?? false,
         createdAt: j['created_at'] as String? ?? '',
         authorName: j['author_name'] as String?,
+        images: (j['images'] as List<dynamic>? ?? [])
+            .map((e) => AnnouncementImage.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        commentCount: j['comment_count'] as int? ?? 0,
       );
 }
 
@@ -383,6 +420,7 @@ class WorkLogEntry {
   final String description;
   final String? dueDate;
   final String createdAt;
+  final int acknowledgmentCount;
 
   const WorkLogEntry({
     required this.id,
@@ -395,6 +433,7 @@ class WorkLogEntry {
     required this.description,
     this.dueDate,
     required this.createdAt,
+    this.acknowledgmentCount = 0,
   });
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
@@ -408,6 +447,7 @@ class WorkLogEntry {
         description: j['description'] as String? ?? '',
         dueDate: j['due_date'] as String?,
         createdAt: j['created_at'] as String? ?? '',
+        acknowledgmentCount: j['acknowledgment_count'] as int? ?? 0,
       );
 }
 
@@ -703,18 +743,56 @@ class ApiClient {
         .toList();
   }
 
-  static Future<void> createAnnouncement({
+  static Future<int> createAnnouncement({
     required String title,
     required String body,
     required String audience,
     bool isPinned = false,
+    bool allowComments = false,
   }) async {
-    await _post('/api/v1/admin/announcements', {
+    final data = await _post('/api/v1/admin/announcements', {
       'title': title,
       'body': body,
       'audience': audience,
       'is_pinned': isPinned,
+      'allow_comments': allowComments,
     });
+    return (data as Map<String, dynamic>)['id'] as int? ?? 0;
+  }
+
+  static Future<Map<String, dynamic>> getAnnouncementUploadUrl(
+      String filename, String contentType, int fileSize) async {
+    final data = await _post('/api/v1/admin/announcements/upload-url', {
+      'filename': filename,
+      'content_type': contentType,
+      'file_size': fileSize,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> attachAnnouncementImage(
+      int announcementId, String gcsUrl, String? fileName, int? fileSize, int position) async {
+    await _post('/api/v1/admin/announcements/$announcementId/images', {
+      'gcs_url': gcsUrl,
+      if (fileName != null) 'file_name': fileName,
+      if (fileSize != null) 'file_size': fileSize,
+      'position': position,
+    });
+  }
+
+  static Future<void> deleteAnnouncementImage(int announcementId, int imageId) async {
+    await _delete('/api/v1/admin/announcements/$announcementId/images/$imageId');
+  }
+
+  static Future<List<AnnouncementComment>> getComments(int announcementId) async {
+    final data = await _get('/api/v1/admin/announcements/$announcementId/comments');
+    return (data as List<dynamic>)
+        .map((e) => AnnouncementComment.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<void> createComment(int announcementId, String body) async {
+    await _post('/api/v1/admin/announcements/$announcementId/comments', {'body': body});
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────

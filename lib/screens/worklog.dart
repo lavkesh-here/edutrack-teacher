@@ -599,6 +599,19 @@ class _WorkLogCard extends StatelessWidget {
                 ],
               ),
             ],
+            if (entry.acknowledgmentCount > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 12, color: AppColors.teal),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${entry.acknowledgmentCount} seen',
+                    style: const TextStyle(fontSize: 11, color: AppColors.teal, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       );

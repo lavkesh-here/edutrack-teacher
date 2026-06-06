@@ -201,56 +201,57 @@ class _HomeTabState extends State<_HomeTab> {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: RefreshIndicator(
-        color: AppColors.sun,
-        onRefresh: _load,
-        child: CustomScrollView(
-          slivers: [
-            // Hero header
-            SliverToBoxAdapter(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.sun, Color(0xFFEA580C), AppColors.coral],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 52, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${greeting()} 👋',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      user.teacherName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 6,
-                      children: [
-                        _HeroChip('📅 $dateStr'),
-                        _HeroChip('🏫 ${user.schoolName}'),
-                        _HeroChip(_roleLabel(user.role)),
-                      ],
-                    ),
-                  ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Static hero header
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.sun, Color(0xFFEA580C), AppColors.coral],
                 ),
               ),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${greeting()} 👋',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    user.teacherName,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 6,
+                    children: [
+                      _HeroChip('📅 $dateStr'),
+                      _HeroChip('🏫 ${user.schoolName}'),
+                      _HeroChip(_roleLabel(user.role)),
+                    ],
+                  ),
+                ],
+              ),
             ),
+            Expanded(child: RefreshIndicator(
+              color: AppColors.sun,
+              onRefresh: _load,
+              child: CustomScrollView(
+          slivers: [
 
             // 4 Stat tiles (2x2 grid)
             SliverToBoxAdapter(
@@ -497,7 +498,10 @@ class _HomeTabState extends State<_HomeTab> {
             ),
           ],
         ),
-      ),
+      )), // RefreshIndicator + Expanded
+          ],
+        ), // Column
+      ), // SafeArea
     );
   }
 

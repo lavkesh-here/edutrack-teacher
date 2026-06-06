@@ -4,12 +4,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
+class SchoolInfo {
+  final int id;
+  final String name;
+  final String code;
+  final String? logoUrl;
+
+  const SchoolInfo({required this.id, required this.name, required this.code, this.logoUrl});
+
+  factory SchoolInfo.fromJson(Map<String, dynamic> j) => SchoolInfo(
+        id: j['id'] as int,
+        name: j['name'] as String,
+        code: j['code'] as String,
+        logoUrl: j['logo_url'] as String?,
+      );
+}
+
 class AuthResponse {
   final String token;
   final String teacherName;
   final String schoolName;
   final String role;
   final int teacherId;
+  final bool mustChangePassword;
 
   const AuthResponse({
     required this.token,
@@ -17,6 +34,7 @@ class AuthResponse {
     required this.schoolName,
     required this.role,
     required this.teacherId,
+    this.mustChangePassword = false,
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> j) => AuthResponse(
@@ -25,6 +43,67 @@ class AuthResponse {
         schoolName: j['school_name'] as String,
         role: j['role'] as String,
         teacherId: j['teacher_id'] as int,
+        mustChangePassword: j['must_change_password'] as bool? ?? false,
+      );
+}
+
+class StudentSearchResult {
+  final int id;
+  final String name;
+  final String admissionNumber;
+  final String? guardianName;
+  final String? guardianPhone;
+  final String? rollNo;
+  final String? classLabel;
+
+  const StudentSearchResult({
+    required this.id,
+    required this.name,
+    required this.admissionNumber,
+    this.guardianName,
+    this.guardianPhone,
+    this.rollNo,
+    this.classLabel,
+  });
+
+  factory StudentSearchResult.fromJson(Map<String, dynamic> j) => StudentSearchResult(
+        id: j['id'] as int,
+        name: j['name'] as String,
+        admissionNumber: j['admission_number'] as String? ?? '',
+        guardianName: j['guardian_name'] as String?,
+        guardianPhone: j['guardian_phone'] as String?,
+        rollNo: j['roll_no']?.toString(),
+        classLabel: j['class_label'] as String?,
+      );
+}
+
+class TodoItem {
+  final int id;
+  final String title;
+  final String? notes;
+  final String? dueDate;
+  final bool isPersonal;
+  final bool isCompleted;
+  final String? createdAt;
+
+  const TodoItem({
+    required this.id,
+    required this.title,
+    this.notes,
+    this.dueDate,
+    required this.isPersonal,
+    required this.isCompleted,
+    this.createdAt,
+  });
+
+  factory TodoItem.fromJson(Map<String, dynamic> j) => TodoItem(
+        id: j['id'] as int,
+        title: j['title'] as String,
+        notes: j['notes'] as String?,
+        dueDate: j['due_date'] as String?,
+        isPersonal: j['is_personal'] as bool? ?? false,
+        isCompleted: j['is_completed'] as bool? ?? false,
+        createdAt: j['created_at'] as String?,
       );
 }
 
@@ -391,6 +470,9 @@ class ApiClient {
   static const _prefKeyUrl = 'server_url';
   static const _prefKeyToken = 'auth_token';
 
+  // Set by AuthProvider on init — called automatically on any 401
+  static Future<void> Function()? onUnauthorized;
+
   static Future<String> getBaseUrl() async {
     final p = await SharedPreferences.getInstance();
     return p.getString(_prefKeyUrl) ?? _defaultBaseUrl;
@@ -429,7 +511,10 @@ class ApiClient {
       Uri.parse('$base$path'),
       headers: await _headers(),
     ).timeout(const Duration(seconds: 20));
-    if (res.statusCode == 401) throw ApiError('Session expired. Please log in again.', 401);
+    if (res.statusCode == 401) {
+      await onUnauthorized?.call();
+      throw ApiError('Session expired. Please log in again.', 401);
+    }
     if (res.statusCode >= 400) {
       final body = jsonDecode(res.body);
       throw ApiError(body['detail']?.toString() ?? 'Server error', res.statusCode);
@@ -444,7 +529,45 @@ class ApiClient {
       headers: await _headers(),
       body: jsonEncode(body),
     ).timeout(const Duration(seconds: 20));
-    if (res.statusCode == 401) throw ApiError('Session expired. Please log in again.', 401);
+    if (res.statusCode == 401) {
+      await onUnauthorized?.call();
+      throw ApiError('Session expired. Please log in again.', 401);
+    }
+    if (res.statusCode >= 400) {
+      final b = jsonDecode(res.body);
+      throw ApiError(b['detail']?.toString() ?? 'Server error', res.statusCode);
+    }
+    return jsonDecode(utf8.decode(res.bodyBytes));
+  }
+
+  static Future<dynamic> _patch(String path, Map<String, dynamic> body) async {
+    final base = await getBaseUrl();
+    final res = await http.patch(
+      Uri.parse('$base$path'),
+      headers: await _headers(),
+      body: jsonEncode(body),
+    ).timeout(const Duration(seconds: 20));
+    if (res.statusCode == 401) {
+      await onUnauthorized?.call();
+      throw ApiError('Session expired. Please log in again.', 401);
+    }
+    if (res.statusCode >= 400) {
+      final b = jsonDecode(res.body);
+      throw ApiError(b['detail']?.toString() ?? 'Server error', res.statusCode);
+    }
+    return jsonDecode(utf8.decode(res.bodyBytes));
+  }
+
+  static Future<dynamic> _delete(String path) async {
+    final base = await getBaseUrl();
+    final res = await http.delete(
+      Uri.parse('$base$path'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 20));
+    if (res.statusCode == 401) {
+      await onUnauthorized?.call();
+      throw ApiError('Session expired. Please log in again.', 401);
+    }
     if (res.statusCode >= 400) {
       final b = jsonDecode(res.body);
       throw ApiError(b['detail']?.toString() ?? 'Server error', res.statusCode);
@@ -454,12 +577,28 @@ class ApiClient {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
-  static Future<AuthResponse> login(String email, String password) async {
+  static Future<SchoolInfo> lookupSchool(String code) async {
+    final data = await _get('/api/v1/auth/school/$code');
+    return SchoolInfo.fromJson(data as Map<String, dynamic>);
+  }
+
+  static Future<AuthResponse> login(String email, String password, {String? schoolCode}) async {
     final data = await _post('/api/v1/auth/login', {
       'email': email,
       'password': password,
+      if (schoolCode != null) 'school_code': schoolCode,
     });
     return AuthResponse.fromJson(data as Map<String, dynamic>);
+  }
+
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _post('/api/v1/auth/change-password', {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+    });
   }
 
   // ── Tests ─────────────────────────────────────────────────────────────────
@@ -614,10 +753,13 @@ class ApiClient {
 
   // ── Work Log ──────────────────────────────────────────────────────────────
 
-  static Future<List<WorkLogEntry>> getWorkLogs({String? date}) async {
-    final path = date != null
-        ? '/api/v1/teacher/work-log?date=$date'
-        : '/api/v1/teacher/work-log';
+  static Future<List<WorkLogEntry>> getWorkLogs({String? date, List<int>? sectionIds}) async {
+    final params = <String>[];
+    if (date != null) params.add('date=$date');
+    if (sectionIds != null && sectionIds.isNotEmpty) {
+      params.add('section_ids=${sectionIds.join(',')}');
+    }
+    final path = '/api/v1/teacher/work-log${params.isEmpty ? '' : '?${params.join('&')}'}';
     final data = await _get(path);
     final list = data as List<dynamic>;
     return list
@@ -679,6 +821,66 @@ class ApiClient {
       if (studentId != null) 'student_id': studentId,
     });
     return ParentNotificationResult.fromJson(data as Map<String, dynamic>);
+  }
+
+  // ── Student search ────────────────────────────────────────────────────────
+
+  static Future<List<StudentSearchResult>> searchStudents(String query) async {
+    final data = await _get('/api/v1/teacher/students/search?q=${Uri.encodeComponent(query)}');
+    final list = data as List<dynamic>;
+    return list.map((e) => StudentSearchResult.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<Map<String, dynamic>> getStudentProfile(int studentId) async {
+    final data = await _get('/api/v1/teacher/students/$studentId/profile');
+    return data as Map<String, dynamic>;
+  }
+
+  // ── Todos ─────────────────────────────────────────────────────────────────
+
+  static Future<List<TodoItem>> getTodos() async {
+    final data = await _get('/api/v1/teacher/todos');
+    final list = data as List<dynamic>;
+    return list.map((e) => TodoItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<int> createTodo({
+    required String title,
+    String? notes,
+    String? dueDate,
+    bool isPersonal = false,
+  }) async {
+    final data = await _post('/api/v1/teacher/todos', {
+      'title': title,
+      if (notes != null) 'notes': notes,
+      if (dueDate != null) 'due_date': dueDate,
+      'is_personal': isPersonal,
+    });
+    return (data as Map<String, dynamic>)['id'] as int;
+  }
+
+  static Future<void> updateTodo(int id, {bool? isCompleted, String? title, String? notes, String? dueDate}) async {
+    await _patch('/api/v1/teacher/todos/$id', {
+      if (isCompleted != null) 'is_completed': isCompleted,
+      if (title != null) 'title': title,
+      if (notes != null) 'notes': notes,
+      if (dueDate != null) 'due_date': dueDate,
+    });
+  }
+
+  static Future<void> deleteTodo(int id) async {
+    await _delete('/api/v1/teacher/todos/$id');
+  }
+
+  // ── Notify parents history ────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getNotifyParentsHistory({int? classSectionId, int? studentId}) async {
+    final params = <String>[];
+    if (classSectionId != null) params.add('class_section_id=$classSectionId');
+    if (studentId != null) params.add('student_id=$studentId');
+    final path = '/api/v1/teacher/notify-parents/history${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 }
 

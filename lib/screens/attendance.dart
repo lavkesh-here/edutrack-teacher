@@ -331,7 +331,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime.now().subtract(const Duration(days: 90)),
+      firstDate: DateTime.now().subtract(const Duration(days: 7)),
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: ThemeData(colorScheme: const ColorScheme.light(primary: AppColors.sun)),

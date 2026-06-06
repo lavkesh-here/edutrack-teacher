@@ -4,6 +4,7 @@ import 'core/auth.dart';
 import 'core/theme.dart';
 import 'screens/login.dart';
 import 'screens/home.dart';
+import 'screens/force_change_password.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,9 +22,13 @@ class EduTrackApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'EduTrack',
+      title: 'EduTrack Teacher',
       theme: buildTheme(),
       debugShowCheckedModeBanner: false,
+      routes: {
+        '/': (_) => const _Root(),
+        '/force-change-password': (_) => const ForceChangePasswordScreen(),
+      },
       home: const _Root(),
     );
   }

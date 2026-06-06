@@ -16,7 +16,10 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
   SectionInfo? _selectedSection;
   List<SectionInfo>? _sections;
   final _msgCtrl = TextEditingController();
-  final _studentCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
+  List<StudentSearchResult> _searchResults = [];
+  StudentSearchResult? _selectedStudent;
+  bool _searching = false;
   bool _loading = false;
   bool _loadingSections = true;
 
@@ -57,8 +60,22 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
   @override
   void dispose() {
     _msgCtrl.dispose();
-    _studentCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _searchStudents(String q) async {
+    if (q.trim().length < 2) {
+      setState(() { _searchResults = []; _searching = false; });
+      return;
+    }
+    setState(() => _searching = true);
+    try {
+      final results = await ApiClient.searchStudents(q.trim());
+      setState(() { _searchResults = results; _searching = false; });
+    } catch (_) {
+      setState(() { _searchResults = []; _searching = false; });
+    }
   }
 
   Future<void> _loadSections() async {
@@ -160,14 +177,99 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
                   ),
                 ),
             ] else ...[
-              const Text('STUDENT NAME / ROLL', style: _labelStyle),
+              const Text('SEARCH STUDENT', style: _labelStyle),
               const SizedBox(height: 8),
-              TextField(
-                controller: _studentCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Enter student name or roll number',
+              if (_selectedStudent != null) ...[
+                // Show selected student chip
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.tealLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.teal.withOpacity(0.3), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedStudent!.name,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
+                            ),
+                            Text(
+                              '${_selectedStudent!.classLabel ?? ''} · ${_selectedStudent!.guardianPhone ?? ''}',
+                              style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() { _selectedStudent = null; _searchCtrl.clear(); _searchResults = []; }),
+                        child: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ] else ...[
+                TextField(
+                  controller: _searchCtrl,
+                  onChanged: _searchStudents,
+                  decoration: InputDecoration(
+                    hintText: 'Name, mobile, or parent mobile',
+                    prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.muted),
+                    suffixIcon: _searching
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun)),
+                          )
+                        : null,
+                  ),
+                ),
+                if (_searchResults.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: _searchResults.map((s) => InkWell(
+                        onTap: () => setState(() {
+                          _selectedStudent = s;
+                          _searchCtrl.clear();
+                          _searchResults = [];
+                        }),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(color: AppColors.sunLight, shape: BoxShape.circle),
+                                child: Center(child: Text(s.name[0], style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.sun, fontSize: 14))),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+                                    Text('${s.classLabel ?? ''} · ${s.guardianPhone ?? ''}', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ],
+              ],
             ],
 
             const SizedBox(height: 20),
@@ -331,6 +433,10 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
       showSnack(context, 'Please select a section', error: true);
       return;
     }
+    if (!_isWholeClass && _selectedStudent == null) {
+      showSnack(context, 'Please search and select a student', error: true);
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -339,6 +445,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
         notificationType: _notifType,
         targetType: _isWholeClass ? 'class' : 'student',
         classSectionId: _isWholeClass ? _selectedSection?.id : null,
+        studentId: _isWholeClass ? null : _selectedStudent?.id,
       );
       if (mounted) {
         showSnack(

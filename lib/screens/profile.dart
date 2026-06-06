@@ -185,17 +185,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     _ProfileRow(
-                      icon: '🔗',
-                      iconColor: AppColors.sunLight,
-                      label: 'Server URL',
-                      sub: 'Change backend server address',
-                      onTap: () => _showServerDialog(context),
-                    ),
-                    _ProfileRow(
-                      icon: 'ℹ️',
-                      iconColor: AppColors.tealLight,
-                      label: 'App Info',
-                      sub: 'EduTrack Teacher App v1.0',
+                      icon: '🔔',
+                      iconColor: AppColors.violetLight,
+                      label: 'Notifications',
+                      sub: 'Manage notification preferences',
                       onTap: () {},
                     ),
                   ],
@@ -272,6 +265,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
               const SizedBox(height: 32),
+
+              // App version — plain text at bottom
+              const Center(
+                child: Text(
+                  'EduTrack Teacher v1.0',
+                  style: TextStyle(fontSize: 11, color: AppColors.muted),
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -294,52 +296,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) showSnack(context, 'Could not open URL', error: true);
     }
-  }
-
-  void _showServerDialog(BuildContext context) {
-    final ctrl = TextEditingController();
-    ApiClient.getBaseUrl().then((url) {
-      ctrl.text = url;
-    });
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Server URL',
-            style: TextStyle(fontWeight: FontWeight.w800)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your EduTrack backend URL.\nExample: http://192.168.1.100:8000',
-              style: TextStyle(fontSize: 12, color: AppColors.muted),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              decoration: const InputDecoration(
-                hintText: 'http://192.168.x.x:8000',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ApiClient.setBaseUrl(ctrl.text);
-              Navigator.pop(ctx);
-              showSnack(context, 'Server URL updated ✓');
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _confirmLogout(BuildContext context) {

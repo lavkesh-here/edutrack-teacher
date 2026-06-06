@@ -14,7 +14,7 @@ class WorkLogScreen extends StatefulWidget {
 class _WorkLogScreenState extends State<WorkLogScreen> {
   DateTime _date = DateTime.now();
   List<SectionInfo>? _sections;
-  SectionInfo? _selectedSection;
+  final Set<int> _selectedSectionIds = {}; // empty = all sections
   List<WorkLogEntry> _entries = [];
   bool _loadingSections = true;
   bool _loadingEntries = false;
@@ -31,7 +31,6 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       final sections = await ApiClient.getMySections();
       setState(() {
         _sections = sections;
-        if (sections.isNotEmpty) _selectedSection = sections.first;
         _loadingSections = false;
       });
       _loadEntries();
@@ -44,7 +43,8 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     setState(() => _loadingEntries = true);
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_date);
-      final list = await ApiClient.getWorkLogs(date: dateStr);
+      final ids = _selectedSectionIds.isEmpty ? null : _selectedSectionIds.toList();
+      final list = await ApiClient.getWorkLogs(date: dateStr, sectionIds: ids);
       setState(() { _entries = list; _loadingEntries = false; });
     } catch (_) {
       setState(() { _entries = []; _loadingEntries = false; });
@@ -119,33 +119,59 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             height: 34,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
-                              itemCount: _sections!.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 8),
+                              itemCount: _sections!.length + 1, // +1 for "All"
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
                               itemBuilder: (_, i) {
-                                final sec = _sections![i];
-                                final active =
-                                    sec.id == _selectedSection?.id;
+                                if (i == 0) {
+                                  final allActive = _selectedSectionIds.isEmpty;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() { _selectedSectionIds.clear(); });
+                                      _loadEntries();
+                                    },
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 160),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: allActive ? AppColors.sun : AppColors.bg,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: allActive ? AppColors.sun : AppColors.border,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'All',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: allActive ? Colors.white : AppColors.muted,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final sec = _sections![i - 1];
+                                final active = _selectedSectionIds.contains(sec.id);
                                 return GestureDetector(
                                   onTap: () {
-                                    setState(
-                                        () => _selectedSection = sec);
+                                    setState(() {
+                                      if (active) {
+                                        _selectedSectionIds.remove(sec.id);
+                                      } else {
+                                        _selectedSectionIds.add(sec.id);
+                                      }
+                                    });
+                                    _loadEntries();
                                   },
                                   child: AnimatedContainer(
-                                    duration:
-                                        const Duration(milliseconds: 160),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 6),
+                                    duration: const Duration(milliseconds: 160),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: active
-                                          ? AppColors.sun
-                                          : AppColors.bg,
-                                      borderRadius:
-                                          BorderRadius.circular(20),
+                                      color: active ? AppColors.sun : AppColors.bg,
+                                      borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: active
-                                            ? AppColors.sun
-                                            : AppColors.border,
+                                        color: active ? AppColors.sun : AppColors.border,
                                         width: 1.5,
                                       ),
                                     ),
@@ -154,9 +180,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
-                                        color: active
-                                            ? Colors.white
-                                            : AppColors.muted,
+                                        color: active ? Colors.white : AppColors.muted,
                                       ),
                                     ),
                                   ),
@@ -248,7 +272,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
 
     final descCtrl = TextEditingController();
     String logType = 'classwork';
-    SectionInfo section = _selectedSection ?? _sections!.first;
+    SectionInfo section = _sections!.first;
     DateTime? dueDate;
 
     showModalBottomSheet(

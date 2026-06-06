@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/auth.dart';
 import '../core/api.dart';
@@ -35,9 +36,32 @@ class _HomeScreenState extends State<HomeScreen> {
     ProfileScreen(),
   ];
 
+  DateTime? _lastBackPress;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (_) {
+        if (_idx != 0) {
+          setState(() => _idx = 0);
+          return;
+        }
+        // On home tab: double-tap back to exit
+        final now = DateTime.now();
+        if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+          _lastBackPress = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
       body: IndexedStack(index: _idx, children: _screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -66,7 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
+    ), // Scaffold
+    ); // PopScope
   }
 }
 

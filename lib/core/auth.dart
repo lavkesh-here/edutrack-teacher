@@ -27,13 +27,13 @@ class AuthProvider extends ChangeNotifier {
   String get initials {
     if (_user == null) return '?';
     final parts = _user!.teacherName.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
+    if (parts.length >= 2) return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
     return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : '?';
   }
 
   AuthProvider() {
+    // Wire global 401 handler so any expired token auto-logs out
+    ApiClient.onUnauthorized = () async => logout();
     _restore();
   }
 
@@ -46,20 +46,16 @@ class AuthProvider extends ChangeNotifier {
       final role = prefs.getString('role') ?? 'teacher';
       final id = prefs.getInt('teacher_id') ?? 0;
       if (name.isNotEmpty) {
-        _user = AuthUser(
-          teacherName: name,
-          schoolName: school,
-          role: role,
-          teacherId: id,
-        );
+        _user = AuthUser(teacherName: name, schoolName: school, role: role, teacherId: id);
       }
     }
     _loading = false;
     notifyListeners();
   }
 
-  Future<void> login(String email, String password) async {
-    final res = await ApiClient.login(email, password);
+  /// Returns true if user must change password (first login)
+  Future<bool> login(String email, String password, {String? schoolCode}) async {
+    final res = await ApiClient.login(email, password, schoolCode: schoolCode);
     await ApiClient.setToken(res.token);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('teacher_name', res.teacherName);
@@ -73,6 +69,7 @@ class AuthProvider extends ChangeNotifier {
       teacherId: res.teacherId,
     );
     notifyListeners();
+    return res.mustChangePassword;
   }
 
   Future<void> logout() async {

@@ -586,6 +586,7 @@ class _DateField extends StatelessWidget {
               initialDate: value,
               firstDate: firstDate ?? DateTime.now(),
               lastDate: DateTime.now().add(const Duration(days: 365)),
+              selectableDayPredicate: (_) => true, // all days allowed, including Sunday
               builder: (ctx, child) => Theme(
                 data: ThemeData(
                     colorScheme: const ColorScheme.light(primary: AppColors.sun)),

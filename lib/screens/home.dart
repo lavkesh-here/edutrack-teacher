@@ -17,6 +17,11 @@ import 'worklog.dart';
 import 'notify_parents.dart';
 import 'payslip.dart';
 import 'my_students.dart';
+import 'admin_parents.dart';
+import 'admin_transport.dart';
+import 'admin_school_settings.dart';
+import 'admin_work_logs.dart';
+import 'admin_attenders.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -492,6 +497,57 @@ class _HomeTabState extends State<_HomeTab> {
                       sub: 'Send homework & announcements',
                       onTap: () => _openScreen(context, const NotifyParentsScreen()),
                     ),
+                    // Admin-only features
+                    if (user.role == 'admin' || user.role == 'principal') ...[
+                      const SizedBox(height: 12),
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(0, 4, 0, 8),
+                        child: Text(
+                          'ADMIN',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.muted,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      _FeatureRow(
+                        icon: '👨‍👩‍👦',
+                        iconBg: AppColors.tealLight,
+                        title: 'Parent Accounts',
+                        sub: 'Create, link & manage parent access',
+                        onTap: () => _openScreen(context, const AdminParentsScreen()),
+                      ),
+                      _FeatureRow(
+                        icon: '🚌',
+                        iconBg: AppColors.skyLight,
+                        title: 'Transport',
+                        sub: 'Routes, stops & student assignments',
+                        onTap: () => _openScreen(context, const AdminTransportScreen()),
+                      ),
+                      _FeatureRow(
+                        icon: '🏫',
+                        iconBg: AppColors.violetLight,
+                        title: 'School Settings',
+                        sub: 'Contact info, branding & preferences',
+                        onTap: () => _openScreen(context, const AdminSchoolSettingsScreen()),
+                      ),
+                      _FeatureRow(
+                        icon: '📋',
+                        iconBg: AppColors.amberLight,
+                        title: 'Work Log Overview',
+                        sub: 'All classes & acknowledgment stats',
+                        onTap: () => _openScreen(context, const AdminWorkLogsScreen()),
+                      ),
+                      _FeatureRow(
+                        icon: '👤',
+                        iconBg: AppColors.coralLight,
+                        title: 'Attenders',
+                        sub: 'Authorized pickup persons for all students',
+                        onTap: () => _openScreen(context, const AdminAttendersScreen()),
+                      ),
+                    ],
                   ],
                 ),
               ),

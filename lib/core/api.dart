@@ -958,6 +958,119 @@ class ApiClient {
     final data = await _get(path);
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
+
+  // ── Admin: Parents ─────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminListParents({String? search, int? sectionId}) async {
+    final params = <String>[];
+    if (search != null && search.isNotEmpty) params.add('search=${Uri.encodeComponent(search)}');
+    if (sectionId != null) params.add('section_id=$sectionId');
+    final path = '/api/v1/admin/parents${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<Map<String, dynamic>> adminCreateParent({required String name, required String phone, String? email}) async {
+    final body = <String, dynamic>{'name': name, 'phone': phone};
+    if (email != null && email.isNotEmpty) body['email'] = email;
+    final data = await _post('/api/v1/admin/parents', body);
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> adminGetParent(int parentId) async {
+    final data = await _get('/api/v1/admin/parents/$parentId');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> adminLinkParent(int parentId, {required int studentId, String relationType = 'parent'}) async {
+    await _post('/api/v1/admin/parents/$parentId/link', {'student_id': studentId, 'relation_type': relationType});
+  }
+
+  static Future<String> adminResetParentPassword(int parentId) async {
+    final data = await _post('/api/v1/admin/parents/$parentId/reset-password', {});
+    return (data as Map<String, dynamic>)['temp_password'] as String;
+  }
+
+  // ── Admin: Transport ───────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminListRoutes() async {
+    final data = await _get('/api/v1/admin/transport/routes');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<Map<String, dynamic>> adminCreateRoute({required String name, String? vehicleNumber, String? driverName, String? driverPhone, int capacity = 0}) async {
+    final body = <String, dynamic>{'name': name, 'capacity': capacity};
+    if (vehicleNumber != null && vehicleNumber.isNotEmpty) body['vehicle_number'] = vehicleNumber;
+    if (driverName != null && driverName.isNotEmpty) body['driver_name'] = driverName;
+    if (driverPhone != null && driverPhone.isNotEmpty) body['driver_phone'] = driverPhone;
+    final data = await _post('/api/v1/admin/transport/routes', body);
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<List<Map<String, dynamic>>> adminListTransportAssignments() async {
+    final data = await _get('/api/v1/admin/transport/assignments');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> adminAssignTransport({required int studentId, required int routeId, int? stopId}) async {
+    final body = <String, dynamic>{'student_id': studentId, 'route_id': routeId};
+    if (stopId != null) body['stop_id'] = stopId;
+    await _post('/api/v1/admin/transport/assignments', body);
+  }
+
+  static Future<void> adminRemoveTransportAssignment(int studentId) async {
+    await _delete('/api/v1/admin/transport/assignments/$studentId');
+  }
+
+  // ── Admin: School Settings ─────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> adminGetSchool() async {
+    final data = await _get('/api/v1/admin/school');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> adminUpdateSchool(Map<String, dynamic> updates) async {
+    await _patch('/api/v1/admin/school', updates);
+  }
+
+  // ── Admin: Work Logs ───────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminListWorkLogs({int? sectionId, String? dateFrom, String? dateTo}) async {
+    final params = <String>[];
+    if (sectionId != null) params.add('section_id=$sectionId');
+    if (dateFrom != null) params.add('date_from=$dateFrom');
+    if (dateTo != null) params.add('date_to=$dateTo');
+    final path = '/api/v1/admin/work-logs${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  // ── Admin: Attenders ───────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminListAttenders({int? studentId}) async {
+    final path = studentId != null
+        ? '/api/v1/admin/attenders/student/$studentId'
+        : '/api/v1/admin/attenders';
+    final data = await _get(path);
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  // ── Push tokens ────────────────────────────────────────────────────────────
+
+  static Future<void> registerPushToken(String fcmToken, String deviceId) async {
+    await _post('/api/v1/teacher/push-token', {'fcm_token': fcmToken, 'device_id': deviceId});
+  }
+
+  // ── Teacher notifications ──────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getTeacherNotifications() async {
+    final data = await _get('/api/v1/teacher/notifications');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> markNotificationRead(int notifId) async {
+    await _post('/api/v1/teacher/notifications/$notifId/read', {});
+  }
 }
 
 class ApiError implements Exception {

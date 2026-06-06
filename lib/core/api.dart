@@ -523,7 +523,7 @@ class ApiClient {
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
-  static Future<dynamic> _post(String path, Map<String, dynamic> body) async {
+  static Future<dynamic> _post(String path, Map<String, dynamic> body, {bool handleUnauthorized = true}) async {
     final base = await getBaseUrl();
     final res = await http.post(
       Uri.parse('$base$path'),
@@ -531,8 +531,8 @@ class ApiClient {
       body: jsonEncode(body),
     ).timeout(const Duration(seconds: 20));
     if (res.statusCode == 401) {
-      await onUnauthorized?.call();
-      throw ApiError('Session expired. Please log in again.', 401);
+      if (handleUnauthorized) await onUnauthorized?.call();
+      throw ApiError(handleUnauthorized ? 'Session expired. Please log in again.' : 'Invalid credentials', 401);
     }
     if (res.statusCode >= 400) {
       final b = jsonDecode(res.body);
@@ -588,7 +588,7 @@ class ApiClient {
       'email': email,
       'password': password,
       if (schoolCode != null) 'school_code': schoolCode,
-    });
+    }, handleUnauthorized: false);
     return AuthResponse.fromJson(data as Map<String, dynamic>);
   }
 

@@ -452,7 +452,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
               if (a.allowComments) ...[
                 const SizedBox(width: 12),
                 GestureDetector(
-                  onTap: onCommentTap,
+                  onTap: widget.onCommentTap,
                   child: Row(
                     children: [
                       const Icon(Icons.mode_comment_outlined, size: 14, color: AppColors.muted),

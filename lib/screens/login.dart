@@ -288,6 +288,8 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
           context,
           MaterialPageRoute(builder: (_) => const ForceChangePasswordScreen()),
         );
+      } else {
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on ApiError catch (e) {
       setState(() => _error = e.message);

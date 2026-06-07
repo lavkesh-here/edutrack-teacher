@@ -11,7 +11,6 @@ class AdminLeaveConfigScreen extends StatefulWidget {
 }
 
 class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen> {
-  Map<String, dynamic>? _config;
   bool _loading = true;
   bool _saving = false;
 
@@ -47,7 +46,6 @@ class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen> {
     try {
       final data = await ApiClient.adminGetLeaveConfig();
       setState(() {
-        _config = data;
         _casualCtrl.text = (data['casual_per_year'] ?? 12).toString();
         _sickCtrl.text = (data['sick_per_year'] ?? 12).toString();
         _earnedCtrl.text = (data['earned_per_year'] ?? 0).toString();

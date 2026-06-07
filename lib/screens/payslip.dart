@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/theme.dart';
-import '../widgets/common.dart';
 
 class PayslipScreen extends StatefulWidget {
   const PayslipScreen({super.key});

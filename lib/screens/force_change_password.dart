@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
-import '../widgets/common.dart';
 
 class ForceChangePasswordScreen extends StatefulWidget {
   const ForceChangePasswordScreen({super.key});

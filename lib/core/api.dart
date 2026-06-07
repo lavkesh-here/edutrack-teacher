@@ -84,7 +84,10 @@ class TodoItem {
   final String? dueDate;
   final bool isPersonal;
   final bool isCompleted;
+  final String status; // "todo" | "in_progress" | "done"
   final String? createdAt;
+  final String? updatedAt;
+  final String? completedAt;
 
   const TodoItem({
     required this.id,
@@ -93,7 +96,10 @@ class TodoItem {
     this.dueDate,
     required this.isPersonal,
     required this.isCompleted,
+    this.status = 'todo',
     this.createdAt,
+    this.updatedAt,
+    this.completedAt,
   });
 
   factory TodoItem.fromJson(Map<String, dynamic> j) => TodoItem(
@@ -103,7 +109,10 @@ class TodoItem {
         dueDate: j['due_date'] as String?,
         isPersonal: j['is_personal'] as bool? ?? false,
         isCompleted: j['is_completed'] as bool? ?? false,
+        status: j['status'] as String? ?? (j['is_completed'] == true ? 'done' : 'todo'),
         createdAt: j['created_at'] as String?,
+        updatedAt: j['updated_at'] as String?,
+        completedAt: j['completed_at'] as String?,
       );
 }
 
@@ -839,9 +848,16 @@ class ApiClient {
 
   // ── Work Log ──────────────────────────────────────────────────────────────
 
-  static Future<List<WorkLogEntry>> getWorkLogs({String? date, List<int>? sectionIds}) async {
+  static Future<List<WorkLogEntry>> getWorkLogs({
+    String? date,
+    String? dateFrom,
+    String? dateTo,
+    List<int>? sectionIds,
+  }) async {
     final params = <String>[];
     if (date != null) params.add('date=$date');
+    if (dateFrom != null) params.add('date_from=$dateFrom');
+    if (dateTo != null) params.add('date_to=$dateTo');
     if (sectionIds != null && sectionIds.isNotEmpty) {
       params.add('section_ids=${sectionIds.join(',')}');
     }
@@ -945,13 +961,29 @@ class ApiClient {
     return (data as Map<String, dynamic>)['id'] as int;
   }
 
-  static Future<void> updateTodo(int id, {bool? isCompleted, String? title, String? notes, String? dueDate}) async {
+  static Future<void> updateTodo(int id, {bool? isCompleted, String? status, String? title, String? notes, String? dueDate}) async {
     await _patch('/api/v1/teacher/todos/$id', {
+      if (status != null) 'status': status,
       if (isCompleted != null) 'is_completed': isCompleted,
       if (title != null) 'title': title,
       if (notes != null) 'notes': notes,
       if (dueDate != null) 'due_date': dueDate,
     });
+  }
+
+  static Future<List<TodoItem>> getTodosFiltered({String? status, String? dueDate}) async {
+    final params = <String>[];
+    if (status != null) params.add('status=${Uri.encodeComponent(status)}');
+    if (dueDate != null) params.add('due_date=${Uri.encodeComponent(dueDate)}');
+    final path = '/api/v1/teacher/todos${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    final list = data as List<dynamic>;
+    return list.map((e) => TodoItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<int> getNotifyParentsCount(int classSectionId) async {
+    final data = await _get('/api/v1/teacher/notify-parents/count?class_section_id=$classSectionId');
+    return (data as Map<String, dynamic>)['parent_count'] as int? ?? 0;
   }
 
   static Future<void> deleteTodo(int id) async {

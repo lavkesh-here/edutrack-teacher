@@ -26,6 +26,7 @@ import 'admin_fee_management.dart';
 import 'admin_leave_config.dart';
 import 'notifications_screen.dart';
 import 'todos.dart';
+import '../core/recents.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,7 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _screens = [
     _HomeTab(),
     AttendanceScreen(),
-    ChatScreen(),
     FeedScreen(),
     ProfileScreen(),
   ];
@@ -91,9 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _NavItem(icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) => setState(() => _idx = i)),
                 _NavItem(icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '💬', label: 'Chat', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '📢', label: 'Feed', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '👤', label: 'Profile', index: 4, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(icon: '📢', label: 'Feed', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(icon: '👤', label: 'Profile', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
               ],
             ),
           ),
@@ -173,6 +172,8 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> {
   List<TimetableSlot>? _todaySlots;
   List<LeaveRequest>? _recentLeaves;
+  List<TodoItem>? _activeTodos;
+  List<RecentScreen> _recents = [];
   bool _loadingTimetable = true;
 
   @override
@@ -197,6 +198,25 @@ class _HomeTabState extends State<_HomeTab> {
       final leaves = await ApiClient.getMyLeaves();
       setState(() => _recentLeaves = leaves.take(3).toList());
     } catch (_) {}
+    try {
+      final todos = await ApiClient.getTodos();
+      final todayStr = _isoToday();
+      final relevant = todos.where((t) =>
+        t.status != 'done' &&
+        (t.status == 'in_progress' ||
+         (t.dueDate != null && t.dueDate!.compareTo(todayStr) <= 0))
+      ).toList();
+      setState(() => _activeTodos = relevant);
+    } catch (_) {}
+    try {
+      final r = await RecentsManager.load();
+      if (mounted) setState(() => _recents = r);
+    } catch (_) {}
+  }
+
+  static String _isoToday() {
+    final n = DateTime.now();
+    return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -277,10 +297,71 @@ class _HomeTabState extends State<_HomeTab> {
               child: CustomScrollView(
           slivers: [
 
+            // Recently viewed chips
+            if (_recents.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Recently Viewed',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 36,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _recents.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, i) {
+                            final r = _recents[i];
+                            return GestureDetector(
+                              onTap: () => _openRecent(context, r.id),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: AppColors.border, width: 1.5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(r.emoji,
+                                        style: const TextStyle(fontSize: 13)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      r.label,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // 4 Stat tiles (2x2 grid)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                padding: EdgeInsets.fromLTRB(16, _recents.isEmpty ? 14 : 10, 16, 0),
                 child: Column(
                   children: [
                     Row(
@@ -321,11 +402,12 @@ class _HomeTabState extends State<_HomeTab> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: _StatTile(
-                            icon: '📚',
-                            label: 'Work Logs Today',
+                            icon: '✅',
+                            label: 'Todos Active',
+                            count: _activeTodos == null ? null : _activeTodos!.length,
                             color: AppColors.teal,
                             lightColor: AppColors.tealLight,
-                            onTap: () => _openScreen(context, const WorkLogScreen()),
+                            onTap: () => _openScreen(context, const TodosScreen(), recentId: 'todos'),
                           ),
                         ),
                       ],
@@ -376,6 +458,25 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
             ),
 
+            // Today's tasks (due today, overdue, or in-progress)
+            if (_activeTodos != null && _activeTodos!.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: "Today's Tasks",
+                  action: 'View All →',
+                  onAction: () => _openScreen(context, const TodosScreen()),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Column(
+                    children: _activeTodos!.take(5).map((t) => _TodoMiniTile(todo: t)).toList(),
+                  ),
+                ),
+              ),
+            ],
+
             // Quick actions
             const SliverToBoxAdapter(
               child: SectionHeader(title: 'Quick Actions'),
@@ -390,32 +491,32 @@ class _HomeTabState extends State<_HomeTab> {
                     _QuickPill(
                       label: '📋 Mark Attendance',
                       color: AppColors.sun,
-                      onTap: () => _navigateTab(context, 1),
+                      onTap: () => _navigateTab(context, 1, recentId: 'attendance'),
                     ),
                     _QuickPill(
                       label: '📚 Add Homework',
                       color: AppColors.coral,
-                      onTap: () => _openScreen(context, const WorkLogScreen()),
+                      onTap: () => _openScreen(context, const WorkLogScreen(), recentId: 'worklog'),
                     ),
                     _QuickPill(
                       label: '📅 Calendar',
                       color: AppColors.sky,
-                      onTap: () => _openScreen(context, const CalendarScreen()),
+                      onTap: () => _openScreen(context, const CalendarScreen(), recentId: 'calendar'),
                     ),
                     _QuickPill(
                       label: '📝 Apply Leave',
                       color: AppColors.violet,
-                      onTap: () => _openScreen(context, const LeaveScreen()),
+                      onTap: () => _openScreen(context, const LeaveScreen(), recentId: 'leaves'),
                     ),
                     _QuickPill(
                       label: '🔔 Notify Parents',
                       color: AppColors.teal,
-                      onTap: () => _openScreen(context, const NotifyParentsScreen()),
+                      onTap: () => _openScreen(context, const NotifyParentsScreen(), recentId: 'notify'),
                     ),
                     _QuickPill(
                       label: '📊 Post Results',
                       color: AppColors.amber,
-                      onTap: () => _openScreen(context, const TestsScreen()),
+                      onTap: () => _openScreen(context, const TestsScreen(), recentId: 'results'),
                     ),
                   ],
                 ),
@@ -451,77 +552,70 @@ class _HomeTabState extends State<_HomeTab> {
                       iconBg: AppColors.tealLight,
                       title: 'My Todos',
                       sub: 'Personal & school task tracker',
-                      onTap: () => _openScreen(context, const TodosScreen()),
+                      onTap: () => _openScreen(context, const TodosScreen(), recentId: 'todos'),
                     ),
                     _FeatureRow(
                       icon: '📚',
                       iconBg: AppColors.coralLight,
                       title: 'Work Log',
                       sub: 'Daily homework & classwork tracker',
-                      onTap: () => _openScreen(context, const WorkLogScreen()),
+                      onTap: () => _openScreen(context, const WorkLogScreen(), recentId: 'worklog'),
                     ),
                     _FeatureRow(
                       icon: '📊',
                       iconBg: AppColors.violetLight,
                       title: 'Academics & Results',
                       sub: 'Post & view student results',
-                      onTap: () => _openScreen(context, const TestsScreen()),
+                      onTap: () => _openScreen(context, const TestsScreen(), recentId: 'results'),
                     ),
                     _FeatureRow(
                       icon: '👥',
                       iconBg: AppColors.skyLight,
                       title: 'My Students',
                       sub: 'View and manage your class',
-                      onTap: () => _openScreen(context, const MyStudentsScreen()),
+                      onTap: () => _openScreen(context, const MyStudentsScreen(), recentId: 'students'),
                     ),
                     _FeatureRow(
                       icon: '🗓️',
                       iconBg: AppColors.violetLight,
                       title: 'My Leaves',
                       sub: 'Balance & history',
-                      onTap: () => _openScreen(context, const LeaveScreen()),
+                      onTap: () => _openScreen(context, const LeaveScreen(), recentId: 'leaves'),
                     ),
                     _FeatureRow(
                       icon: '💰',
                       iconBg: AppColors.greenLight,
                       title: 'Payslips',
                       sub: 'Monthly salary details',
-                      onTap: () => _openScreen(context, const PayslipScreen()),
+                      onTap: () => _openScreen(context, const PayslipScreen(), recentId: 'payslips'),
                     ),
                     _FeatureRow(
                       icon: '🕐',
                       iconBg: AppColors.sunLight,
                       title: 'My Schedule',
                       sub: "Today's full timetable",
-                      onTap: () => _openScreen(context, const TimetableScreen()),
-                    ),
-                    _FeatureRow(
-                      icon: '💬',
-                      iconBg: AppColors.tealLight,
-                      title: 'Chat',
-                      sub: 'Messages with parents',
-                      onTap: () => _navigateTab(context, 2),
+                      onTap: () => _openScreen(context, const TimetableScreen(), recentId: 'schedule'),
                     ),
                     _FeatureRow(
                       icon: '📢',
                       iconBg: AppColors.amberLight,
                       title: 'Feed',
                       sub: 'School announcements',
-                      onTap: () => _navigateTab(context, 3),
+                      onTap: () => _navigateTab(context, 2),
                     ),
                     _FeatureRow(
                       icon: '📅',
                       iconBg: AppColors.skyLight,
                       title: 'Calendar',
                       sub: 'School events & holidays',
-                      onTap: () => _openScreen(context, const CalendarScreen()),
+                      onTap: () => _openScreen(context, const CalendarScreen(), recentId: 'calendar'),
                     ),
                     _FeatureRow(
                       icon: '🔔',
                       iconBg: AppColors.tealLight,
                       title: 'Notify Parents',
                       sub: 'Send homework & announcements',
-                      onTap: () => _openScreen(context, const NotifyParentsScreen()),
+                      onTap: () => _openScreen(context, const NotifyParentsScreen(), recentId: 'notify'),
                     ),
                     // Admin-only features
                     if (user.role == 'admin' || user.role == 'principal') ...[
@@ -601,13 +695,41 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
-  void _navigateTab(BuildContext context, int tab) {
+  void _navigateTab(BuildContext context, int tab, {String? recentId}) async {
+    if (recentId != null) {
+      await RecentsManager.record(recentId);
+      if (mounted) {
+        final r = await RecentsManager.load();
+        if (mounted) setState(() => _recents = r);
+      }
+    }
+    if (!context.mounted) return;
     final home = context.findAncestorStateOfType<_HomeScreenState>();
     home?.setState(() => home._idx = tab);
   }
 
-  void _openScreen(BuildContext context, Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  Future<void> _openScreen(BuildContext context, Widget screen, {String? recentId}) async {
+    if (recentId != null) await RecentsManager.record(recentId);
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    if (mounted && recentId != null) {
+      final r = await RecentsManager.load();
+      if (mounted) setState(() => _recents = r);
+    }
+  }
+
+  void _openRecent(BuildContext context, String id) {
+    switch (id) {
+      case 'attendance': _navigateTab(context, 1);
+      case 'worklog':    _openScreen(context, const WorkLogScreen(), recentId: id);
+      case 'notify':     _openScreen(context, const NotifyParentsScreen(), recentId: id);
+      case 'todos':      _openScreen(context, const TodosScreen(), recentId: id);
+      case 'students':   _openScreen(context, const MyStudentsScreen(), recentId: id);
+      case 'calendar':   _openScreen(context, const CalendarScreen(), recentId: id);
+      case 'results':    _openScreen(context, const TestsScreen(), recentId: id);
+      case 'leaves':     _openScreen(context, const LeaveScreen(), recentId: id);
+      case 'payslips':   _openScreen(context, const PayslipScreen(), recentId: id);
+      case 'schedule':   _openScreen(context, const TimetableScreen(), recentId: id);
+    }
   }
 
   String _roleLabel(String role) {
@@ -641,6 +763,7 @@ class _HeroChip extends StatelessWidget {
 class _StatTile extends StatelessWidget {
   final String icon;
   final String label;
+  final int? count;
   final Color color;
   final Color lightColor;
   final VoidCallback onTap;
@@ -648,6 +771,7 @@ class _StatTile extends StatelessWidget {
   const _StatTile({
     required this.icon,
     required this.label,
+    this.count,
     required this.color,
     required this.lightColor,
     required this.onTap,
@@ -676,13 +800,13 @@ class _StatTile extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+                    if (count != null)
+                      Text('$count', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color)),
+                  ],
                 ),
               ),
               Icon(Icons.chevron_right_rounded, size: 14, color: color.withOpacity(0.5)),
@@ -690,6 +814,51 @@ class _StatTile extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _TodoMiniTile extends StatelessWidget {
+  final TodoItem todo;
+  const _TodoMiniTile({required this.todo});
+
+  @override
+  Widget build(BuildContext context) {
+    final isOverdue = todo.dueDate != null &&
+        DateTime.tryParse(todo.dueDate!)?.isBefore(DateTime.now()) == true &&
+        todo.status != 'done';
+    final (chipLabel, chipBg, chipFg) = switch (todo.status) {
+      'in_progress' => ('IN PROGRESS', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
+      _             => (isOverdue ? 'OVERDUE' : 'TODO',
+                        isOverdue ? const Color(0xFFFFEDED) : const Color(0xFFF3F4F6),
+                        isOverdue ? AppColors.coral : AppColors.muted),
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOverdue ? AppColors.coral.withOpacity(0.3) : AppColors.border,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(todo.title,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: chipBg, borderRadius: BorderRadius.circular(6)),
+            child: Text(chipLabel,
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: chipFg)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _QuickPill extends StatelessWidget {

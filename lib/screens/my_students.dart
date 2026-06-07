@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
+import 'student_profile_detail.dart';
 
 class MyStudentsScreen extends StatefulWidget {
   const MyStudentsScreen({super.key});
@@ -192,8 +193,16 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                           itemBuilder: (_, i) => _StudentRow(
                             student: _filtered[i],
                             sectionLabel: _selectedSection?.label ?? '',
-                            onTap: () =>
-                                _showStudentSheet(_filtered[i]),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => StudentProfileDetail(
+                                  studentId: _filtered[i].id,
+                                  studentName: _filtered[i].name,
+                                  sectionLabel: _selectedSection?.label ?? '',
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),

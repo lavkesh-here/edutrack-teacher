@@ -438,6 +438,42 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
       return;
     }
 
+    // Confirmation dialog for whole-class sends
+    if (_isWholeClass && _selectedSection != null) {
+      setState(() => _loading = true);
+      int parentCount = 0;
+      try {
+        parentCount = await ApiClient.getNotifyParentsCount(_selectedSection!.id);
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Send to whole class?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          content: Text(
+            'This will notify $parentCount parent${parentCount == 1 ? '' : 's'} in ${_selectedSection!.label}.',
+            style: const TextStyle(fontSize: 14, color: AppColors.text),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(_, false),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(_, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
+              child: const Text('Send', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     setState(() => _loading = true);
     try {
       final result = await ApiClient.notifyParents(
@@ -448,10 +484,15 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
         studentId: _isWholeClass ? null : _selectedStudent?.id,
       );
       if (mounted) {
-        showSnack(
-            context,
+        showSnack(context,
             'Notification sent to ${result.recipientCount} parent${result.recipientCount == 1 ? '' : 's'} ✓');
-        _msgCtrl.text = _templates[_notifType]!;
+        // Reset to default state
+        setState(() {
+          _msgCtrl.text = _templates[_notifType]!;
+          _searchCtrl.clear();
+          _searchResults = [];
+          _selectedStudent = null;
+        });
       }
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);

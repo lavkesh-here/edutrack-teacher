@@ -32,9 +32,9 @@ class _TodosScreenState extends State<TodosScreen> {
     }
   }
 
-  Future<void> _toggleDone(TodoItem todo) async {
+  Future<void> _setStatus(TodoItem todo, String newStatus) async {
     try {
-      await ApiClient.updateTodo(todo.id, isCompleted: !todo.isCompleted);
+      await ApiClient.updateTodo(todo.id, status: newStatus);
       await _load();
     } catch (_) {
       if (mounted) showSnack(context, 'Update failed', error: true);
@@ -45,19 +45,64 @@ class _TodosScreenState extends State<TodosScreen> {
     try {
       await ApiClient.deleteTodo(todo.id);
       await _load();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Deleted'),
-            backgroundColor: AppColors.text,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (mounted) showSnack(context, 'Deleted');
     } catch (_) {
       if (mounted) showSnack(context, 'Delete failed', error: true);
     }
+  }
+
+  void _showStatusSheet(TodoItem todo) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(todo.title,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            const Text('Update status', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+            const SizedBox(height: 16),
+            _StatusOption(
+              label: 'To Do',
+              color: AppColors.muted,
+              bgColor: const Color(0xFFF3F4F6),
+              selected: todo.status == 'todo',
+              onTap: () { Navigator.pop(context); _setStatus(todo, 'todo'); },
+            ),
+            const SizedBox(height: 8),
+            _StatusOption(
+              label: 'In Progress',
+              color: const Color(0xFFB45309),
+              bgColor: const Color(0xFFFEF3C7),
+              selected: todo.status == 'in_progress',
+              onTap: () { Navigator.pop(context); _setStatus(todo, 'in_progress'); },
+            ),
+            const SizedBox(height: 8),
+            _StatusOption(
+              label: 'Done',
+              color: AppColors.teal,
+              bgColor: const Color(0xFFD1FAE5),
+              selected: todo.status == 'done',
+              onTap: () { Navigator.pop(context); _setStatus(todo, 'done'); },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showAddSheet() {
@@ -179,8 +224,8 @@ class _TodosScreenState extends State<TodosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pending = _todos?.where((t) => !t.isCompleted).toList() ?? [];
-    final done = _todos?.where((t) => t.isCompleted).toList() ?? [];
+    final active = _todos?.where((t) => t.status != 'done').toList() ?? [];
+    final done   = _todos?.where((t) => t.status == 'done').toList() ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -201,16 +246,18 @@ class _TodosScreenState extends State<TodosScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _todos!.isEmpty
+          : (_todos?.isEmpty ?? true)
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text('📝', style: TextStyle(fontSize: 48)),
                       const SizedBox(height: 12),
-                      const Text('No todos yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
+                      const Text('No todos yet',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
                       const SizedBox(height: 4),
-                      const Text('Tap + to add a task', style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                      const Text('Tap + to add a task',
+                          style: TextStyle(fontSize: 13, color: AppColors.muted)),
                     ],
                   ),
                 )
@@ -219,25 +266,116 @@ class _TodosScreenState extends State<TodosScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                     children: [
-                      if (pending.isNotEmpty) ...[
-                        _SectionLabel('TO DO  (${pending.length})'),
-                        ...pending.map((t) => _TodoCard(
+                      if (active.isNotEmpty) ...[
+                        _SectionLabel('ACTIVE  (${active.length})'),
+                        ...active.map((t) => _TodoCard(
                               todo: t,
-                              onToggle: () => _toggleDone(t),
+                              onLongPress: () => _showStatusSheet(t),
+                              onToggle: () => _setStatus(t, t.status == 'done' ? 'todo' : 'done'),
                               onDelete: () => _delete(t),
                             )),
                       ],
-                      if (done.isNotEmpty) ...[
-                        _SectionLabel('DONE  (${done.length})'),
-                        ...done.map((t) => _TodoCard(
-                              todo: t,
-                              onToggle: () => _toggleDone(t),
-                              onDelete: () => _delete(t),
-                            )),
-                      ],
+                      if (done.isNotEmpty)
+                        _DoneSection(
+                          todos: done,
+                          onLongPress: _showStatusSheet,
+                          onToggle: (t) => _setStatus(t, 'todo'),
+                          onDelete: _delete,
+                        ),
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+class _StatusOption extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color bgColor;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _StatusOption({
+    required this.label, required this.color, required this.bgColor,
+    required this.selected, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: selected ? Border.all(color: color, width: 2) : null,
+      ),
+      child: Row(
+        children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+          const Spacer(),
+          if (selected) Icon(Icons.check, color: color, size: 18),
+        ],
+      ),
+    ),
+  );
+}
+
+class _DoneSection extends StatefulWidget {
+  final List<TodoItem> todos;
+  final void Function(TodoItem) onLongPress;
+  final void Function(TodoItem) onToggle;
+  final void Function(TodoItem) onDelete;
+
+  const _DoneSection({
+    required this.todos, required this.onLongPress,
+    required this.onToggle, required this.onDelete,
+  });
+
+  @override
+  State<_DoneSection> createState() => _DoneSectionState();
+}
+
+class _DoneSectionState extends State<_DoneSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final show = _expanded ? widget.todos : widget.todos.take(0).toList();
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(2, 8, 2, 6),
+            child: Row(
+              children: [
+                Text(
+                  'DONE  (${widget.todos.length})',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                  size: 16, color: AppColors.muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded)
+          ...widget.todos.map((t) => _TodoCard(
+                todo: t,
+                onLongPress: () => widget.onLongPress(t),
+                onToggle: () => widget.onToggle(t),
+                onDelete: () => widget.onDelete(t),
+              )),
+      ],
     );
   }
 }
@@ -249,19 +387,22 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 8, 0, 6),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1),
-        ),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
       );
 }
 
 class _TodoCard extends StatelessWidget {
   final TodoItem todo;
+  final VoidCallback onLongPress;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
 
-  const _TodoCard({required this.todo, required this.onToggle, required this.onDelete});
+  const _TodoCard({
+    required this.todo, required this.onLongPress,
+    required this.onToggle, required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) => Dismissible(
@@ -270,86 +411,93 @@ class _TodoCard extends StatelessWidget {
         background: Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
-          decoration: BoxDecoration(
-            color: AppColors.coral,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: BoxDecoration(color: AppColors.coral, borderRadius: BorderRadius.circular(16)),
           child: const Icon(Icons.delete_outline, color: Colors.white, size: 22),
         ),
         onDismissed: (_) => onDelete(),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border, width: 1.5),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Transform.scale(
-                scale: 1.1,
-                child: Checkbox(
-                  value: todo.isCompleted,
-                  onChanged: (_) => onToggle(),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                  activeColor: AppColors.teal,
+        child: GestureDetector(
+          onLongPress: onLongPress,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border, width: 1.5),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Transform.scale(
+                  scale: 1.1,
+                  child: Checkbox(
+                    value: todo.isCompleted,
+                    onChanged: (_) => onToggle(),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                    activeColor: AppColors.teal,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 14, 14, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              todo.title,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: todo.isCompleted ? AppColors.muted : AppColors.text,
-                                decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
-                              ),
-                            ),
-                          ),
-                          if (todo.isPersonal)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.violetLight,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text('Personal',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.violet)),
-                            ),
-                        ],
-                      ),
-                      if (todo.notes != null && todo.notes!.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(todo.notes!, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
-                      ],
-                      if (todo.dueDate != null) ...[
-                        const SizedBox(height: 5),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 12, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           children: [
-                            const Icon(Icons.calendar_today, size: 11, color: AppColors.muted),
-                            const SizedBox(width: 4),
-                            Text(_formatDate(todo.dueDate!),
+                            Expanded(
+                              child: Text(
+                                todo.title,
                                 style: TextStyle(
-                                    fontSize: 11,
-                                    color: _isOverdue(todo) ? AppColors.coral : AppColors.muted,
-                                    fontWeight: _isOverdue(todo) ? FontWeight.w700 : FontWeight.w400)),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: todo.isCompleted ? AppColors.muted : AppColors.text,
+                                  decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            _StatusChip(todo.status),
+                            if (todo.isPersonal) ...[
+                              const SizedBox(width: 4),
+                              _PersonalChip(),
+                            ],
+                          ],
+                        ),
+                        if (todo.notes != null && todo.notes!.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(todo.notes!,
+                              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                        ],
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 3,
+                          children: [
+                            if (todo.dueDate != null)
+                              _MetaChip(
+                                icon: Icons.calendar_today,
+                                label: _formatDate(todo.dueDate!),
+                                highlight: _isOverdue(todo),
+                              ),
+                            if (todo.createdAt != null)
+                              _MetaChip(
+                                icon: Icons.add_circle_outline,
+                                label: 'Created ${_formatDate(todo.createdAt!)}',
+                              ),
+                            if (todo.completedAt != null)
+                              _MetaChip(
+                                icon: Icons.check_circle_outline,
+                                label: 'Done ${_formatDate(todo.completedAt!)}',
+                                color: AppColors.teal,
+                              ),
                           ],
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -357,7 +505,9 @@ class _TodoCard extends StatelessWidget {
   String _formatDate(String iso) {
     try {
       final d = DateTime.parse(iso);
-      return '${d.day} ${_month(d.month)} ${d.year}';
+      const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${d.day} ${months[d.month]}';
     } catch (_) {
       return iso;
     }
@@ -371,9 +521,62 @@ class _TodoCard extends StatelessWidget {
       return false;
     }
   }
+}
 
-  String _month(int m) => const [
-        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ][m];
+class _StatusChip extends StatelessWidget {
+  final String status;
+  const _StatusChip(this.status);
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, bg, fg) = switch (status) {
+      'done'        => ('DONE', const Color(0xFFD1FAE5), AppColors.teal),
+      'in_progress' => ('IN PROGRESS', const Color(0xFFFEF3C7), const Color(0xFFB45309)),
+      _             => ('TODO', const Color(0xFFF3F4F6), AppColors.muted),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: fg)),
+    );
+  }
+}
+
+class _PersonalChip extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(color: AppColors.violetLight, borderRadius: BorderRadius.circular(6)),
+        child: const Text('Personal',
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.violet)),
+      );
+}
+
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool highlight;
+  final Color color;
+
+  const _MetaChip({
+    required this.icon, required this.label,
+    this.highlight = false, this.color = AppColors.muted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = highlight ? AppColors.coral : color;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: c),
+        const SizedBox(width: 3),
+        Text(label,
+            style: TextStyle(
+                fontSize: 10,
+                color: c,
+                fontWeight: highlight ? FontWeight.w700 : FontWeight.w400)),
+      ],
+    );
+  }
 }

@@ -1121,6 +1121,35 @@ class ApiClient {
     await _patch('/api/v1/admin/leave-config', updates);
   }
 
+  // ── Teacher profile ────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getMyProfile() async {
+    final data = await _get('/api/v1/teacher/me');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> updateMyProfile({String? name, String? phone, String? email}) async {
+    await _patch('/api/v1/teacher/me', {
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+    });
+  }
+
+  static Future<Map<String, dynamic>> getPhotoUploadUrl(
+      String filename, String contentType, int fileSize) async {
+    final data = await _post('/api/v1/teacher/me/photo-url', {
+      'filename': filename,
+      'content_type': contentType,
+      'file_size': fileSize,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> savePhotoUrl(String photoUrl) async {
+    await _patch('/api/v1/teacher/me/photo', {'photo_url': photoUrl});
+  }
+
   // ── Push tokens ────────────────────────────────────────────────────────────
 
   static Future<void> registerPushToken(String fcmToken, String deviceId) async {

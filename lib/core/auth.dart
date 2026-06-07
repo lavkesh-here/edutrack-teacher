@@ -7,12 +7,18 @@ class AuthUser {
   final String schoolName;
   final String role;
   final int teacherId;
+  final String? email;
+  final String? phone;
+  final String? photoUrl;
 
   const AuthUser({
     required this.teacherName,
     required this.schoolName,
     required this.role,
     required this.teacherId,
+    this.email,
+    this.phone,
+    this.photoUrl,
   });
 }
 
@@ -46,7 +52,15 @@ class AuthProvider extends ChangeNotifier {
       final role = prefs.getString('role') ?? 'teacher';
       final id = prefs.getInt('teacher_id') ?? 0;
       if (name.isNotEmpty) {
-        _user = AuthUser(teacherName: name, schoolName: school, role: role, teacherId: id);
+        _user = AuthUser(
+          teacherName: name,
+          schoolName: school,
+          role: role,
+          teacherId: id,
+          email: prefs.getString('teacher_email'),
+          phone: prefs.getString('teacher_phone'),
+          photoUrl: prefs.getString('teacher_photo_url'),
+        );
       }
     }
     _loading = false;
@@ -72,6 +86,40 @@ class AuthProvider extends ChangeNotifier {
     return res.mustChangePassword;
   }
 
+  Future<void> updateProfile({String? name, String? phone, String? email}) async {
+    if (_user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (name != null) await prefs.setString('teacher_name', name);
+    if (phone != null) await prefs.setString('teacher_phone', phone);
+    if (email != null) await prefs.setString('teacher_email', email);
+    _user = AuthUser(
+      teacherName: name ?? _user!.teacherName,
+      schoolName: _user!.schoolName,
+      role: _user!.role,
+      teacherId: _user!.teacherId,
+      email: email ?? _user!.email,
+      phone: phone ?? _user!.phone,
+      photoUrl: _user!.photoUrl,
+    );
+    notifyListeners();
+  }
+
+  Future<void> updatePhotoUrl(String url) async {
+    if (_user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('teacher_photo_url', url);
+    _user = AuthUser(
+      teacherName: _user!.teacherName,
+      schoolName: _user!.schoolName,
+      role: _user!.role,
+      teacherId: _user!.teacherId,
+      email: _user!.email,
+      phone: _user!.phone,
+      photoUrl: url,
+    );
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await ApiClient.setToken(null);
     final prefs = await SharedPreferences.getInstance();
@@ -79,6 +127,9 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('school_name');
     await prefs.remove('role');
     await prefs.remove('teacher_id');
+    await prefs.remove('teacher_email');
+    await prefs.remove('teacher_phone');
+    await prefs.remove('teacher_photo_url');
     _user = null;
     notifyListeners();
   }

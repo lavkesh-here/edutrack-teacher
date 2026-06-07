@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -15,6 +18,126 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _uploadingPhoto = false;
+
+  Future<void> _pickAndUploadPhoto(BuildContext context) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+      if (mounted) showSnack(context, 'Image must be under 5MB', error: true);
+      return;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+    setState(() => _uploadingPhoto = true);
+    try {
+      final resp = await ApiClient.getPhotoUploadUrl(file.name, contentType, bytes.lengthInBytes);
+      final uploadUrl = resp['upload_url'] as String;
+      final photoUrl = resp['photo_url'] as String;
+      await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      await ApiClient.savePhotoUrl(photoUrl);
+      if (mounted) await context.read<AuthProvider>().updatePhotoUrl(photoUrl);
+      if (mounted) showSnack(context, 'Photo updated');
+    } catch (e) {
+      if (mounted) showSnack(context, 'Upload failed', error: true);
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  void _showEditSheet(BuildContext context, AuthUser user) {
+    final nameCtrl = TextEditingController(text: user.teacherName);
+    final phoneCtrl = TextEditingController(text: user.phone ?? '');
+    final emailCtrl = TextEditingController(text: user.email ?? '');
+    bool saving = false;
+
+    // Fetch fresh profile data
+    ApiClient.getMyProfile().then((data) {
+      nameCtrl.text = data['name'] as String? ?? user.teacherName;
+      phoneCtrl.text = data['phone'] as String? ?? '';
+      emailCtrl.text = data['email'] as String? ?? '';
+    }).catchError((_) {});
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Edit Personal Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(labelText: 'Phone', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: saving ? null : () async {
+                    setSheet(() => saving = true);
+                    try {
+                      final name = nameCtrl.text.trim();
+                      final phone = phoneCtrl.text.trim();
+                      final email = emailCtrl.text.trim();
+                      await ApiClient.updateMyProfile(
+                        name: name.isNotEmpty ? name : null,
+                        phone: phone.isNotEmpty ? phone : null,
+                        email: email.isNotEmpty ? email : null,
+                      );
+                      if (ctx.mounted) {
+                        await ctx.read<AuthProvider>().updateProfile(
+                          name: name.isNotEmpty ? name : null,
+                          phone: phone.isNotEmpty ? phone : null,
+                          email: email.isNotEmpty ? email : null,
+                        );
+                        Navigator.pop(ctx);
+                        if (mounted) showSnack(context, 'Profile updated');
+                      }
+                    } catch (e) {
+                      setSheet(() => saving = false);
+                      if (ctx.mounted) showSnack(ctx, e.toString(), error: true);
+                    }
+                  },
+                  child: saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) : const Text('Save'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -52,26 +175,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     Column(
                       children: [
-                        Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.sun, AppColors.amber],
-                            ),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: Colors.white.withOpacity(0.25), width: 3),
-                          ),
-                          child: Center(
-                            child: Text(
-                              auth.initials,
-                              style: const TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
+                        GestureDetector(
+                          onTap: () => _pickAndUploadPhoto(context),
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 70,
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  gradient: user.photoUrl == null
+                                      ? const LinearGradient(colors: [AppColors.sun, AppColors.amber])
+                                      : null,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withOpacity(0.25), width: 3),
+                                ),
+                                child: ClipOval(
+                                  child: _uploadingPhoto
+                                      ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                      : user.photoUrl != null
+                                          ? Image.network(user.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(auth.initials, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white))))
+                                          : Center(child: Text(auth.initials, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white))),
+                                ),
                               ),
-                            ),
+                              Positioned(
+                                bottom: 0, right: 0,
+                                child: Container(
+                                  width: 22, height: 22,
+                                  decoration: const BoxDecoration(color: AppColors.sun, shape: BoxShape.circle),
+                                  child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -129,7 +263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.sunLight,
                       label: 'Personal Details',
                       sub: 'Name, email, contact info',
-                      onTap: () {},
+                      onTap: () => _showEditSheet(context, user),
                     ),
                     _ProfileRow(
                       icon: '🎓',

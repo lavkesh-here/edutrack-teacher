@@ -275,6 +275,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           itemBuilder: (_, i) => _StudentCard(
                             student: _students![i],
                             onTap: () => _cycleStatus(i),
+                            onLongPress: () => _showStudentModal(context, _students![i]),
                           ),
                         ),
             ),
@@ -325,6 +326,78 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           s.status = '';
       }
     });
+  }
+
+  void _showStudentModal(BuildContext context, AttendanceStudent student) {
+    Color statusColor;
+    String statusLabel;
+    switch (student.status) {
+      case 'present':
+        statusColor = AppColors.teal;
+        statusLabel = 'Present';
+        break;
+      case 'absent':
+        statusColor = AppColors.coral;
+        statusLabel = 'Absent';
+        break;
+      case 'late':
+        statusColor = AppColors.amber;
+        statusLabel = 'Late';
+        break;
+      default:
+        statusColor = AppColors.muted;
+        statusLabel = 'Not marked';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 56, height: 56,
+              decoration: const BoxDecoration(color: AppColors.sunLight, shape: BoxShape.circle),
+              child: Center(
+                child: Text(
+                  student.name.trim().split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase(),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.sun),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(student.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+            if (student.rollNo.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text('Roll No: ${student.rollNo}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+            ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: statusColor.withOpacity(0.4)),
+              ),
+              child: Text(
+                statusLabel,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: statusColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickDate() async {
@@ -401,8 +474,9 @@ class _StatChip extends StatelessWidget {
 class _StudentCard extends StatelessWidget {
   final AttendanceStudent student;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
-  const _StudentCard({required this.student, required this.onTap});
+  const _StudentCard({required this.student, required this.onTap, this.onLongPress});
 
   Color get _bg {
     switch (student.status) {
@@ -449,6 +523,7 @@ class _StudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(

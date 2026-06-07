@@ -25,6 +25,7 @@ import 'admin_attenders.dart';
 import 'admin_fee_management.dart';
 import 'admin_leave_config.dart';
 import 'notifications_screen.dart';
+import 'todos.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -445,6 +446,13 @@ class _HomeTabState extends State<_HomeTab> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 child: Column(
                   children: [
+                    _FeatureRow(
+                      icon: '✅',
+                      iconBg: AppColors.tealLight,
+                      title: 'My Todos',
+                      sub: 'Personal & school task tracker',
+                      onTap: () => _openScreen(context, const TodosScreen()),
+                    ),
                     _FeatureRow(
                       icon: '📚',
                       iconBg: AppColors.coralLight,

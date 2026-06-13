@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -10,7 +11,10 @@ class NotifyParentsScreen extends StatefulWidget {
   State<NotifyParentsScreen> createState() => _NotifyParentsScreenState();
 }
 
-class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
+class _NotifyParentsScreenState extends State<NotifyParentsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabCtrl;
+
   bool _isWholeClass = true;
   String _notifType = 'homework';
   SectionInfo? _selectedSection;
@@ -22,6 +26,9 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
   bool _searching = false;
   bool _loading = false;
   bool _loadingSections = true;
+
+  List<Map<String, dynamic>> _history = [];
+  bool _loadingHistory = true;
 
   static const _typeIcons = {
     'homework': '📚',
@@ -53,15 +60,28 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
     _loadSections();
+    _loadHistory();
     _msgCtrl.text = _templates[_notifType]!;
   }
 
   @override
   void dispose() {
+    _tabCtrl.dispose();
     _msgCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() => _loadingHistory = true);
+    try {
+      final data = await ApiClient.getNotifyParentsHistory();
+      if (mounted) setState(() { _history = data; _loadingHistory = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
   }
 
   Future<void> _searchStudents(String q) async {
@@ -100,8 +120,20 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
       appBar: AppBar(
         title: const Text('Notify Parents'),
         leading: const BackButton(),
+        bottom: TabBar(
+          controller: _tabCtrl,
+          labelColor: AppColors.sun,
+          unselectedLabelColor: AppColors.muted,
+          indicatorColor: AppColors.sun,
+          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          tabs: const [Tab(text: 'Send'), Tab(text: 'History')],
+        ),
       ),
-      body: SingleChildScrollView(
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: [
+          // ── Tab 0: Send ──────────────────────────────────────────────────
+          SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +451,33 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
             const SizedBox(height: 32),
           ],
         ),
-      ),
+          ), // SingleChildScrollView (Send tab)
+
+          // ── Tab 1: History ───────────────────────────────────────────────
+          _loadingHistory
+              ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+              : _history.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('📭', style: TextStyle(fontSize: 40)),
+                          SizedBox(height: 12),
+                          Text('No activity yet', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: AppColors.sun,
+                      onRefresh: _loadHistory,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        itemCount: _history.length,
+                        itemBuilder: (_, i) => _HistoryItem(item: _history[i]),
+                      ),
+                    ),
+        ], // TabBarView children
+      ), // TabBarView
     );
   }
 
@@ -486,13 +544,13 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen> {
       if (mounted) {
         showSnack(context,
             'Notification sent to ${result.recipientCount} parent${result.recipientCount == 1 ? '' : 's'} ✓');
-        // Reset to default state
         setState(() {
           _msgCtrl.text = _templates[_notifType]!;
           _searchCtrl.clear();
           _searchResults = [];
           _selectedStudent = null;
         });
+        _loadHistory(); // refresh history tab
       }
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
@@ -508,6 +566,90 @@ const _labelStyle = TextStyle(
   color: AppColors.muted,
   letterSpacing: 0.8,
 );
+
+class _HistoryItem extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const _HistoryItem({required this.item});
+
+  static const _notifIcons = {
+    'homework': '📚', 'attention': '⚠️', 'announcement': '📢',
+    'test_result': '📊', 'custom': '✉️',
+  };
+  static const _logIcons = {
+    'homework': '📝', 'classwork': '🏫', 'project': '🔬',
+    'reading': '📖', 'other': '📌',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final isNotif = item['activity_type'] == 'notification';
+    final subType = item['sub_type'] as String? ?? '';
+    final icon = isNotif
+        ? (_notifIcons[subType] ?? '🔔')
+        : (_logIcons[subType] ?? '📝');
+    final title = item['title'] as String? ?? '';
+    final createdAt = item['created_at'] as String? ?? '';
+    final dateLabel = createdAt.isNotEmpty
+        ? DateFormat('d MMM, h:mm a').format(DateTime.parse(createdAt).toLocal())
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: isNotif ? AppColors.sunLight : AppColors.violetLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(child: Text(icon, style: const TextStyle(fontSize: 16))),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isNotif ? AppColors.sunLight : AppColors.violetLight,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isNotif ? 'Notification' : 'Work Log',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
+                            color: isNotif ? AppColors.sun : AppColors.violet),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(dateLabel, style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ToggleOption extends StatelessWidget {
   final String label;

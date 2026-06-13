@@ -467,9 +467,13 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     }
 
     final descCtrl = TextEditingController();
+    final studentSearchCtrl = TextEditingController();
     String logType = 'classwork';
     SectionInfo section = _sections!.first;
     DateTime? dueDate;
+    StudentSearchResult? selectedStudent;
+    List<StudentSearchResult> studentResults = [];
+    bool searchingStudent = false;
 
     showModalBottomSheet(
       context: context,
@@ -566,6 +570,88 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                // Optional: specific student
+                const Text('For Student (optional)',
+                    style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                if (selectedStudent != null)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.tealLight,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.teal.withOpacity(0.3)),
+                          ),
+                          child: Text('👤 ${selectedStudent!.name}',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.teal)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => setSheet(() { selectedStudent = null; studentResults = []; studentSearchCtrl.clear(); }),
+                        child: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      TextField(
+                        controller: studentSearchCtrl,
+                        onChanged: (q) async {
+                          if (q.trim().length < 2) {
+                            setSheet(() { studentResults = []; searchingStudent = false; });
+                            return;
+                          }
+                          setSheet(() => searchingStudent = true);
+                          try {
+                            final r = await ApiClient.searchStudents(q.trim());
+                            setSheet(() { studentResults = r; searchingStudent = false; });
+                          } catch (_) {
+                            setSheet(() { studentResults = []; searchingStudent = false; });
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search student (or leave blank for whole class)',
+                          prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.muted),
+                          suffixIcon: searchingStudent
+                              ? const Padding(padding: EdgeInsets.all(12),
+                                  child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun)))
+                              : null,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        ),
+                      ),
+                      if (studentResults.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            children: studentResults.take(4).map((s) => InkWell(
+                              onTap: () => setSheet(() { selectedStudent = s; studentResults = []; studentSearchCtrl.clear(); }),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
+                                    const SizedBox(width: 6),
+                                    Text(s.classLabel ?? '', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                                  ],
+                                ),
+                              ),
+                            )).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: descCtrl,
                   maxLines: 3,
@@ -635,9 +721,8 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                           date: DateFormat('yyyy-MM-dd').format(_date),
                           logType: logType,
                           description: descCtrl.text.trim(),
-                          dueDate: dueDate != null
-                              ? DateFormat('yyyy-MM-dd').format(dueDate!)
-                              : null,
+                          dueDate: dueDate != null ? DateFormat('yyyy-MM-dd').format(dueDate!) : null,
+                          studentId: selectedStudent?.id,
                         );
                         descCtrl.clear();
                         if (mounted) Navigator.pop(ctx2);
@@ -880,7 +965,19 @@ class _WorkLogCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (entry.sectionLabel.isNotEmpty)
+                if (entry.studentName != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.tealLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '👤 ${entry.studentName}',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.teal),
+                    ),
+                  )
+                else if (entry.sectionLabel.isNotEmpty)
                   Text(
                     entry.sectionLabel,
                     style: const TextStyle(fontSize: 11, color: AppColors.muted),

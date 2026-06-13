@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,6 +20,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingPhoto = false;
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    });
+  }
 
   Future<void> _pickAndUploadPhoto(BuildContext context) async {
     final picker = ImagePicker();
@@ -399,11 +409,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 32),
 
-              // App version — plain text at bottom
-              const Center(
+              Center(
                 child: Text(
-                  'EduTrack Teacher v1.0',
-                  style: TextStyle(fontSize: 11, color: AppColors.muted),
+                  _appVersion.isEmpty ? 'EduTrack Teacher' : 'EduTrack Teacher v$_appVersion',
+                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
                 ),
               ),
               const SizedBox(height: 24),

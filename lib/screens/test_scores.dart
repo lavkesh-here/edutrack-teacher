@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -45,6 +46,28 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     }
   }
 
+  Future<void> _openPreview() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.sun)),
+    );
+    try {
+      final html = await ApiClient.getPreviewHtml(widget.test.id);
+      if (!mounted) return;
+      Navigator.pop(context); // dismiss loader
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => _PreviewScreen(title: widget.test.title, html: html),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Preview failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,6 +79,13 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             foregroundColor: Colors.white,
             expandedHeight: 120,
             pinned: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.preview_outlined, color: Colors.white),
+                tooltip: 'Preview Test Paper',
+                onPressed: _openPreview,
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 widget.test.title,
@@ -491,4 +521,35 @@ class _ScoreRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PreviewScreen extends StatefulWidget {
+  final String title;
+  final String html;
+  const _PreviewScreen({required this.title, required this.html});
+
+  @override
+  State<_PreviewScreen> createState() => _PreviewScreenState();
+}
+
+class _PreviewScreenState extends State<_PreviewScreen> {
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadHtmlString(widget.html);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          backgroundColor: AppColors.violet,
+          foregroundColor: Colors.white,
+        ),
+        body: WebViewWidget(controller: _controller),
+      );
 }

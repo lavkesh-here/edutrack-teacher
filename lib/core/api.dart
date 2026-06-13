@@ -682,6 +682,22 @@ class ApiClient {
     }
   }
 
+  static Future<String> getPreviewHtml(int testId, {bool answerKey = false}) async {
+    final base = await getBaseUrl();
+    final token = await getToken();
+    final uri = Uri.parse('$base/api/v1/export/$testId/preview')
+        .replace(queryParameters: {'answer_key': answerKey.toString()});
+    final res = await http.get(uri, headers: {
+      if (token != null) 'Authorization': 'Bearer $token',
+    }).timeout(const Duration(seconds: 20));
+    if (res.statusCode == 401) {
+      await onUnauthorized?.call();
+      throw ApiError('Session expired. Please log in again.', 401);
+    }
+    if (res.statusCode >= 400) throw ApiError('Preview failed (${res.statusCode})', res.statusCode);
+    return utf8.decode(res.bodyBytes);
+  }
+
   // ── Teacher timetable ─────────────────────────────────────────────────────
 
   static Future<List<TimetableSlot>> getMyTimetable() async {

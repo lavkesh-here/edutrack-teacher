@@ -27,11 +27,12 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   Map<String, dynamic>? _profile;
   bool _loading = true;
   String? _error;
+  bool _uploading = false;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 5, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _load();
   }
 
@@ -51,18 +52,53 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
     }
   }
 
-  void _onPhotoUploaded(String url) {
-    setState(() {
-      _profile = Map<String, dynamic>.from(_profile ?? {})
-        ..['photo_url'] = url
-        ..['photo_uploaded_by'] = 'teacher';
-    });
-  }
-
   String _initials(String name) {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
     return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : '?';
+  }
+
+  Future<void> _onAvatarTap() async {
+    final photoUploadedBy = _profile?['photo_uploaded_by'] as String?;
+    if (photoUploadedBy == 'teacher') {
+      showSnack(context, 'Photo already uploaded — only a parent can change it', error: true);
+      return;
+    }
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+      if (mounted) showSnack(context, 'Image must be under 5MB', error: true);
+      return;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+    setState(() => _uploading = true);
+    try {
+      final resp = await ApiClient.getStudentPhotoUploadUrl(
+          widget.studentId, file.name, contentType, bytes.lengthInBytes);
+      final uploadUrl = resp['upload_url'] as String;
+      final photoUrl = resp['photo_url'] as String;
+      await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      await ApiClient.saveStudentPhoto(widget.studentId, photoUrl);
+      setState(() {
+        _profile = Map<String, dynamic>.from(_profile ?? {})
+          ..['photo_url'] = photoUrl
+          ..['photo_uploaded_by'] = 'teacher';
+      });
+      if (mounted) showSnack(context, 'Photo uploaded ✓');
+    } on ApiError catch (e) {
+      if (e.statusCode == 409) {
+        if (mounted) showSnack(context, 'Photo already uploaded — only a parent can change it', error: true);
+      } else {
+        if (mounted) showSnack(context, 'Upload failed', error: true);
+      }
+    } catch (_) {
+      if (mounted) showSnack(context, 'Upload failed', error: true);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   @override
@@ -73,49 +109,33 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
           : _error != null
               ? _ErrorView(onRetry: _load)
-              : _ProfileBody(
-                  profile: _profile!,
-                  tabs: _tabs,
-                  initials: _initials(widget.studentName),
-                  sectionLabel: widget.sectionLabel,
-                  studentId: widget.studentId,
-                  onPhotoUploaded: _onPhotoUploaded,
-                ),
+              : _body(),
     );
   }
-}
 
-class _ProfileBody extends StatelessWidget {
-  final Map<String, dynamic> profile;
-  final TabController tabs;
-  final String initials;
-  final String sectionLabel;
-  final int studentId;
-  final void Function(String url) onPhotoUploaded;
-
-  const _ProfileBody({
-    required this.profile,
-    required this.tabs,
-    required this.initials,
-    required this.sectionLabel,
-    required this.studentId,
-    required this.onPhotoUploaded,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final name = profile['name'] as String? ?? '';
-    final admNo = profile['admission_number'] as String? ?? '';
-    final classLabel = profile['class_label'] as String? ?? sectionLabel;
-    final photoUrl = profile['photo_url'] as String?;
-    final gender = profile['gender'] as String?;
+  Widget _body() {
+    final name = _profile!['name'] as String? ?? widget.studentName;
+    final admNo = _profile!['admission_number'] as String? ?? '';
+    final classLabel = _profile!['class_label'] as String? ?? widget.sectionLabel;
+    final photoUrl = _profile!['photo_url'] as String?;
+    final gender = _profile!['gender'] as String?;
+    final photoUploadedBy = _profile!['photo_uploaded_by'] as String?;
+    final canUpload = photoUploadedBy != 'teacher';
 
     return NestedScrollView(
       headerSliverBuilder: (_, __) => [
+        // ── Gradient hero (collapsed: orange bar + name) ──────────────────
         SliverAppBar(
           expandedHeight: 210,
           pinned: true,
+          backgroundColor: AppColors.sun,
+          foregroundColor: Colors.white,
+          title: Text(
+            '$name · $classLabel',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
+          ),
           flexibleSpace: FlexibleSpaceBar(
+            collapseMode: CollapseMode.pin,
             background: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -129,7 +149,32 @@ class _ProfileBody extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const SizedBox(height: 40),
-                    _HeroAvatar(initials: initials, photoUrl: photoUrl, gender: gender, size: 70),
+                    // Tappable avatar with camera badge
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        _HeroAvatar(
+                          initials: _initials(name),
+                          photoUrl: photoUrl,
+                          gender: gender,
+                          size: 72,
+                          uploading: _uploading,
+                        ),
+                        if (canUpload)
+                          GestureDetector(
+                            onTap: _uploading ? null : _onAvatarTap,
+                            child: Container(
+                              width: 26, height: 26,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
+                              ),
+                              child: const Icon(Icons.camera_alt, size: 14, color: AppColors.sun),
+                            ),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 10),
                     Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
                     const SizedBox(height: 4),
@@ -142,42 +187,65 @@ class _ProfileBody extends StatelessWidget {
               ),
             ),
           ),
-          bottom: TabBar(
-            controller: tabs,
-            indicatorColor: AppColors.sun,
-            indicatorWeight: 3,
-            labelColor: AppColors.text,
-            unselectedLabelColor: AppColors.muted,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            tabs: const [
-              Tab(text: 'Profile'),
-              Tab(text: 'Attendance'),
-              Tab(text: 'Tests'),
-              Tab(text: 'Work Logs'),
-              Tab(text: 'Photo'),
-            ],
-          ),
+        ),
+
+        // ── Sticky white tab bar (separate from gradient) ─────────────────
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyTabBar(_tabs),
         ),
       ],
       body: TabBarView(
-        controller: tabs,
+        controller: _tabs,
         children: [
-          _ProfileTab(profile: profile),
-          _AttendanceTab(profile: profile),
-          _TestsTab(tests: (profile['tests'] as List?)?.cast<Map<String, dynamic>>() ?? []),
-          _WorkLogsTab(submissions: (profile['work_log_submissions'] as List?)?.cast<Map<String, dynamic>>() ?? []),
-          _PhotoTab(
-            studentId: studentId,
-            photoUrl: profile['photo_url'] as String?,
-            photoUploadedBy: profile['photo_uploaded_by'] as String?,
-            onUploaded: onPhotoUploaded,
-          ),
+          _ProfileTab(profile: _profile!),
+          _AttendanceTab(profile: _profile!),
+          _TestsTab(tests: (_profile!['tests'] as List?)?.cast<Map<String, dynamic>>() ?? []),
+          _WorkLogsTab(submissions: (_profile!['work_log_submissions'] as List?)?.cast<Map<String, dynamic>>() ?? []),
         ],
       ),
     );
   }
+}
+
+// ── Sticky tab bar delegate ───────────────────────────────────────────────────
+
+class _StickyTabBar extends SliverPersistentHeaderDelegate {
+  final TabController controller;
+  const _StickyTabBar(this.controller);
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Colors.white,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+      ),
+      child: TabBar(
+        controller: controller,
+        indicatorColor: AppColors.sun,
+        indicatorWeight: 3,
+        labelColor: AppColors.text,
+        unselectedLabelColor: AppColors.muted,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        tabs: const [
+          Tab(text: 'Profile'),
+          Tab(text: 'Attendance'),
+          Tab(text: 'Tests'),
+          Tab(text: 'Work Logs'),
+        ],
+      ),
+    );
+  }
+
+  @override
+  double get maxExtent => 48;
+  @override
+  double get minExtent => 48;
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
 }
 
 // ── Hero avatar ───────────────────────────────────────────────────────────────
@@ -187,23 +255,10 @@ class _HeroAvatar extends StatelessWidget {
   final String? photoUrl;
   final String? gender;
   final double size;
-  const _HeroAvatar({required this.initials, this.photoUrl, this.gender, required this.size});
+  final bool uploading;
+  const _HeroAvatar({required this.initials, this.photoUrl, this.gender, required this.size, this.uploading = false});
 
-  @override
-  Widget build(BuildContext context) {
-    if (photoUrl != null && photoUrl!.isNotEmpty) {
-      return ClipOval(
-        child: Image.network(
-          photoUrl!,
-          width: size, height: size, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _initialsWidget,
-        ),
-      );
-    }
-    return _initialsWidget;
-  }
-
-  Widget get _initialsWidget => Container(
+  Widget _initialsWidget() => Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
@@ -215,6 +270,27 @@ class _HeroAvatar extends StatelessWidget {
           child: Text(initials, style: TextStyle(fontSize: size * 0.37, fontWeight: FontWeight.w900, color: Colors.white)),
         ),
       );
+
+  @override
+  Widget build(BuildContext context) {
+    if (uploading) {
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), shape: BoxShape.circle),
+        child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)),
+      );
+    }
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          photoUrl!,
+          width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _initialsWidget(),
+        ),
+      );
+    }
+    return _initialsWidget();
+  }
 }
 
 // ── Tab 1: Profile ────────────────────────────────────────────────────────────
@@ -229,13 +305,12 @@ class _ProfileTab extends StatelessWidget {
       final d = DateTime.parse(raw);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${d.day} ${months[d.month - 1]} ${d.year}';
-    } catch (_) {
-      return raw;
-    }
+    } catch (_) { return raw; }
   }
 
   @override
   Widget build(BuildContext context) {
+    final phone2 = profile['guardian_phone_2'] as String?;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -252,7 +327,9 @@ class _ProfileTab extends StatelessWidget {
           title: 'Guardian',
           children: [
             _InfoRow(label: 'Name', value: profile['guardian_name']?.toString() ?? '—'),
-            _InfoRow(label: 'Phone', value: profile['guardian_phone']?.toString() ?? '—'),
+            _InfoRow(label: 'Primary Phone', value: profile['guardian_phone']?.toString() ?? '—'),
+            if (phone2 != null && phone2.isNotEmpty)
+              _InfoRow(label: 'Secondary Phone', value: phone2),
           ],
         ),
       ],
@@ -273,9 +350,7 @@ class _AttendanceTab extends StatelessWidget {
       final d = DateTime.parse(raw);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${d.day} ${months[d.month - 1]}';
-    } catch (_) {
-      return raw;
-    }
+    } catch (_) { return raw; }
   }
 
   @override
@@ -360,9 +435,7 @@ class _TestsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tests.isEmpty) {
-      return const _EmptyState(icon: '📊', label: 'No test records yet');
-    }
+    if (tests.isEmpty) return const _EmptyState(icon: '📊', label: 'No test records yet');
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: tests.length,
@@ -431,11 +504,11 @@ class _TestScoreCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              if (isAbsent)
-                const Text('Absent from test', style: TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w600))
-              else if (score != null) ...[
+          if (isAbsent)
+            const Text('Absent from test', style: TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w600))
+          else if (score != null) ...[
+            Row(
+              children: [
                 Text(
                   '${score % 1 == 0 ? score.toInt() : score}',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.text),
@@ -445,19 +518,19 @@ class _TestScoreCard extends StatelessWidget {
                 if (pct != null)
                   Text('$pct%', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: statusColor)),
               ],
-            ],
-          ),
-          if (pct != null && !isAbsent) ...[
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (pct / 100).clamp(0.0, 1.0),
-                backgroundColor: AppColors.border,
-                color: statusColor,
-                minHeight: 5,
-              ),
             ),
+            if (pct != null) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (pct / 100).clamp(0.0, 1.0),
+                  backgroundColor: AppColors.border,
+                  color: statusColor,
+                  minHeight: 5,
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -469,9 +542,7 @@ class _TestScoreCard extends StatelessWidget {
       final d = DateTime.parse(raw);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${d.day} ${months[d.month - 1]} ${d.year}';
-    } catch (_) {
-      return raw;
-    }
+    } catch (_) { return raw; }
   }
 
   String _fmtExamType(String t) => switch (t) {
@@ -489,9 +560,7 @@ class _WorkLogsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (submissions.isEmpty) {
-      return const _EmptyState(icon: '📝', label: 'No work log records');
-    }
+    if (submissions.isEmpty) return const _EmptyState(icon: '📝', label: 'No work log records');
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: submissions.length,
@@ -574,149 +643,7 @@ class _SubmissionCard extends StatelessWidget {
       final d = DateTime.parse(raw);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${d.day} ${months[d.month - 1]}';
-    } catch (_) {
-      return raw;
-    }
-  }
-}
-
-// ── Tab 5: Photo (one-time teacher upload) ────────────────────────────────────
-
-class _PhotoTab extends StatefulWidget {
-  final int studentId;
-  final String? photoUrl;
-  final String? photoUploadedBy;
-  final void Function(String url) onUploaded;
-
-  const _PhotoTab({
-    required this.studentId,
-    this.photoUrl,
-    this.photoUploadedBy,
-    required this.onUploaded,
-  });
-
-  @override
-  State<_PhotoTab> createState() => _PhotoTabState();
-}
-
-class _PhotoTabState extends State<_PhotoTab> {
-  bool _uploading = false;
-  String? _currentPhotoUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentPhotoUrl = widget.photoUrl;
-  }
-
-  bool get _teacherAlreadyUploaded => widget.photoUploadedBy == 'teacher' || (_currentPhotoUrl != null && widget.photoUploadedBy == 'teacher');
-
-  Future<void> _pickAndUpload() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
-    if (file == null) return;
-    final bytes = await file.readAsBytes();
-    if (bytes.lengthInBytes > 5 * 1024 * 1024) {
-      if (mounted) showSnack(context, 'Image must be under 5MB', error: true);
-      return;
-    }
-    final ext = file.path.split('.').last.toLowerCase();
-    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
-    setState(() => _uploading = true);
-    try {
-      final resp = await ApiClient.getStudentPhotoUploadUrl(widget.studentId);
-      final uploadUrl = resp['upload_url'] as String;
-      final photoUrl = resp['photo_url'] as String;
-      await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
-      await ApiClient.saveStudentPhoto(widget.studentId, photoUrl);
-      setState(() => _currentPhotoUrl = photoUrl);
-      widget.onUploaded(photoUrl);
-      if (mounted) showSnack(context, 'Photo uploaded ✓');
-    } on ApiError catch (e) {
-      if (e.statusCode == 409) {
-        if (mounted) showSnack(context, 'Photo already uploaded by teacher — cannot change', error: true);
-      } else {
-        if (mounted) showSnack(context, 'Upload failed', error: true);
-      }
-    } catch (_) {
-      if (mounted) showSnack(context, 'Upload failed', error: true);
-    } finally {
-      if (mounted) setState(() => _uploading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final alreadyUploaded = _teacherAlreadyUploaded;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Photo preview
-            Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.bg,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border, width: 2),
-              ),
-              child: _currentPhotoUrl != null
-                  ? ClipOval(
-                      child: Image.network(
-                        _currentPhotoUrl!,
-                        width: 120, height: 120, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 50, color: AppColors.muted),
-                      ),
-                    )
-                  : const Icon(Icons.person_outline, size: 50, color: AppColors.muted),
-            ),
-            const SizedBox(height: 20),
-
-            if (alreadyUploaded) ...[
-              const Icon(Icons.lock_outline, size: 20, color: AppColors.muted),
-              const SizedBox(height: 8),
-              const Text(
-                'Photo uploaded by teacher',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Once uploaded by a teacher, this photo cannot be changed from the teacher app. Parents may update it.',
-                style: TextStyle(fontSize: 12, color: AppColors.muted, height: 1.5),
-                textAlign: TextAlign.center,
-              ),
-            ] else ...[
-              Text(
-                _currentPhotoUrl != null ? 'Update Student Photo' : 'Add Student Photo',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'You can upload once. After upload, the photo cannot be changed from the teacher app.',
-                style: TextStyle(fontSize: 12, color: AppColors.muted, height: 1.5),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _uploading ? null : _pickAndUpload,
-                  icon: _uploading
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                      : const Icon(Icons.upload_rounded, size: 20),
-                  label: Text(_uploading ? 'Uploading…' : 'Choose from Gallery'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+    } catch (_) { return raw; }
   }
 }
 
@@ -754,7 +681,7 @@ class _InfoRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 110,
+              width: 120,
               child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
             ),
             Expanded(

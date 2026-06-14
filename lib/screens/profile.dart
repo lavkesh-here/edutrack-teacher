@@ -10,6 +10,7 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'leave.dart';
 import 'payslip.dart';
+import 'my_attendance.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -280,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.violetLight,
                       label: 'Qualifications',
                       sub: 'Degrees & certifications',
-                      onTap: () {},
+                      onTap: () => showSnack(context, 'Qualifications — coming soon'),
                     ),
                     _ProfileRow(
                       icon: '🗓️',
@@ -303,7 +304,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.tealLight,
                       label: 'My Attendance',
                       sub: 'Your attendance record',
-                      onTap: () {},
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const MyAttendanceScreen())),
                     ),
                   ],
                 ),

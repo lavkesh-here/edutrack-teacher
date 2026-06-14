@@ -1219,8 +1219,13 @@ class ApiClient {
 
   // ── Student photo (teacher: one-time upload) ───────────────────────────────
 
-  static Future<Map<String, dynamic>> getStudentPhotoUploadUrl(int studentId) async {
-    return (await _post('/api/v1/teacher/students/$studentId/photo/upload-url', {})) as Map<String, dynamic>;
+  static Future<Map<String, dynamic>> getStudentPhotoUploadUrl(
+      int studentId, String filename, String contentType, int fileSize) async {
+    return (await _post('/api/v1/teacher/students/$studentId/photo/upload-url', {
+      'filename': filename,
+      'content_type': contentType,
+      'file_size': fileSize,
+    })) as Map<String, dynamic>;
   }
 
   static Future<void> saveStudentPhoto(int studentId, String photoUrl) async {

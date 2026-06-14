@@ -722,7 +722,6 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                           logType: logType,
                           description: descCtrl.text.trim(),
                           dueDate: dueDate != null ? DateFormat('yyyy-MM-dd').format(dueDate!) : null,
-                          studentId: selectedStudent?.id,
                         );
                         descCtrl.clear();
                         if (mounted) Navigator.pop(ctx2);

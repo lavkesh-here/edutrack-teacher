@@ -196,7 +196,10 @@ class _TodosScreenState extends State<TodosScreen> {
                 child: ElevatedButton(
                   onPressed: () async {
                     final title = titleCtrl.text.trim();
-                    if (title.isEmpty) return;
+                    if (title.isEmpty) {
+                      showSnack(context, 'Please enter a title', error: true);
+                      return;
+                    }
                     Navigator.pop(ctx);
                     try {
                       await ApiClient.createTodo(

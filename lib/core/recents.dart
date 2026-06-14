@@ -9,19 +9,18 @@ class RecentScreen {
 
 class RecentsManager {
   static const _key = 'recent_screens';
-  static const _max = 5;
+  static const _max = 3;
 
+  // Only items exclusively reachable via More tab (not bottom nav, dashboard tiles, quick actions, or profile)
   static const _screens = <String, RecentScreen>{
-    'attendance': RecentScreen(id: 'attendance', emoji: '📋', label: 'Attendance'),
-    'worklog':    RecentScreen(id: 'worklog',    emoji: '📚', label: 'Work Log'),
-    'notify':     RecentScreen(id: 'notify',     emoji: '🔔', label: 'Notify'),
-    'todos':      RecentScreen(id: 'todos',      emoji: '✅', label: 'Todos'),
-    'students':   RecentScreen(id: 'students',   emoji: '👥', label: 'Students'),
-    'calendar':   RecentScreen(id: 'calendar',   emoji: '📅', label: 'Calendar'),
-    'results':    RecentScreen(id: 'results',    emoji: '📊', label: 'Results'),
-    'leaves':     RecentScreen(id: 'leaves',     emoji: '🗓️', label: 'Leaves'),
-    'payslips':   RecentScreen(id: 'payslips',   emoji: '💰', label: 'Payslips'),
-    'schedule':   RecentScreen(id: 'schedule',   emoji: '🕐', label: 'Schedule'),
+    'schedule':         RecentScreen(id: 'schedule',         emoji: '🕐', label: 'My Schedule'),
+    'parents':          RecentScreen(id: 'parents',          emoji: '👨‍👩‍👦', label: 'Parent Accounts'),
+    'transport':        RecentScreen(id: 'transport',        emoji: '🚌', label: 'Transport'),
+    'school_settings':  RecentScreen(id: 'school_settings',  emoji: '🏫', label: 'School Settings'),
+    'admin_worklogs':   RecentScreen(id: 'admin_worklogs',   emoji: '📋', label: 'Work Log Overview'),
+    'attenders':        RecentScreen(id: 'attenders',        emoji: '👤', label: 'Attenders'),
+    'fees':             RecentScreen(id: 'fees',             emoji: '💰', label: 'Fee Management'),
+    'leave_config':     RecentScreen(id: 'leave_config',     emoji: '⚙️', label: 'Leave Config'),
   };
 
   static Future<List<RecentScreen>> load() async {

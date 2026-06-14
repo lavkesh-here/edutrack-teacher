@@ -300,8 +300,8 @@ class _HomeTabState extends State<_HomeTab> {
               child: CustomScrollView(
           slivers: [
 
-            // Recently viewed chips (max 3, exclude nav-tab items)
-            if (_recents.where((r) => !{'attendance', 'students', 'feed'}.contains(r.id)).isNotEmpty)
+            // Recently viewed chips — only More-tab-exclusive items (max 3)
+            if (_recents.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -319,10 +319,7 @@ class _HomeTabState extends State<_HomeTab> {
                       SizedBox(
                         height: 36,
                         child: Builder(builder: (context) {
-                          final filtered = _recents
-                              .where((r) => !{'attendance', 'students', 'feed'}.contains(r.id))
-                              .take(3)
-                              .toList();
+                          final filtered = _recents.take(3).toList();
                           return ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: filtered.length,
@@ -499,6 +496,36 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
 
+            // Admin features section (admin/principal role only)
+            if (user.role == 'admin' || user.role == 'principal') ...[
+              const SliverToBoxAdapter(
+                child: SectionHeader(title: '⚙️ Admin'),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Column(
+                    children: [
+                      _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
+                          onTap: () => _openScreen(context, const AdminParentsScreen(), recentId: 'parents')),
+                      _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
+                          onTap: () => _openScreen(context, const AdminTransportScreen(), recentId: 'transport')),
+                      _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
+                          onTap: () => _openScreen(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
+                      _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
+                          onTap: () => _openScreen(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
+                      _FeatureRow(icon: '👤', iconBg: AppColors.coralLight, title: 'Attenders', sub: 'Authorized pickup persons',
+                          onTap: () => _openScreen(context, const AdminAttendersScreen(), recentId: 'attenders')),
+                      _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
+                          onTap: () => _openScreen(context, const AdminFeeManagementScreen(), recentId: 'fees')),
+                      _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
+                          onTap: () => _openScreen(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
             // Leave alerts — pending only
             if (_recentLeaves != null && _recentLeaves!.any((l) => l.status == 'pending')) ...[
               const SliverToBoxAdapter(
@@ -548,16 +575,14 @@ class _HomeTabState extends State<_HomeTab> {
 
   void _openRecent(BuildContext context, String id) {
     switch (id) {
-      case 'attendance': _navigateTab(context, 1);
-      case 'worklog':    _openScreen(context, const WorkLogScreen(), recentId: id);
-      case 'notify':     _openScreen(context, const NotifyParentsScreen(), recentId: id);
-      case 'todos':      _openScreen(context, const TodosScreen(), recentId: id);
-      case 'students':   _openScreen(context, const MyStudentsScreen(), recentId: id);
-      case 'calendar':   _openScreen(context, const CalendarScreen(), recentId: id);
-      case 'results':    _openScreen(context, const TestsScreen(), recentId: id);
-      case 'leaves':     _openScreen(context, const LeaveScreen(), recentId: id);
-      case 'payslips':   _openScreen(context, const PayslipScreen(), recentId: id);
-      case 'schedule':   _openScreen(context, const TimetableScreen(), recentId: id);
+      case 'schedule':        _openScreen(context, const TimetableScreen(), recentId: id);
+      case 'parents':         _openScreen(context, const AdminParentsScreen(), recentId: id);
+      case 'transport':       _openScreen(context, const AdminTransportScreen(), recentId: id);
+      case 'school_settings': _openScreen(context, const AdminSchoolSettingsScreen(), recentId: id);
+      case 'admin_worklogs':  _openScreen(context, const AdminWorkLogsScreen(), recentId: id);
+      case 'attenders':       _openScreen(context, const AdminAttendersScreen(), recentId: id);
+      case 'fees':            _openScreen(context, const AdminFeeManagementScreen(), recentId: id);
+      case 'leave_config':    _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
     }
   }
 
@@ -923,11 +948,45 @@ class _LeaveAlert extends StatelessWidget {
 
 // ── More Tab ─────────────────────────────────────────────────────────────────
 
-class _MoreTab extends StatelessWidget {
+class _MoreTab extends StatefulWidget {
   const _MoreTab();
 
-  void _push(BuildContext context, Widget screen) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  @override
+  State<_MoreTab> createState() => _MoreTabState();
+}
+
+class _MoreTabState extends State<_MoreTab> {
+  bool _bioEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBioState();
+  }
+
+  Future<void> _loadBioState() async {
+    final auth = context.read<AuthProvider>();
+    final enabled = await auth.isBiometricEnabled;
+    if (mounted) setState(() => _bioEnabled = enabled);
+  }
+
+  Future<void> _setBioEnabled(bool value) async {
+    final auth = context.read<AuthProvider>();
+    if (!value) {
+      await auth.disableBiometric();
+      if (mounted) setState(() => _bioEnabled = false);
+    } else {
+      if (mounted) {
+        setState(() => _bioEnabled = false);
+        showSnack(context, 'Sign in with your password to re-enable biometric unlock');
+      }
+    }
+  }
+
+  Future<void> _push(BuildContext context, Widget screen, {String? recentId}) async {
+    if (recentId != null) await RecentsManager.record(recentId);
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -987,49 +1046,78 @@ class _MoreTab extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // All Features
+              // Features (only items not accessible from profile/dashboard/quick-actions)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('ALL FEATURES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const Text('MORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
-                    _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'To-Do List', sub: 'Personal & school task tracker',
-                        onTap: () => _push(context, const TodosScreen())),
-                    _FeatureRow(icon: '📚', iconBg: AppColors.coralLight, title: 'Work Log', sub: 'Daily homework & classwork tracker',
-                        onTap: () => _push(context, const WorkLogScreen())),
-                    _FeatureRow(icon: '📊', iconBg: AppColors.violetLight, title: 'Academics & Results', sub: 'Post & view student results',
-                        onTap: () => _push(context, const TestsScreen())),
-                    _FeatureRow(icon: '🗓️', iconBg: AppColors.violetLight, title: 'My Leaves', sub: 'Balance, history & apply',
-                        onTap: () => _push(context, const LeaveScreen())),
-                    _FeatureRow(icon: '💰', iconBg: AppColors.greenLight, title: 'Payslips', sub: 'Monthly salary details',
-                        onTap: () => _push(context, const PayslipScreen())),
-                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: "Today's full timetable",
-                        onTap: () => _push(context, const TimetableScreen())),
-                    _FeatureRow(icon: '📅', iconBg: AppColors.skyLight, title: 'Calendar', sub: 'School events & holidays',
-                        onTap: () => _push(context, const CalendarScreen())),
-                    _FeatureRow(icon: '🔔', iconBg: AppColors.tealLight, title: 'Notify Parents', sub: 'Send homework & announcements',
-                        onTap: () => _push(context, const NotifyParentsScreen())),
+                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: "Weekly timetable",
+                        onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
                     if (user.role == 'admin' || user.role == 'principal') ...[
                       const SizedBox(height: 12),
                       const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1.2)),
                       const SizedBox(height: 8),
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
-                          onTap: () => _push(context, const AdminParentsScreen())),
+                          onTap: () => _push(context, const AdminParentsScreen(), recentId: 'parents')),
                       _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
-                          onTap: () => _push(context, const AdminTransportScreen())),
+                          onTap: () => _push(context, const AdminTransportScreen(), recentId: 'transport')),
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
-                          onTap: () => _push(context, const AdminSchoolSettingsScreen())),
+                          onTap: () => _push(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
                       _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
-                          onTap: () => _push(context, const AdminWorkLogsScreen())),
+                          onTap: () => _push(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
                       _FeatureRow(icon: '👤', iconBg: AppColors.coralLight, title: 'Attenders', sub: 'Authorized pickup persons',
-                          onTap: () => _push(context, const AdminAttendersScreen())),
+                          onTap: () => _push(context, const AdminAttendersScreen(), recentId: 'attenders')),
                       _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
-                          onTap: () => _push(context, const AdminFeeManagementScreen())),
+                          onTap: () => _push(context, const AdminFeeManagementScreen(), recentId: 'fees')),
                       _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
-                          onTap: () => _push(context, const AdminLeaveConfigScreen())),
+                          onTap: () => _push(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
                     ],
+
+                    const SizedBox(height: 20),
+                    const Text('SETTINGS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const SizedBox(height: 8),
+
+                    // Biometric unlock toggle
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border, width: 1.5),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.violetLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(child: Text('🔑', style: TextStyle(fontSize: 18))),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Biometric Unlock', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+                                Text('Use Face ID / fingerprint to sign in', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _bioEnabled,
+                            onChanged: _setBioEnabled,
+                            activeColor: AppColors.sun,
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 24),
                   ],
                 ),

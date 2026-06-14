@@ -443,6 +443,8 @@ class WorkLogEntry {
   final String createdAt;
   final int acknowledgmentCount;
   final String? studentName;
+  final String? studentRollNo;
+  final String? studentClassLabel;
 
   const WorkLogEntry({
     required this.id,
@@ -457,6 +459,8 @@ class WorkLogEntry {
     required this.createdAt,
     this.acknowledgmentCount = 0,
     this.studentName,
+    this.studentRollNo,
+    this.studentClassLabel,
   });
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
@@ -472,6 +476,8 @@ class WorkLogEntry {
         createdAt: j['created_at'] as String? ?? '',
         acknowledgmentCount: j['acknowledgment_count'] as int? ?? 0,
         studentName: j['student_name'] as String?,
+        studentRollNo: j['student_roll_no']?.toString(),
+        studentClassLabel: j['student_class_label'] as String?,
       );
 }
 

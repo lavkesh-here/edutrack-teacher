@@ -720,6 +720,8 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
       }
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
+    } catch (e) {
+      if (mounted) showSnack(context, 'Assignment failed: ${e.toString()}', error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

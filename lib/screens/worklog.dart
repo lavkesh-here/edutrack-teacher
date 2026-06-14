@@ -21,6 +21,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
 
   List<SectionInfo>? _sections;
   final Set<int> _selectedSectionIds = {};
+  String? _typeFilter; // null = all, 'homework'|'classwork'|'note'
 
   List<WorkLogEntry> _entries = [];
   Map<String, List<WorkLogEntry>> _grouped = {};
@@ -154,18 +155,24 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Log', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
-      body: RefreshIndicator(
-        color: AppColors.sun,
-        onRefresh: _loadForTab,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _buildTabBar()),
-            if (_tab == _Tab.custom)
-              SliverToBoxAdapter(child: _buildCustomPickers()),
-            SliverToBoxAdapter(child: _buildSectionChips()),
-            ..._buildContent(),
-          ],
-        ),
+      body: Column(
+        children: [
+          // Non-scrollable header area
+          _buildTabBar(),
+          if (_tab == _Tab.custom) _buildCustomPickers(),
+          _buildSectionChips(),
+          _buildTypeFilter(),
+          // Scrollable list
+          Expanded(
+            child: RefreshIndicator(
+              color: AppColors.sun,
+              onRefresh: _loadForTab,
+              child: CustomScrollView(
+                slivers: _buildContent(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -326,6 +333,64 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     );
   }
 
+  Widget _buildTypeFilter() {
+    const types = [
+      (null, 'All'),
+      ('homework', '📚 Homework'),
+      ('classwork', '📖 Classwork'),
+      ('note', '📌 Note'),
+    ];
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: types.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (_, i) {
+            final (val, label) = types[i];
+            final active = _typeFilter == val;
+            return GestureDetector(
+              onTap: () => setState(() => _typeFilter = val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: active ? AppColors.sun : AppColors.bg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: active ? AppColors.sun : AppColors.border, width: 1.5),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: active ? Colors.white : AppColors.muted,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  List<WorkLogEntry> get _filteredEntries =>
+      _typeFilter == null ? _entries : _entries.where((e) => e.logType == _typeFilter).toList();
+
+  Map<String, List<WorkLogEntry>> get _filteredGrouped {
+    if (_typeFilter == null) return _grouped;
+    final Map<String, List<WorkLogEntry>> result = {};
+    for (final entry in _grouped.entries) {
+      final filtered = entry.value.where((e) => e.logType == _typeFilter).toList();
+      if (filtered.isNotEmpty) result[entry.key] = filtered;
+    }
+    return result;
+  }
+
   List<Widget> _buildContent() {
     if (_loadingEntries) {
       return [
@@ -339,7 +404,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     }
 
     if (_tab == _Tab.today) {
-      if (_entries.isEmpty) {
+      if (_filteredEntries.isEmpty) {
         return [
           SliverToBoxAdapter(
             child: Padding(
@@ -371,8 +436,8 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-              (_, i) => _WorkLogCard(entry: _entries[i]),
-              childCount: _entries.length,
+              (_, i) => _WorkLogCard(entry: _filteredEntries[i]),
+              childCount: _filteredEntries.length,
             ),
           ),
         ),
@@ -394,7 +459,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       ];
     }
 
-    if (_grouped.isEmpty) {
+    if (_filteredGrouped.isEmpty) {
       return [
         const SliverToBoxAdapter(
           child: Padding(
@@ -413,7 +478,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
 
     // Flatten groups into items list: [DateHeader, Entry, Entry, DateHeader, Entry, ...]
     final items = <_HistoryItem>[];
-    for (final entry in _grouped.entries) {
+    for (final entry in _filteredGrouped.entries) {
       items.add(_HistoryItem.header(entry.key));
       for (final e in entry.value) {
         items.add(_HistoryItem.entry(e));
@@ -642,6 +707,9 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                                   children: [
                                     Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
                                     const SizedBox(width: 6),
+                                    if (s.rollNo != null)
+                                      Text('#${s.rollNo}', style: const TextStyle(fontSize: 11, color: AppColors.sun, fontWeight: FontWeight.w700)),
+                                    if (s.rollNo != null) const SizedBox(width: 4),
                                     Text(s.classLabel ?? '', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
                                   ],
                                 ),
@@ -714,7 +782,10 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      if (descCtrl.text.trim().isEmpty) return;
+                      if (descCtrl.text.trim().isEmpty) {
+                        showSnack(context, 'Please enter a description', error: true);
+                        return;
+                      }
                       try {
                         await ApiClient.createWorkLog(
                           classSectionId: section.id,
@@ -971,9 +1042,28 @@ class _WorkLogCard extends StatelessWidget {
                       color: AppColors.tealLight,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      '👤 ${entry.studentName}',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.teal),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '👤 ${entry.studentName}',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.teal),
+                        ),
+                        if (entry.studentRollNo != null) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '· #${entry.studentRollNo}',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.teal),
+                          ),
+                        ],
+                        if (entry.studentClassLabel != null) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '· ${entry.studentClassLabel}',
+                            style: TextStyle(fontSize: 10, color: AppColors.teal.withOpacity(0.8)),
+                          ),
+                        ],
+                      ],
                     ),
                   )
                 else if (entry.sectionLabel.isNotEmpty)

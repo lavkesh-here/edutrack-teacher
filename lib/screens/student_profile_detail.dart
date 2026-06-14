@@ -80,7 +80,10 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           widget.studentId, file.name, contentType, bytes.lengthInBytes);
       final uploadUrl = resp['upload_url'] as String;
       final photoUrl = resp['photo_url'] as String;
-      await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      final putResp = await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      if (putResp.statusCode < 200 || putResp.statusCode >= 300) {
+        throw Exception('Storage upload failed (${putResp.statusCode})');
+      }
       await ApiClient.saveStudentPhoto(widget.studentId, photoUrl);
       setState(() {
         _profile = Map<String, dynamic>.from(_profile ?? {})

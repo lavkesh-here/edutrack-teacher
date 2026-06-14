@@ -1,6 +1,13 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+
+const _secure = FlutterSecureStorage();
+const _kBioEmail = 'bio_email';
+const _kBioPass  = 'bio_password';
+const _kBioEnabled = 'bio_enabled';
 
 class AuthUser {
   final String teacherName;
@@ -29,6 +36,51 @@ class AuthProvider extends ChangeNotifier {
   AuthUser? get user => _user;
   bool get isLoggedIn => _user != null;
   bool get loading => _loading;
+
+  // ── Biometric ──────────────────────────────────────────────────────────────
+  final _localAuth = LocalAuthentication();
+
+  Future<bool> get isBiometricAvailable async {
+    try {
+      return await _localAuth.canCheckBiometrics || await _localAuth.isDeviceSupported();
+    } catch (_) { return false; }
+  }
+
+  Future<bool> get isBiometricEnabled async =>
+      (await SharedPreferences.getInstance()).getBool(_kBioEnabled) ?? false;
+
+  Future<void> enableBiometric(String email, String password) async {
+    await _secure.write(key: _kBioEmail, value: email);
+    await _secure.write(key: _kBioPass,  value: password);
+    (await SharedPreferences.getInstance()).setBool(_kBioEnabled, true);
+  }
+
+  Future<void> disableBiometric() async {
+    await _secure.delete(key: _kBioEmail);
+    await _secure.delete(key: _kBioPass);
+    (await SharedPreferences.getInstance()).setBool(_kBioEnabled, false);
+  }
+
+  /// Authenticates with biometric and re-logs in with stored credentials.
+  /// Returns null on success, error message on failure.
+  Future<String?> biometricLogin() async {
+    try {
+      final authed = await _localAuth.authenticate(
+        localizedReason: 'Unlock EduTrack',
+        options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
+      );
+      if (!authed) return 'Biometric authentication cancelled.';
+
+      final email    = await _secure.read(key: _kBioEmail);
+      final password = await _secure.read(key: _kBioPass);
+      if (email == null || password == null) return 'Stored credentials missing.';
+
+      await login(email, password);
+      return null;
+    } catch (e) {
+      return 'Biometric error: $e';
+    }
+  }
 
   String get initials {
     if (_user == null) return '?';

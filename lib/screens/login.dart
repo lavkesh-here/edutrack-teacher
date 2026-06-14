@@ -19,11 +19,34 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
   String _serverUrl = ApiClient.defaultBaseUrl;
+  bool _bioEnabled = false;
+  bool _bioAvailable = false;
 
   @override
   void initState() {
     super.initState();
     ApiClient.getBaseUrl().then((url) { if (mounted) setState(() => _serverUrl = url); });
+    _checkBio();
+  }
+
+  Future<void> _checkBio() async {
+    final auth = context.read<AuthProvider>();
+    final available = await auth.isBiometricAvailable;
+    final enabled = await auth.isBiometricEnabled;
+    if (mounted) setState(() { _bioAvailable = available; _bioEnabled = enabled; });
+  }
+
+  Future<void> _biometricUnlock() async {
+    setState(() => _loading = true);
+    final auth = context.read<AuthProvider>();
+    final err = await auth.biometricLogin();
+    if (!mounted) return;
+    if (err != null) {
+      setState(() { _error = err; _loading = false; });
+    } else {
+      setState(() => _loading = false);
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   @override
@@ -186,6 +209,35 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(fontSize: 12, color: AppColors.muted),
                     ),
                     const SizedBox(height: 16),
+                    // Biometric quick-unlock for returning users
+                    if (_bioAvailable && _bioEnabled) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _loading ? null : _biometricUnlock,
+                          icon: const Icon(Icons.fingerprint_rounded, size: 22),
+                          label: const Text('Unlock with Biometric',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.sun,
+                            side: const BorderSide(color: AppColors.sun),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('or sign in to a different account',
+                              style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        ),
+                        const Expanded(child: Divider()),
+                      ]),
+                      const SizedBox(height: 16),
+                    ],
                     const Text(
                       'SCHOOL CODE',
                       style: TextStyle(
@@ -276,17 +328,38 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
   Future<void> _login() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final mustChange = await context.read<AuthProvider>().login(
+      final auth = context.read<AuthProvider>();
+      final mustChange = await auth.login(
         _email.text.trim(),
         _pass.text,
         schoolCode: widget.school.code,
       );
       if (!mounted) return;
-      if (mustChange) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ForceChangePasswordScreen()),
+
+      // Offer biometric enrollment after first successful password login
+      final canUseBio = await auth.isBiometricAvailable;
+      final alreadyEnabled = await auth.isBiometricEnabled;
+      if (canUseBio && !alreadyEnabled && mounted) {
+        final enable = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Quick unlock', style: TextStyle(fontWeight: FontWeight.w800)),
+            content: const Text('Use Face ID or fingerprint to unlock EduTrack next time instead of typing your password.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enable')),
+            ],
+          ),
         );
+        if (enable == true) {
+          await auth.enableBiometric(_email.text.trim(), _pass.text);
+        }
+      }
+
+      if (!mounted) return;
+      if (mustChange) {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => const ForceChangePasswordScreen()));
       } else {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }

@@ -255,12 +255,16 @@ class AttendanceStudent {
   final int id;
   final String name;
   final String rollNo;
+  final String? gender;
+  final String? photoUrl;
   String status; // present | absent | late | ''
 
   AttendanceStudent({
     required this.id,
     required this.name,
     required this.rollNo,
+    this.gender,
+    this.photoUrl,
     this.status = '',
   });
 
@@ -268,6 +272,8 @@ class AttendanceStudent {
         id: j['id'] as int,
         name: j['name'] as String,
         rollNo: j['roll_no']?.toString() ?? '',
+        gender: j['gender'] as String?,
+        photoUrl: j['photo_url'] as String?,
       );
 }
 
@@ -1199,6 +1205,26 @@ class ApiClient {
 
   static Future<void> savePhotoUrl(String photoUrl) async {
     await _patch('/api/v1/teacher/me/photo', {'photo_url': photoUrl});
+  }
+
+  // ── Onboarding ────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getOnboardingState() async {
+    return (await _get('/api/v1/teacher/onboarding')) as Map<String, dynamic>;
+  }
+
+  static Future<void> markOnboardingSeen(String actionKey) async {
+    await _post('/api/v1/teacher/onboarding/$actionKey/seen', {});
+  }
+
+  // ── Student photo (teacher: one-time upload) ───────────────────────────────
+
+  static Future<Map<String, dynamic>> getStudentPhotoUploadUrl(int studentId) async {
+    return (await _post('/api/v1/teacher/students/$studentId/photo/upload-url', {})) as Map<String, dynamic>;
+  }
+
+  static Future<void> saveStudentPhoto(int studentId, String photoUrl) async {
+    await _patch('/api/v1/teacher/students/$studentId/photo', {'photo_url': photoUrl});
   }
 
   // ── Push tokens ────────────────────────────────────────────────────────────

@@ -3,6 +3,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'cache.dart';
+import 'features.dart';
 
 const _secure = FlutterSecureStorage();
 const _kBioEmail = 'bio_email';
@@ -32,10 +34,12 @@ class AuthUser {
 class AuthProvider extends ChangeNotifier {
   AuthUser? _user;
   bool _loading = true;
+  FeatureFlags _features = FeatureFlags.defaults();
 
   AuthUser? get user => _user;
   bool get isLoggedIn => _user != null;
   bool get loading => _loading;
+  FeatureFlags get features => _features;
 
   // ── Biometric ──────────────────────────────────────────────────────────────
   final _localAuth = LocalAuthentication();
@@ -134,8 +138,24 @@ class AuthProvider extends ChangeNotifier {
       role: res.role,
       teacherId: res.teacherId,
     );
+    // Load feature flags after login (non-blocking)
+    _loadFeatureFlags();
     notifyListeners();
     return res.mustChangePassword;
+  }
+
+  Future<void> _loadFeatureFlags() async {
+    try {
+      final cached = await FeatureFlags.fromCache();
+      if (cached != null) {
+        _features = cached;
+        notifyListeners();
+      }
+      final fresh = await ApiClient.getFeatureConfig();
+      _features = FeatureFlags.fromJson(fresh);
+      await _features.saveToCache();
+      notifyListeners();
+    } catch (_) {}
   }
 
   Future<void> updateProfile({String? name, String? phone, String? email}) async {
@@ -183,6 +203,8 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('teacher_phone');
     await prefs.remove('teacher_photo_url');
     _user = null;
+    _features = FeatureFlags.defaults();
+    await CacheService.clearAll();
     notifyListeners();
   }
 }

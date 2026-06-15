@@ -497,34 +497,39 @@ class _HomeTabState extends State<_HomeTab> {
             ),
 
             // Admin features section (admin/principal role only)
-            if (user.role == 'admin' || user.role == 'principal') ...[
-              const SliverToBoxAdapter(
-                child: SectionHeader(title: '⚙️ Admin'),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
+            if (user.role == 'admin' || user.role == 'principal') Builder(builder: (ctx) {
+              final flags = ctx.read<AuthProvider>().features;
+              return SliverList(delegate: SliverChildListDelegate([
+                const SectionHeader(title: '⚙️ Admin'),
+                Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: Column(
                     children: [
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
                           onTap: () => _openScreen(context, const AdminParentsScreen(), recentId: 'parents')),
-                      _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
-                          onTap: () => _openScreen(context, const AdminTransportScreen(), recentId: 'transport')),
+                      if (flags.transport)
+                        _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
+                            onTap: () => _openScreen(context, const AdminTransportScreen(), recentId: 'transport')),
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
                           onTap: () => _openScreen(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
-                      _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
-                          onTap: () => _openScreen(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
+                      if (flags.workLogs)
+                        _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
+                            onTap: () => _openScreen(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
                       _FeatureRow(icon: '👤', iconBg: AppColors.coralLight, title: 'Attenders', sub: 'Authorized pickup persons',
                           onTap: () => _openScreen(context, const AdminAttendersScreen(), recentId: 'attenders')),
-                      _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
-                          onTap: () => _openScreen(context, const AdminFeeManagementScreen(), recentId: 'fees')),
+                      if (flags.fees)
+                        _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
+                            onTap: () => _openScreen(context, const AdminFeeManagementScreen(), recentId: 'fees')),
+                      if (flags.payroll)
+                        _FeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation',
+                            onTap: () => _openScreen(context, const PayslipScreen(), recentId: 'payroll')),
                       _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
                           onTap: () => _openScreen(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
                     ],
                   ),
                 ),
-              ),
-            ],
+              ]));
+            }),
 
             // Leave alerts — pending only
             if (_recentLeaves != null && _recentLeaves!.any((l) => l.status == 'pending')) ...[

@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'cache.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -197,11 +200,12 @@ class TestScoresResponse {
 
   factory TestScoresResponse.fromJson(Map<String, dynamic> j) {
     final raw = j['scores'] as List<dynamic>? ?? [];
+    final report = j['report'] as Map<String, dynamic>?;
     return TestScoresResponse(
       scores: raw.map((e) => StudentScore.fromJson(e as Map<String, dynamic>)).toList(),
-      classAverage: (j['class_average'] as num?)?.toDouble(),
-      highestMark: (j['highest'] as num?)?.toDouble(),
-      belowAverageCount: j['below_average_count'] as int?,
+      classAverage: (report?['average_percentage'] as num?)?.toDouble(),
+      highestMark: (report?['highest'] as num?)?.toDouble(),
+      belowAverageCount: (report?['below_40_percent'] as num?)?.toInt(),
     );
   }
 }
@@ -585,61 +589,107 @@ class ApiClient {
     }
   }
 
+  static void _log(String method, String path, int status, int ms, {String? requestId, String? error}) {
+    if (!kDebugMode) return;
+    final rid = requestId != null ? ' [rid=$requestId]' : '';
+    if (error != null) {
+      dev.log('$method $path → $status (${ms}ms)$rid  ERROR: $error', name: 'API', level: 900);
+    } else {
+      dev.log('$method $path → $status (${ms}ms)$rid', name: 'API');
+    }
+  }
+
   static Future<dynamic> _get(String path) async {
     final base = await getBaseUrl();
+    final sw = Stopwatch()..start();
     final res = await http.get(
       Uri.parse('$base$path'),
       headers: await _headers(),
     ).timeout(const Duration(seconds: 20));
+    final ms = sw.elapsedMilliseconds;
+    final rid = res.headers['x-request-id'];
     if (res.statusCode == 401) {
+      _log('GET', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
       throw ApiError('Session expired. Please log in again.', 401);
     }
-    if (res.statusCode >= 400) throw ApiError(_errorDetail(res), res.statusCode);
+    if (res.statusCode >= 400) {
+      final detail = _errorDetail(res);
+      _log('GET', path, res.statusCode, ms, requestId: rid, error: detail);
+      throw ApiError(detail, res.statusCode);
+    }
+    _log('GET', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
   static Future<dynamic> _post(String path, Map<String, dynamic> body, {bool handleUnauthorized = true}) async {
     final base = await getBaseUrl();
+    final sw = Stopwatch()..start();
     final res = await http.post(
       Uri.parse('$base$path'),
       headers: await _headers(),
       body: jsonEncode(body),
     ).timeout(const Duration(seconds: 20));
+    final ms = sw.elapsedMilliseconds;
+    final rid = res.headers['x-request-id'];
     if (res.statusCode == 401) {
+      _log('POST', path, 401, ms, requestId: rid, error: 'session expired');
       if (handleUnauthorized) await onUnauthorized?.call();
       throw ApiError(handleUnauthorized ? 'Session expired. Please log in again.' : 'Invalid credentials', 401);
     }
-    if (res.statusCode >= 400) throw ApiError(_errorDetail(res), res.statusCode);
+    if (res.statusCode >= 400) {
+      final detail = _errorDetail(res);
+      _log('POST', path, res.statusCode, ms, requestId: rid, error: detail);
+      throw ApiError(detail, res.statusCode);
+    }
+    _log('POST', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
   static Future<dynamic> _patch(String path, Map<String, dynamic> body) async {
     final base = await getBaseUrl();
+    final sw = Stopwatch()..start();
     final res = await http.patch(
       Uri.parse('$base$path'),
       headers: await _headers(),
       body: jsonEncode(body),
     ).timeout(const Duration(seconds: 20));
+    final ms = sw.elapsedMilliseconds;
+    final rid = res.headers['x-request-id'];
     if (res.statusCode == 401) {
+      _log('PATCH', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
       throw ApiError('Session expired. Please log in again.', 401);
     }
-    if (res.statusCode >= 400) throw ApiError(_errorDetail(res), res.statusCode);
+    if (res.statusCode >= 400) {
+      final detail = _errorDetail(res);
+      _log('PATCH', path, res.statusCode, ms, requestId: rid, error: detail);
+      throw ApiError(detail, res.statusCode);
+    }
+    _log('PATCH', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
   static Future<dynamic> _delete(String path) async {
     final base = await getBaseUrl();
+    final sw = Stopwatch()..start();
     final res = await http.delete(
       Uri.parse('$base$path'),
       headers: await _headers(),
     ).timeout(const Duration(seconds: 20));
+    final ms = sw.elapsedMilliseconds;
+    final rid = res.headers['x-request-id'];
     if (res.statusCode == 401) {
+      _log('DELETE', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
       throw ApiError('Session expired. Please log in again.', 401);
     }
-    if (res.statusCode >= 400) throw ApiError(_errorDetail(res), res.statusCode);
+    if (res.statusCode >= 400) {
+      final detail = _errorDetail(res);
+      _log('DELETE', path, res.statusCode, ms, requestId: rid, error: detail);
+      throw ApiError(detail, res.statusCode);
+    }
+    _log('DELETE', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
@@ -671,9 +721,11 @@ class ApiClient {
 
   // ── Tests ─────────────────────────────────────────────────────────────────
 
-  static Future<List<TestSummary>> getTests() async {
-    final data = await _get('/api/v1/tests');
-    final list = data as List<dynamic>;
+  static Future<List<TestSummary>> getTests({int page = 0, int pageSize = 50}) async {
+    final data = await _get('/api/v1/tests?page=$page&page_size=$pageSize');
+    // BE returns {tests: [...], total, page, page_size, has_more}
+    final map = data as Map<String, dynamic>;
+    final list = (map['tests'] as List<dynamic>?) ?? [];
     return list.map((e) => TestSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -1253,6 +1305,50 @@ class ApiClient {
 
   static Future<void> markNotificationRead(int notifId) async {
     await _post('/api/v1/teacher/notifications/$notifId/read', {});
+  }
+
+  // ── Feature flags ──────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getFeatureConfig() async {
+    final data = await _get('/api/v1/teacher/feature-config');
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  // ── Caching wrappers ───────────────────────────────────────────────────────
+
+  static Future<List<TimetableSlot>> getMyTimetableCached() async {
+    // Return cache immediately, refresh in background
+    return _cachedOrFetch(
+      cacheKey: 'timetable',
+      maxAge: const Duration(minutes: 30),
+      fetch: getMyTimetable,
+      fromCache: (cached) => (cached['slots'] as List<dynamic>? ?? [])
+          .map((e) => TimetableSlot.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      toCache: (slots) => {'slots': slots.map((s) => {'id': s.id, 'day_of_week': s.dayOfWeek,
+          'period_number': s.periodNumber, 'start_time': s.startTime, 'end_time': s.endTime,
+          'subject_name': s.subjectName, 'class_section_id': s.classSectionId}).toList()},
+    );
+  }
+
+  static Future<T> _cachedOrFetch<T>({
+    required String cacheKey,
+    required Duration maxAge,
+    required Future<T> Function() fetch,
+    required T Function(Map<String, dynamic>) fromCache,
+    required Map<String, dynamic> Function(T) toCache,
+  }) async {
+    try {
+      final cached = await CacheService.getMap(cacheKey, maxAge: maxAge);
+      if (cached != null) {
+        // Kick off background refresh without blocking
+        fetch().then((fresh) => CacheService.set(cacheKey, toCache(fresh))).ignore();
+        return fromCache(cached);
+      }
+    } catch (_) {}
+    final fresh = await fetch();
+    CacheService.set(cacheKey, toCache(fresh)).ignore();
+    return fresh;
   }
 }
 

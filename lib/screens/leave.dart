@@ -520,6 +520,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                     TextField(
                       controller: _reason,
                       maxLines: 3,
+                      maxLength: 500,
                       decoration: const InputDecoration(
                         hintText: 'Add a note for the principal…',
                       ),

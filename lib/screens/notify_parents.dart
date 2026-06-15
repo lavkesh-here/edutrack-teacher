@@ -363,6 +363,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
             TextField(
               controller: _msgCtrl,
               maxLines: 4,
+              maxLength: 500,
               decoration: const InputDecoration(
                 hintText: 'Type your message here...',
                 alignLabelWithHint: true,

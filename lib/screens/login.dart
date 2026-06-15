@@ -473,9 +473,11 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
+                      maxLength: 255,
                       decoration: const InputDecoration(
                         hintText: 'teacher@school.edu',
                         prefixIcon: Icon(Icons.mail_outline, color: AppColors.muted, size: 18),
+                        counterText: '',
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -488,9 +490,11 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                       controller: _pass,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.done,
+                      maxLength: 128,
                       onSubmitted: (_) => _login(),
                       decoration: InputDecoration(
                         hintText: '••••••••',
+                        counterText: '',
                         prefixIcon: const Icon(Icons.lock_outline, color: AppColors.muted, size: 18),
                         suffixIcon: GestureDetector(
                           onTap: () => setState(() => _obscure = !_obscure),

@@ -723,6 +723,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 TextField(
                   controller: descCtrl,
                   maxLines: 3,
+                  maxLength: 2000,
                   decoration: const InputDecoration(
                     labelText: 'Description',
                     hintText: 'Describe the work assigned...',

@@ -36,6 +36,10 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
       setState(() => _error = 'Password must be at least 6 characters');
       return;
     }
+    if (_newCtrl.text.length > 128) {
+      setState(() => _error = 'Password must be at most 128 characters');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       await ApiClient.changePassword(
@@ -199,10 +203,12 @@ class _PasswordField extends StatelessWidget {
         TextField(
           controller: controller,
           obscureText: obscure,
+          maxLength: 128,
           textInputAction: onSubmit != null ? TextInputAction.done : TextInputAction.next,
           onSubmitted: onSubmit != null ? (_) => onSubmit!() : null,
           decoration: InputDecoration(
             hintText: hint,
+            counterText: '',
             prefixIcon: const Icon(Icons.lock_outline, color: AppColors.muted, size: 18),
             suffixIcon: GestureDetector(
               onTap: onToggle,

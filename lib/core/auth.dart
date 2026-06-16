@@ -121,6 +121,7 @@ class AuthProvider extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
+    if (_user != null) _loadFeatureFlags();
   }
 
   /// Returns true if user must change password (first login)

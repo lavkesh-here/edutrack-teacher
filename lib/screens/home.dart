@@ -997,6 +997,7 @@ class _MoreTabState extends State<_MoreTab> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user!;
+    final flags = auth.features;
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -1067,16 +1068,22 @@ class _MoreTabState extends State<_MoreTab> {
                       const SizedBox(height: 8),
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
                           onTap: () => _push(context, const AdminParentsScreen(), recentId: 'parents')),
-                      _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
-                          onTap: () => _push(context, const AdminTransportScreen(), recentId: 'transport')),
+                      if (flags.transport)
+                        _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
+                            onTap: () => _push(context, const AdminTransportScreen(), recentId: 'transport')),
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
                           onTap: () => _push(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
-                      _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
-                          onTap: () => _push(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
+                      if (flags.workLogs)
+                        _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
+                            onTap: () => _push(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
                       _FeatureRow(icon: '👤', iconBg: AppColors.coralLight, title: 'Attenders', sub: 'Authorized pickup persons',
                           onTap: () => _push(context, const AdminAttendersScreen(), recentId: 'attenders')),
-                      _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
-                          onTap: () => _push(context, const AdminFeeManagementScreen(), recentId: 'fees')),
+                      if (flags.fees)
+                        _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
+                            onTap: () => _push(context, const AdminFeeManagementScreen(), recentId: 'fees')),
+                      if (flags.payroll)
+                        _FeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation',
+                            onTap: () => _push(context, const PayslipScreen(), recentId: 'payroll')),
                       _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
                           onTap: () => _push(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
                     ],

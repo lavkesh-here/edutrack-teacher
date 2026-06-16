@@ -67,12 +67,12 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ParentDetailSheet(
         parent: parent,
-        onResetPassword: () => _resetPassword(parent['id'] as int),
+        onResetPassword: () => _resetPassword(parent['id'].toString()),
       ),
     );
   }
 
-  Future<void> _resetPassword(int parentId) async {
+  Future<void> _resetPassword(String parentId) async {
     try {
       final tempPass = await ApiClient.adminResetParentPassword(parentId);
       if (mounted) _showTempPasswordDialog(tempPass, 'Password Reset');

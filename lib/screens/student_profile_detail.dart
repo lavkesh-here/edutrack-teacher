@@ -7,7 +7,7 @@ import '../widgets/common.dart';
 import 'whatsapp_report.dart';
 
 class StudentProfileDetail extends StatefulWidget {
-  final int studentId;
+  final String studentId;
   final String studentName;
   final String sectionLabel;
 

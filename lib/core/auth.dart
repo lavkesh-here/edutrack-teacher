@@ -15,7 +15,7 @@ class AuthUser {
   final String teacherName;
   final String schoolName;
   final String role;
-  final int teacherId;
+  final String teacherId;
   final String? email;
   final String? phone;
   final String? photoUrl;
@@ -106,7 +106,7 @@ class AuthProvider extends ChangeNotifier {
       final name = prefs.getString('teacher_name') ?? '';
       final school = prefs.getString('school_name') ?? '';
       final role = prefs.getString('role') ?? 'teacher';
-      final id = prefs.getInt('teacher_id') ?? 0;
+      final id = prefs.getString('teacher_id') ?? 0;
       if (name.isNotEmpty) {
         _user = AuthUser(
           teacherName: name,
@@ -132,7 +132,7 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('teacher_name', res.teacherName);
     await prefs.setString('school_name', res.schoolName);
     await prefs.setString('role', res.role);
-    await prefs.setInt('teacher_id', res.teacherId);
+    await prefs.setString('teacher_id', res.teacherId);
     _user = AuthUser(
       teacherName: res.teacherName,
       schoolName: res.schoolName,

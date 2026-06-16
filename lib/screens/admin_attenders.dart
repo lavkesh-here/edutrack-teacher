@@ -140,7 +140,7 @@ class _AttenderRowState extends State<_AttenderRow> {
     final next = !_flagged;
     setState(() => _flagged = next);
     try {
-      await ApiClient.adminFlagAttender(widget.attender['id'] as int, isFlagged: next);
+      await ApiClient.adminFlagAttender(widget.attender['id'].toString(), isFlagged: next);
     } on ApiError catch (e) {
       setState(() => _flagged = !next);
       if (mounted) showSnack(context, e.message, error: true);

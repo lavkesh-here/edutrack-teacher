@@ -8,7 +8,7 @@ import 'cache.dart';
 // ── Models ──────────────────────────────────────────────────────────────────
 
 class SchoolInfo {
-  final int id;
+  final String id;
   final String name;
   final String code;
   final String? logoUrl;
@@ -16,7 +16,7 @@ class SchoolInfo {
   const SchoolInfo({required this.id, required this.name, required this.code, this.logoUrl});
 
   factory SchoolInfo.fromJson(Map<String, dynamic> j) => SchoolInfo(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         name: j['name'] as String,
         code: j['code'] as String,
         logoUrl: j['logo_url'] as String?,
@@ -28,7 +28,7 @@ class AuthResponse {
   final String teacherName;
   final String schoolName;
   final String role;
-  final int teacherId;
+  final String teacherId;
   final bool mustChangePassword;
 
   const AuthResponse({
@@ -45,13 +45,13 @@ class AuthResponse {
         teacherName: j['teacher_name'] as String,
         schoolName: j['school_name'] as String,
         role: j['role'] as String,
-        teacherId: j['teacher_id'] as int,
+        teacherId: j['teacher_id'].toString(),
         mustChangePassword: j['must_change_password'] as bool? ?? false,
       );
 }
 
 class StudentSearchResult {
-  final int id;
+  final String id;
   final String name;
   final String admissionNumber;
   final String? guardianName;
@@ -70,7 +70,7 @@ class StudentSearchResult {
   });
 
   factory StudentSearchResult.fromJson(Map<String, dynamic> j) => StudentSearchResult(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         name: j['name'] as String,
         admissionNumber: j['admission_number'] as String? ?? '',
         guardianName: j['guardian_name'] as String?,
@@ -81,7 +81,7 @@ class StudentSearchResult {
 }
 
 class TodoItem {
-  final int id;
+  final String id;
   final String title;
   final String? notes;
   final String? dueDate;
@@ -106,7 +106,7 @@ class TodoItem {
   });
 
   factory TodoItem.fromJson(Map<String, dynamic> j) => TodoItem(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         title: j['title'] as String,
         notes: j['notes'] as String?,
         dueDate: j['due_date'] as String?,
@@ -120,7 +120,7 @@ class TodoItem {
 }
 
 class TestSummary {
-  final int id;
+  final String id;
   final String title;
   final String subject;
   final String className;
@@ -145,7 +145,7 @@ class TestSummary {
   });
 
   factory TestSummary.fromJson(Map<String, dynamic> j) => TestSummary(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         title: j['title'] as String,
         subject: j['subject'] as String? ?? '',
         className: j['class_name'] as String? ?? '',
@@ -211,14 +211,14 @@ class TestScoresResponse {
 }
 
 class TimetableSlot {
-  final int id;
+  final String id;
   final int dayOfWeek;
   final int periodNumber;
   final String? startTime;
   final String? endTime;
   final String? subjectName;
   final String sectionLabel;
-  final int classSectionId;
+  final String classSectionId;
 
   const TimetableSlot({
     required this.id,
@@ -232,31 +232,31 @@ class TimetableSlot {
   });
 
   factory TimetableSlot.fromJson(Map<String, dynamic> j) => TimetableSlot(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         dayOfWeek: j['day_of_week'] as int,
         periodNumber: j['period_number'] as int,
         startTime: j['start_time'] as String?,
         endTime: j['end_time'] as String?,
         subjectName: j['subject_name'] as String?,
         sectionLabel: j['section_label'] as String? ?? '',
-        classSectionId: j['class_section_id'] as int? ?? 0,
+        classSectionId: j['class_section_id'].toString()? ?? 0,
       );
 }
 
 class SectionInfo {
-  final int id;
+  final String id;
   final String label;
 
   const SectionInfo({required this.id, required this.label});
 
   factory SectionInfo.fromJson(Map<String, dynamic> j) => SectionInfo(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         label: j['label'] as String,
       );
 }
 
 class AttendanceStudent {
-  final int id;
+  final String id;
   final String name;
   final String rollNo;
   final String? gender;
@@ -273,7 +273,7 @@ class AttendanceStudent {
   });
 
   factory AttendanceStudent.fromJson(Map<String, dynamic> j) => AttendanceStudent(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         name: j['name'] as String,
         rollNo: j['roll_no']?.toString() ?? '',
         gender: j['gender'] as String?,
@@ -282,7 +282,7 @@ class AttendanceStudent {
 }
 
 class LeaveRequest {
-  final int id;
+  final String id;
   final String leaveType;
   final String startDate;
   final String endDate;
@@ -303,7 +303,7 @@ class LeaveRequest {
   });
 
   factory LeaveRequest.fromJson(Map<String, dynamic> j) => LeaveRequest(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         leaveType: j['leave_type'] as String? ?? 'casual',
         startDate: j['start_date'] as String? ?? '',
         endDate: j['end_date'] as String? ?? '',
@@ -338,25 +338,25 @@ class AnalysisInsight {
 // ── New Models ────────────────────────────────────────────────────────────────
 
 class AnnouncementImage {
-  final int id;
+  final String id;
   final String gcsUrl;
   final int position;
   const AnnouncementImage({required this.id, required this.gcsUrl, required this.position});
   factory AnnouncementImage.fromJson(Map<String, dynamic> j) => AnnouncementImage(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         gcsUrl: j['gcs_url'] as String,
         position: j['position'] as int? ?? 0,
       );
 }
 
 class AnnouncementComment {
-  final int id;
+  final String id;
   final String body;
   final String? authorName;
   final String createdAt;
   const AnnouncementComment({required this.id, required this.body, this.authorName, required this.createdAt});
   factory AnnouncementComment.fromJson(Map<String, dynamic> j) => AnnouncementComment(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         body: j['body'] as String? ?? '',
         authorName: j['author_name'] as String?,
         createdAt: j['created_at'] as String? ?? '',
@@ -364,7 +364,7 @@ class AnnouncementComment {
 }
 
 class Announcement {
-  final int id;
+  final String id;
   final String title;
   final String body;
   final String audience;
@@ -393,7 +393,7 @@ class Announcement {
   });
 
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         title: j['title'] as String? ?? '',
         body: j['body'] as String? ?? '',
         audience: j['audience'] as String? ?? 'all',
@@ -411,7 +411,7 @@ class Announcement {
 }
 
 class CalendarEvent {
-  final int id;
+  final String id;
   final String title;
   final String eventType;
   final String startDate;
@@ -426,7 +426,7 @@ class CalendarEvent {
   });
 
   factory CalendarEvent.fromJson(Map<String, dynamic> j) => CalendarEvent(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         title: j['title'] as String? ?? '',
         eventType: j['event_type'] as String? ?? 'event',
         startDate: j['start_date'] as String? ?? '',
@@ -435,10 +435,10 @@ class CalendarEvent {
 }
 
 class WorkLogEntry {
-  final int id;
-  final int classSectionId;
+  final String id;
+  final String classSectionId;
   final String sectionLabel;
-  final int? subjectId;
+  final String? subjectId;
   final String? subjectName;
   final String date;
   final String logType;
@@ -468,10 +468,10 @@ class WorkLogEntry {
   });
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
-        id: j['id'] as int,
-        classSectionId: j['class_section_id'] as int? ?? 0,
+        id: j['id'].toString(),
+        classSectionId: j['class_section_id'].toString()? ?? 0,
         sectionLabel: j['section_label'] as String? ?? '',
-        subjectId: j['subject_id'] as int?,
+        subjectId: j['subject_id'].toString()?,
         subjectName: j['subject_name'] as String?,
         date: (j['date'] as String? ?? ''),
         logType: j['log_type'] as String? ?? 'classwork',
@@ -516,7 +516,7 @@ class PayslipRecord {
 }
 
 class ParentNotificationResult {
-  final int id;
+  final String id;
   final String message;
   final String sentAt;
   final int recipientCount;
@@ -530,7 +530,7 @@ class ParentNotificationResult {
 
   factory ParentNotificationResult.fromJson(Map<String, dynamic> j) =>
       ParentNotificationResult(
-        id: j['id'] as int,
+        id: j['id'].toString(),
         message: j['message'] as String? ?? '',
         sentAt: j['sent_at'] as String? ?? '',
         recipientCount: j['recipient_count'] as int? ?? 0,
@@ -729,12 +729,12 @@ class ApiClient {
     return list.map((e) => TestSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<TestScoresResponse> getTestScores(int testId) async {
+  static Future<TestScoresResponse> getTestScores(String testId) async {
     final data = await _get('/api/v1/tests/$testId/scores');
     return TestScoresResponse.fromJson(data as Map<String, dynamic>);
   }
 
-  static Future<AnalysisInsight?> getAnalysis(int testId) async {
+  static Future<AnalysisInsight?> getAnalysis(String testId) async {
     try {
       final data = await _get('/api/v1/tests/$testId/analysis/saved');
       if (data == null) return null;
@@ -746,7 +746,7 @@ class ApiClient {
     }
   }
 
-  static Future<String> getPreviewHtml(int testId, {bool answerKey = false}) async {
+  static Future<String> getPreviewHtml(String testId, {bool answerKey = false}) async {
     final base = await getBaseUrl();
     final token = await getToken();
     final uri = Uri.parse('$base/api/v1/export/$testId/preview')
@@ -779,7 +779,7 @@ class ApiClient {
   }
 
   static Future<List<AttendanceStudent>> getAttendance(
-      int sectionId, String date) async {
+      String sectionId, String date) async {
     final data = await _get(
         '/api/v1/teacher/attendance?class_section_id=$sectionId&date=$date');
     final map = data as Map<String, dynamic>;
@@ -798,7 +798,7 @@ class ApiClient {
   }
 
   static Future<void> submitAttendance({
-    required int sectionId,
+    required String sectionId,
     required String date,
     required Map<String, String> statuses,
   }) async {
@@ -855,7 +855,7 @@ class ApiClient {
       'is_pinned': isPinned,
       'allow_comments': allowComments,
     });
-    return (data as Map<String, dynamic>)['id'] as int? ?? 0;
+    return (data as Map<String, dynamic>)['id'].toString()? ?? 0;
   }
 
   static Future<Map<String, dynamic>> getAnnouncementUploadUrl(
@@ -869,7 +869,7 @@ class ApiClient {
   }
 
   static Future<void> attachAnnouncementImage(
-      int announcementId, String gcsUrl, String? fileName, int? fileSize, int position) async {
+      String announcementId, String gcsUrl, String? fileName, int? fileSize, int position) async {
     await _post('/api/v1/admin/announcements/$announcementId/images', {
       'gcs_url': gcsUrl,
       if (fileName != null) 'file_name': fileName,
@@ -878,22 +878,22 @@ class ApiClient {
     });
   }
 
-  static Future<void> deleteAnnouncementImage(int announcementId, int imageId) async {
+  static Future<void> deleteAnnouncementImage(String announcementId, String imageId) async {
     await _delete('/api/v1/admin/announcements/$announcementId/images/$imageId');
   }
 
-  static Future<void> toggleAnnouncementLike(int announcementId) async {
+  static Future<void> toggleAnnouncementLike(String announcementId) async {
     await _post('/api/v1/admin/announcements/$announcementId/like', {});
   }
 
-  static Future<List<AnnouncementComment>> getComments(int announcementId) async {
+  static Future<List<AnnouncementComment>> getComments(String announcementId) async {
     final data = await _get('/api/v1/admin/announcements/$announcementId/comments');
     return (data as List<dynamic>)
         .map((e) => AnnouncementComment.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  static Future<void> createComment(int announcementId, String body) async {
+  static Future<void> createComment(String announcementId, String body) async {
     await _post('/api/v1/admin/announcements/$announcementId/comments', {'body': body});
   }
 
@@ -953,8 +953,8 @@ class ApiClient {
   }
 
   static Future<void> createWorkLog({
-    required int classSectionId,
-    int? subjectId,
+    required String classSectionId,
+    String? subjectId,
     required String date,
     required String logType,
     required String description,
@@ -995,8 +995,8 @@ class ApiClient {
     required String message,
     required String notificationType,
     required String targetType,
-    int? classSectionId,
-    int? studentId,
+    String? classSectionId,
+    String? studentId,
   }) async {
     final data = await _post('/api/v1/teacher/notify-parents', {
       'message': message,
@@ -1016,7 +1016,7 @@ class ApiClient {
     return list.map((e) => StudentSearchResult.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<Map<String, dynamic>> getStudentProfile(int studentId) async {
+  static Future<Map<String, dynamic>> getStudentProfile(String studentId) async {
     final data = await _get('/api/v1/teacher/students/$studentId/profile');
     return data as Map<String, dynamic>;
   }
@@ -1041,7 +1041,7 @@ class ApiClient {
       if (dueDate != null) 'due_date': dueDate,
       'is_personal': isPersonal,
     });
-    return (data as Map<String, dynamic>)['id'] as int;
+    return (data as Map<String, dynamic>)['id'].toString();
   }
 
   static Future<void> updateTodo(int id, {bool? isCompleted, String? status, String? title, String? notes, String? dueDate}) async {
@@ -1064,7 +1064,7 @@ class ApiClient {
     return list.map((e) => TodoItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<int> getNotifyParentsCount(int classSectionId) async {
+  static Future<int> getNotifyParentsCount(String classSectionId) async {
     final data = await _get('/api/v1/teacher/notify-parents/count?class_section_id=$classSectionId');
     return (data as Map<String, dynamic>)['parent_count'] as int? ?? 0;
   }
@@ -1075,7 +1075,7 @@ class ApiClient {
 
   // ── Notify parents history ────────────────────────────────────────────────
 
-  static Future<List<Map<String, dynamic>>> getNotifyParentsHistory({int? classSectionId, int? studentId}) async {
+  static Future<List<Map<String, dynamic>>> getNotifyParentsHistory({String? classSectionId, String? studentId}) async {
     final params = <String>[];
     if (classSectionId != null) params.add('class_section_id=$classSectionId');
     if (studentId != null) params.add('student_id=$studentId');
@@ -1086,7 +1086,7 @@ class ApiClient {
 
   // ── Admin: Parents ─────────────────────────────────────────────────────────
 
-  static Future<List<Map<String, dynamic>>> adminListParents({String? search, int? sectionId}) async {
+  static Future<List<Map<String, dynamic>>> adminListParents({String? search, String? sectionId}) async {
     final params = <String>[];
     if (search != null && search.isNotEmpty) params.add('search=${Uri.encodeComponent(search)}');
     if (sectionId != null) params.add('section_id=$sectionId');
@@ -1102,16 +1102,16 @@ class ApiClient {
     return data as Map<String, dynamic>;
   }
 
-  static Future<Map<String, dynamic>> adminGetParent(int parentId) async {
+  static Future<Map<String, dynamic>> adminGetParent(String parentId) async {
     final data = await _get('/api/v1/admin/parents/$parentId');
     return data as Map<String, dynamic>;
   }
 
-  static Future<void> adminLinkParent(int parentId, {required int studentId, String relationType = 'parent'}) async {
+  static Future<void> adminLinkParent(String parentId, {required String studentId, String relationType = 'parent'}) async {
     await _post('/api/v1/admin/parents/$parentId/link', {'student_id': studentId, 'relation_type': relationType});
   }
 
-  static Future<String> adminResetParentPassword(int parentId) async {
+  static Future<String> adminResetParentPassword(String parentId) async {
     final data = await _post('/api/v1/admin/parents/$parentId/reset-password', {});
     return (data as Map<String, dynamic>)['temp_password'] as String;
   }
@@ -1137,13 +1137,13 @@ class ApiClient {
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> adminAssignTransport({required int studentId, required int routeId, int? stopId}) async {
+  static Future<void> adminAssignTransport({required String studentId, required String routeId, String? stopId}) async {
     final body = <String, dynamic>{'student_id': studentId, 'route_id': routeId};
     if (stopId != null) body['stop_id'] = stopId;
     await _post('/api/v1/admin/transport/assignments', body);
   }
 
-  static Future<void> adminRemoveTransportAssignment(int studentId) async {
+  static Future<void> adminRemoveTransportAssignment(String studentId) async {
     await _delete('/api/v1/admin/transport/assignments/$studentId');
   }
 
@@ -1160,7 +1160,7 @@ class ApiClient {
 
   // ── Admin: Work Logs ───────────────────────────────────────────────────────
 
-  static Future<List<Map<String, dynamic>>> adminListWorkLogs({int? sectionId, String? dateFrom, String? dateTo}) async {
+  static Future<List<Map<String, dynamic>>> adminListWorkLogs({String? sectionId, String? dateFrom, String? dateTo}) async {
     final params = <String>[];
     if (sectionId != null) params.add('section_id=$sectionId');
     if (dateFrom != null) params.add('date_from=$dateFrom');
@@ -1172,7 +1172,7 @@ class ApiClient {
 
   // ── Admin: Attenders ───────────────────────────────────────────────────────
 
-  static Future<List<Map<String, dynamic>>> adminListAttenders({int? studentId}) async {
+  static Future<List<Map<String, dynamic>>> adminListAttenders({String? studentId}) async {
     final path = studentId != null
         ? '/api/v1/admin/attenders/student/$studentId'
         : '/api/v1/admin/attenders';
@@ -1180,7 +1180,7 @@ class ApiClient {
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> adminFlagAttender(int attenderId, {required bool isFlagged}) async {
+  static Future<void> adminFlagAttender(String attenderId, {required bool isFlagged}) async {
     await _patch('/api/v1/admin/attenders/$attenderId/flag', {'is_flagged': isFlagged});
   }
 
@@ -1199,7 +1199,7 @@ class ApiClient {
     await _delete('/api/v1/admin/fees/components/$id');
   }
 
-  static Future<List<Map<String, dynamic>>> adminListFeeStructures({int? sectionId, String? status}) async {
+  static Future<List<Map<String, dynamic>>> adminListFeeStructures({String? sectionId, String? status}) async {
     final params = <String>[];
     if (sectionId != null) params.add('section_id=$sectionId');
     if (status != null) params.add('status=$status');
@@ -1208,11 +1208,11 @@ class ApiClient {
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> adminUpdateFeeStatus(int structureId, String status) async {
+  static Future<void> adminUpdateFeeStatus(String structureId, String status) async {
     await _post('/api/v1/admin/fees/structures/$structureId/status', {'status': status});
   }
 
-  static Future<List<Map<String, dynamic>>> adminListFeePayments({int? structureId}) async {
+  static Future<List<Map<String, dynamic>>> adminListFeePayments({String? structureId}) async {
     final path = structureId != null
         ? '/api/v1/admin/fees/structures/$structureId/payments'
         : '/api/v1/admin/fees/payments';
@@ -1220,7 +1220,7 @@ class ApiClient {
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> adminRecordPayment({required int structureId, required double amount, String method = 'cash', String? reference}) async {
+  static Future<void> adminRecordPayment({required String structureId, required double amount, String method = 'cash', String? reference}) async {
     await _post('/api/v1/admin/fees/structures/$structureId/payments',
         {'amount': amount, 'payment_method': method, if (reference != null) 'reference_number': reference});
   }
@@ -1278,7 +1278,7 @@ class ApiClient {
   // ── Student photo (teacher: one-time upload) ───────────────────────────────
 
   static Future<Map<String, dynamic>> getStudentPhotoUploadUrl(
-      int studentId, String filename, String contentType, int fileSize) async {
+      String studentId, String filename, String contentType, int fileSize) async {
     return (await _post('/api/v1/teacher/students/$studentId/photo/upload-url', {
       'filename': filename,
       'content_type': contentType,
@@ -1286,7 +1286,7 @@ class ApiClient {
     })) as Map<String, dynamic>;
   }
 
-  static Future<void> saveStudentPhoto(int studentId, String photoUrl) async {
+  static Future<void> saveStudentPhoto(String studentId, String photoUrl) async {
     await _patch('/api/v1/teacher/students/$studentId/photo', {'photo_url': photoUrl});
   }
 
@@ -1303,13 +1303,13 @@ class ApiClient {
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> markNotificationRead(int notifId) async {
+  static Future<void> markNotificationRead(String notifId) async {
     await _post('/api/v1/teacher/notifications/$notifId/read', {});
   }
 
   // ── WhatsApp parent report ─────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> generateWhatsAppReport(int studentId) async {
+  static Future<Map<String, dynamic>> generateWhatsAppReport(String studentId) async {
     return (await _post('/api/v1/teacher/students/$studentId/whatsapp-report', {}))
         as Map<String, dynamic>;
   }

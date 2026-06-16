@@ -139,7 +139,7 @@ class _RoutesTabState extends State<_RoutesTab> {
                     itemCount: _routes.length,
                     itemBuilder: (_, i) {
                       final route = _routes[i];
-                      final id = route['id'] as int? ?? i;
+                      final id = route['id'].toString()? ?? i;
                       final isExpanded = _expanded.contains(id);
                       final stops = route['stops'] as List<dynamic>? ?? [];
                       return Container(
@@ -342,7 +342,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
     }
   }
 
-  Future<void> _removeAssignment(int studentId) async {
+  Future<void> _removeAssignment(String studentId) async {
     try {
       await ApiClient.adminRemoveTransportAssignment(studentId);
       if (mounted) {
@@ -504,7 +504,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _removeAssignment(assignment['student_id'] as int? ?? 0);
+              _removeAssignment(assignment['student_id'].toString()? ?? 0);
             },
             child: const Text('Remove', style: TextStyle(color: AppColors.coral, fontWeight: FontWeight.w700)),
           ),
@@ -677,7 +677,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
   final _searchCtrl = TextEditingController();
   List<StudentSearchResult> _results = [];
   StudentSearchResult? _selected;
-  int? _selectedRouteId;
+  String? _selectedRouteId;
   bool _searching = false;
   bool _saving = false;
 
@@ -873,7 +873,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                       ),
                       items: widget.routes.map((r) {
                         return DropdownMenuItem<int>(
-                          value: r['id'] as int?,
+                          value: r['id'].toString()?,
                           child: Text(r['name'] as String? ?? ''),
                         );
                       }).toList(),

@@ -43,7 +43,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _markAllRead() async {
     final unread = _notifications.where((n) => !(n['is_read'] as bool? ?? false)).toList();
     for (final n in unread) {
-      try { await ApiClient.markNotificationRead(n['id'] as int); } catch (_) {}
+      try { await ApiClient.markNotificationRead(n['id'].toString()); } catch (_) {}
     }
     setState(() {
       _notifications = _notifications.map((n) => {...n, 'is_read': true}).toList();
@@ -113,7 +113,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final n = _notifications[i];
-                      final id = n['id'] as int;
+                      final id = n['id'].toString();
                       final title = n['title'] as String? ?? '';
                       final body = n['body'] as String? ?? '';
                       final type = n['notification_type'] as String? ?? '';

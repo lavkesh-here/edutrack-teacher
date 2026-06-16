@@ -218,7 +218,7 @@ class _ComponentsTabState extends State<_ComponentsTab> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final c = _components[i];
-                      final id = c['id'] as int;
+                      final id = c['id'].toString();
                       final name = c['name'] as String? ?? '';
                       final desc = c['description'] as String? ?? '';
                       final isOptional = c['is_optional'] as bool? ?? false;
@@ -405,7 +405,7 @@ class _StructuresTabState extends State<_StructuresTab> {
                           setSheet(() => saving = true);
                           try {
                             await ApiClient.adminRecordPayment(
-                              structureId: structure['id'] as int,
+                              structureId: structure['id'].toString(),
                               amount: amount,
                               method: method,
                               reference: refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
@@ -520,7 +520,7 @@ class _StructuresTabState extends State<_StructuresTab> {
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (_, i) {
                           final s = _structures[i];
-                          final id = s['id'] as int;
+                          final id = s['id'].toString();
                           final title = s['title'] as String? ?? '';
                           final amount = (s['amount'] as num?)?.toDouble() ?? 0;
                           final status = s['status'] as String? ?? 'unpaid';

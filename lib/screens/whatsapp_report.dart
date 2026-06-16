@@ -6,7 +6,7 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 
 class WhatsAppReportScreen extends StatefulWidget {
-  final int studentId;
+  final String studentId;
   final String studentName;
 
   const WhatsAppReportScreen({

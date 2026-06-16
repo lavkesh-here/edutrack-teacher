@@ -19,13 +19,19 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
   String _serverUrl = ApiClient.defaultBaseUrl;
+  bool _isProd = true;
   bool _bioEnabled = false;
   bool _bioAvailable = false;
 
   @override
   void initState() {
     super.initState();
-    ApiClient.getBaseUrl().then((url) { if (mounted) setState(() => _serverUrl = url); });
+    ApiClient.getBaseUrl().then((url) {
+      if (mounted) setState(() {
+        _serverUrl = url;
+        _isProd = url == ApiClient.defaultBaseUrl;
+      });
+    });
     _checkBio();
   }
 
@@ -55,30 +61,37 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _changeServer() async {
-    final ctrl = TextEditingController(text: _serverUrl);
+  Future<void> _switchToDev() async {
+    final ctrl = TextEditingController(text: _isProd ? '' : _serverUrl);
     final result = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Server URL', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-        content: TextField(
-          controller: ctrl,
-          autocorrect: false,
-          decoration: const InputDecoration(hintText: 'https://your-backend.run.app'),
+        title: const Text('Dev Server URL', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('e.g. http://192.168.1.5:8000 or ngrok URL',
+                style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            const SizedBox(height: 12),
+            TextField(controller: ctrl, autocorrect: false, keyboardType: TextInputType.url,
+                decoration: const InputDecoration(hintText: 'http://192.168.x.x:8000')),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('Save'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, ctrl.text.trim()), child: const Text('Save')),
         ],
       ),
     );
-    if (result != null && result.isNotEmpty) {
-      await ApiClient.setBaseUrl(result);
-      if (mounted) setState(() => _serverUrl = result);
-    }
+    if (result == null || result.isEmpty) return;
+    await ApiClient.setBaseUrl(result);
+    if (mounted) setState(() { _serverUrl = result; _isProd = false; });
+  }
+
+  Future<void> _switchToProd() async {
+    await ApiClient.setBaseUrl(ApiClient.defaultBaseUrl);
+    if (mounted) setState(() { _serverUrl = ApiClient.defaultBaseUrl; _isProd = true; });
   }
 
   Future<void> _next() async {
@@ -158,24 +171,35 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 48),
-              GestureDetector(
-                onTap: _changeServer,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.dns_outlined, size: 12, color: AppColors.muted),
-                    const SizedBox(width: 4),
-                    Flexible(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.dns_outlined, size: 12, color: AppColors.muted),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: _isProd ? _switchToDev : _switchToProd,
+                    onLongPress: _isProd ? _switchToDev : _switchToProd,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _isProd ? AppColors.tealLight : AppColors.amberLight,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _isProd ? AppColors.teal.withOpacity(0.3) : AppColors.amber.withOpacity(0.4),
+                        ),
+                      ),
                       child: Text(
-                        _serverUrl.replaceFirst(RegExp(r'https?://'), ''),
-                        style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                        overflow: TextOverflow.ellipsis,
+                        _isProd ? 'PRODUCTION' : 'DEV',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: _isProd ? AppColors.teal : AppColors.amber,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.edit_outlined, size: 11, color: AppColors.muted),
-                  ],
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               Container(

@@ -1062,6 +1062,8 @@ class _MoreTabState extends State<_MoreTab> {
                     const SizedBox(height: 8),
                     _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: "Weekly timetable",
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
+                    _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
+                        onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
                     if (user.role == 'admin' || user.role == 'principal') ...[
                       const SizedBox(height: 12),
                       const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1.2)),

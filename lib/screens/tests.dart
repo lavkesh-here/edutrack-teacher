@@ -169,7 +169,10 @@ class _TestCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${test.subject} · ${test.className}',
+                          [
+                            if (test.subject.isNotEmpty) test.subject,
+                            if (test.className.isNotEmpty) test.className,
+                          ].join(' · '),
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500),
                         ),
@@ -198,7 +201,7 @@ class _TestCard extends StatelessWidget {
                   const Spacer(),
                   if (test.scheduledDate != null)
                     Text(
-                      fmtDate(test.scheduledDate!.toIso8601String()),
+                      fmtDate(test.scheduledDate!.toLocal().toString().substring(0, 10)),
                       style: const TextStyle(fontSize: 10, color: AppColors.muted),
                     ),
                   const SizedBox(width: 4),

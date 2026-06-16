@@ -159,6 +159,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
         children: [
           // Non-scrollable header area
           _buildTabBar(),
+          if (_tab == _Tab.today) _buildWeekStrip(),
           if (_tab == _Tab.custom) _buildCustomPickers(),
           _buildSectionChips(),
           _buildTypeFilter(),
@@ -173,6 +174,69 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWeekStrip() {
+    final today = DateTime.now();
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      child: SizedBox(
+        height: 52,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: 7,
+          itemBuilder: (_, i) {
+            final day = monday.add(Duration(days: i));
+            final isSunday = day.weekday == DateTime.sunday;
+            final isSelected = day.year == _date.year && day.month == _date.month && day.day == _date.day;
+            final isFuture = day.isAfter(today);
+            return GestureDetector(
+              onTap: isSunday || isFuture ? null : () {
+                setState(() => _date = day);
+                _loadEntries();
+              },
+              child: Container(
+                width: 40,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.sun : isSunday ? const Color(0xFFF3F4F6) : AppColors.bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? AppColors.sun : AppColors.border,
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      dayLabels[i],
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected ? Colors.white : isSunday ? AppColors.muted : AppColors.text2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isSunday ? 'Off' : '${day.day}',
+                      style: TextStyle(
+                        fontSize: isSunday ? 9 : 13,
+                        fontWeight: FontWeight.w900,
+                        color: isSelected ? Colors.white : isSunday ? AppColors.muted : AppColors.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -534,7 +598,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     final descCtrl = TextEditingController();
     final studentSearchCtrl = TextEditingController();
     String logType = 'classwork';
-    SectionInfo section = _sections!.first;
+    final Set<String> selectedSectionIds = {_sections!.first.id};
     DateTime? dueDate;
     StudentSearchResult? selectedStudent;
     List<StudentSearchResult> studentResults = [];
@@ -608,9 +672,9 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Section chip selector (replaces DropdownButtonFormField)
+                // Section chip multi-selector
                 const Text(
-                  'Section',
+                  'Sections (tap to select multiple)',
                   style: TextStyle(
                       fontSize: 12,
                       color: AppColors.muted,
@@ -625,11 +689,17 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, i) {
                       final sec = _sections![i];
-                      final active = section.id == sec.id;
+                      final active = selectedSectionIds.contains(sec.id);
                       return _SectionChip(
                         label: sec.label,
                         active: active,
-                        onTap: () => setSheet(() => section = sec),
+                        onTap: () => setSheet(() {
+                          if (active) {
+                            if (selectedSectionIds.length > 1) selectedSectionIds.remove(sec.id);
+                          } else {
+                            selectedSectionIds.add(sec.id);
+                          }
+                        }),
                       );
                     },
                   ),
@@ -788,17 +858,23 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         return;
                       }
                       try {
-                        await ApiClient.createWorkLog(
-                          classSectionId: section.id,
-                          date: DateFormat('yyyy-MM-dd').format(_date),
-                          logType: logType,
-                          description: descCtrl.text.trim(),
-                          dueDate: dueDate != null ? DateFormat('yyyy-MM-dd').format(dueDate!) : null,
-                        );
+                        final dateStr = DateFormat('yyyy-MM-dd').format(_date);
+                        final dueDateStr = dueDate != null ? DateFormat('yyyy-MM-dd').format(dueDate!) : null;
+                        final desc = descCtrl.text.trim();
+                        for (final secId in selectedSectionIds) {
+                          await ApiClient.createWorkLog(
+                            classSectionId: secId,
+                            date: dateStr,
+                            logType: logType,
+                            description: desc,
+                            dueDate: dueDateStr,
+                          );
+                        }
                         descCtrl.clear();
                         if (mounted) Navigator.pop(ctx2);
                         _loadForTab();
-                        if (mounted) showSnack(context, 'Work log added ✓');
+                        final count = selectedSectionIds.length;
+                        if (mounted) showSnack(context, count > 1 ? 'Work log added to $count sections ✓' : 'Work log added ✓');
                       } on ApiError catch (e) {
                         if (mounted) showSnack(context, e.message, error: true);
                       }

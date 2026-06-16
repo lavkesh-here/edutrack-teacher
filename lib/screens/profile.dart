@@ -63,13 +63,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final phoneCtrl = TextEditingController(text: user.phone ?? '');
     final emailCtrl = TextEditingController(text: user.email ?? '');
     bool saving = false;
+    bool _fetchDone = false;
 
-    // Fetch fresh profile data
-    ApiClient.getMyProfile().then((data) {
-      nameCtrl.text = data['name'] as String? ?? user.teacherName;
-      phoneCtrl.text = data['phone'] as String? ?? '';
-      emailCtrl.text = data['email'] as String? ?? '';
-    }).catchError((_) {});
+    void fetchFresh(StateSetter setSheet) {
+      if (_fetchDone) return;
+      _fetchDone = true;
+      ApiClient.getMyProfile().then((data) {
+        setSheet(() {
+          nameCtrl.text = data['name'] as String? ?? nameCtrl.text;
+          phoneCtrl.text = data['phone'] as String? ?? phoneCtrl.text;
+          emailCtrl.text = data['email'] as String? ?? emailCtrl.text;
+        });
+      }).catchError((_) {});
+    }
 
     showModalBottomSheet(
       context: context,
@@ -77,7 +83,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
+        builder: (ctx, setSheet) {
+          fetchFresh(setSheet);
+          return Padding(
           padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -136,7 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     } catch (e) {
                       setSheet(() => saving = false);
-                      if (ctx.mounted) showSnack(ctx, e.toString(), error: true);
+                      if (ctx.mounted) {
+                        final msg = e is ApiError ? e.message : 'Could not update profile. Try again.';
+                        showSnack(ctx, msg, error: true);
+                      }
                     }
                   },
                   child: saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)) : const Text('Save'),
@@ -144,7 +155,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-        ),
+          );
+        },
       ),
     );
   }

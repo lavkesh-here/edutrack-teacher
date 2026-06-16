@@ -229,6 +229,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                   if (!_swipeMode) ...[
                     const SizedBox(height: 10),
+                    // 7-day week strip
+                    _buildWeekStrip(),
+                    const SizedBox(height: 6),
                     // Section selector
                     if (_loadingSections)
                       const LinearProgressIndicator(color: AppColors.sun)
@@ -483,11 +486,71 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
+  Widget _buildWeekStrip() {
+    final today = DateTime.now();
+    // Start from Monday of the current week
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return SizedBox(
+      height: 52,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 7,
+        itemBuilder: (_, i) {
+          final day = monday.add(Duration(days: i));
+          final isSunday = day.weekday == DateTime.sunday;
+          final isSelected = day.year == _date.year && day.month == _date.month && day.day == _date.day;
+          final isFuture = day.isAfter(today);
+          return GestureDetector(
+            onTap: isSunday || isFuture ? null : () {
+              setState(() => _date = day);
+              _loadStudents();
+            },
+            child: Container(
+              width: 40,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.sun : isSunday ? const Color(0xFFF3F4F6) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? AppColors.sun : AppColors.border,
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    dayLabels[i],
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : isSunday ? AppColors.muted : AppColors.text2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isSunday ? 'Off' : '${day.day}',
+                    style: TextStyle(
+                      fontSize: isSunday ? 9 : 13,
+                      fontWeight: FontWeight.w900,
+                      color: isSelected ? Colors.white : isSunday ? AppColors.muted : AppColors.text,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime.now().subtract(const Duration(days: 7)),
+      firstDate: DateTime.now().subtract(const Duration(days: 6)),
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: ThemeData(colorScheme: const ColorScheme.light(primary: AppColors.sun)),
@@ -909,34 +972,64 @@ class _StudentCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _borderColor, width: 1.5),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                  color: _avatarFg.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(_initials, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _avatarFg)),
-                ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Show photo if available, else initials
+                  if (student.photoUrl != null && student.photoUrl!.isNotEmpty)
+                    ClipOval(
+                      child: Image.network(
+                        student.photoUrl!,
+                        width: 40, height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(color: _avatarFg.withOpacity(0.15), shape: BoxShape.circle),
+                          child: Center(child: Text(_initials, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _avatarFg))),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(color: _avatarFg.withOpacity(0.15), shape: BoxShape.circle),
+                      child: Center(child: Text(_initials, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _avatarFg))),
+                    ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      student.name.split(' ').first,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.text),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _statusLabel,
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _avatarFg),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  student.name.split(' ').first,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.text),
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+              // Info button — tapping shows modal, main card tap cycles status
+              if (onLongPress != null)
+                Positioned(
+                  top: 4, right: 4,
+                  child: GestureDetector(
+                    onTap: onLongPress,
+                    child: Container(
+                      width: 18, height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.85),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.info_outline, size: 12, color: AppColors.muted),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                _statusLabel,
-                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _avatarFg),
-              ),
             ],
           ),
         ),

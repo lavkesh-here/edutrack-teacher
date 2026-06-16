@@ -1307,6 +1307,13 @@ class ApiClient {
     await _post('/api/v1/teacher/notifications/$notifId/read', {});
   }
 
+  // ── WhatsApp parent report ─────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> generateWhatsAppReport(int studentId) async {
+    return (await _post('/api/v1/teacher/students/$studentId/whatsapp-report', {}))
+        as Map<String, dynamic>;
+  }
+
   // ── Feature flags ──────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getFeatureConfig() async {

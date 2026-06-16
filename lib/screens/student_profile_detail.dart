@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import 'whatsapp_report.dart';
 
 class StudentProfileDetail extends StatefulWidget {
   final int studentId;
@@ -137,6 +138,21 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
             '$name · $classLabel',
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
           ),
+          actions: [
+            IconButton(
+              tooltip: 'WhatsApp Report',
+              icon: const Text('💬', style: TextStyle(fontSize: 20)),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => WhatsAppReportScreen(
+                    studentId: widget.studentId,
+                    studentName: widget.studentName,
+                  ),
+                ),
+              ),
+            ),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             collapseMode: CollapseMode.pin,
             background: Container(

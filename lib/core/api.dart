@@ -841,7 +841,7 @@ class ApiClient {
         .toList();
   }
 
-  static Future<int> createAnnouncement({
+  static Future<String> createAnnouncement({
     required String title,
     required String body,
     required String audience,
@@ -1029,7 +1029,7 @@ class ApiClient {
     return list.map((e) => TodoItem.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<int> createTodo({
+  static Future<String> createTodo({
     required String title,
     String? notes,
     String? dueDate,
@@ -1195,7 +1195,7 @@ class ApiClient {
     await _post('/api/v1/admin/fees/components', {'name': name, 'description': description, 'is_optional': isOptional});
   }
 
-  static Future<void> adminDeleteFeeComponent(int id) async {
+  static Future<void> adminDeleteFeeComponent(String id) async {
     await _delete('/api/v1/admin/fees/components/$id');
   }
 

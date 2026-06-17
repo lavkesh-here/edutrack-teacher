@@ -106,7 +106,7 @@ class AuthProvider extends ChangeNotifier {
       final name = prefs.getString('teacher_name') ?? '';
       final school = prefs.getString('school_name') ?? '';
       final role = prefs.getString('role') ?? 'teacher';
-      final id = prefs.getString('teacher_id') ?? 0;
+      final id = prefs.getString('teacher_id') ?? '';
       if (name.isNotEmpty) {
         _user = AuthUser(
           teacherName: name,

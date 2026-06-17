@@ -84,7 +84,7 @@ class _ComponentsTabState extends State<_ComponentsTab> {
     }
   }
 
-  Future<void> _delete(int id, String name) async {
+  Future<void> _delete(String id, String name) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -310,7 +310,7 @@ class _StructuresTabState extends State<_StructuresTab> {
     }
   }
 
-  Future<void> _updateStatus(int id, String current) async {
+  Future<void> _updateStatus(String id, String current) async {
     final opts = ['paid', 'unpaid', 'overdue'].where((s) => s != current).toList();
     final chosen = await showModalBottomSheet<String>(
       context: context,

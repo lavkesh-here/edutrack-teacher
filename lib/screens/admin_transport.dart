@@ -139,7 +139,7 @@ class _RoutesTabState extends State<_RoutesTab> {
                     itemCount: _routes.length,
                     itemBuilder: (_, i) {
                       final route = _routes[i];
-                      final id = route['id'].toString()? ?? i;
+                      final id = route['id']?.toString() ?? i.toString();
                       final isExpanded = _expanded.contains(id);
                       final stops = route['stops'] as List<dynamic>? ?? [];
                       return Container(
@@ -504,7 +504,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _removeAssignment(assignment['student_id'].toString()? ?? 0);
+              _removeAssignment(assignment['student_id']?.toString() ?? '');
             },
             child: const Text('Remove', style: TextStyle(color: AppColors.coral, fontWeight: FontWeight.w700)),
           ),
@@ -855,7 +855,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                     const SizedBox(height: 16),
                     _SheetLabel('SELECT ROUTE'),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<int>(
+                    DropdownButtonFormField<String>(
                       value: _selectedRouteId,
                       hint: const Text('Choose a route'),
                       decoration: InputDecoration(
@@ -872,8 +872,8 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
                       items: widget.routes.map((r) {
-                        return DropdownMenuItem<int>(
-                          value: r['id'].toString()?,
+                        return DropdownMenuItem<String>(
+                          value: r['id']?.toString(),
                           child: Text(r['name'] as String? ?? ''),
                         );
                       }).toList(),

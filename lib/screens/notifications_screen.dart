@@ -30,7 +30,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Future<void> _markRead(int id) async {
+  Future<void> _markRead(String id) async {
     try {
       await ApiClient.markNotificationRead(id);
       setState(() {

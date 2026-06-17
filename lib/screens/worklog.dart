@@ -20,7 +20,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
   DateTime? _customTo;
 
   List<SectionInfo>? _sections;
-  final Set<int> _selectedSectionIds = {};
+  final Set<String> _selectedSectionIds = {};
   String? _typeFilter; // null = all, 'homework'|'classwork'|'note'
 
   List<WorkLogEntry> _entries = [];

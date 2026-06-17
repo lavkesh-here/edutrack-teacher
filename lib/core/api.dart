@@ -935,7 +935,7 @@ class ApiClient {
     String? date,
     String? dateFrom,
     String? dateTo,
-    List<int>? sectionIds,
+    List<String>? sectionIds,
   }) async {
     final params = <String>[];
     if (date != null) params.add('date=$date');
@@ -1044,7 +1044,7 @@ class ApiClient {
     return (data as Map<String, dynamic>)['id'].toString();
   }
 
-  static Future<void> updateTodo(int id, {bool? isCompleted, String? status, String? title, String? notes, String? dueDate}) async {
+  static Future<void> updateTodo(String id, {bool? isCompleted, String? status, String? title, String? notes, String? dueDate}) async {
     await _patch('/api/v1/teacher/todos/$id', {
       if (status != null) 'status': status,
       if (isCompleted != null) 'is_completed': isCompleted,
@@ -1069,7 +1069,7 @@ class ApiClient {
     return (data as Map<String, dynamic>)['parent_count'] as int? ?? 0;
   }
 
-  static Future<void> deleteTodo(int id) async {
+  static Future<void> deleteTodo(String id) async {
     await _delete('/api/v1/teacher/todos/$id');
   }
 

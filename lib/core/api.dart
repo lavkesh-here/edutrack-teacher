@@ -239,7 +239,7 @@ class TimetableSlot {
         endTime: j['end_time'] as String?,
         subjectName: j['subject_name'] as String?,
         sectionLabel: j['section_label'] as String? ?? '',
-        classSectionId: j['class_section_id'].toString()? ?? 0,
+        classSectionId: j['class_section_id']?.toString() ?? '',
       );
 }
 
@@ -469,9 +469,9 @@ class WorkLogEntry {
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
         id: j['id'].toString(),
-        classSectionId: j['class_section_id'].toString()? ?? 0,
+        classSectionId: j['class_section_id']?.toString() ?? '',
         sectionLabel: j['section_label'] as String? ?? '',
-        subjectId: j['subject_id'].toString()?,
+        subjectId: j['subject_id']?.toString(),
         subjectName: j['subject_name'] as String?,
         date: (j['date'] as String? ?? ''),
         logType: j['log_type'] as String? ?? 'classwork',
@@ -855,7 +855,7 @@ class ApiClient {
       'is_pinned': isPinned,
       'allow_comments': allowComments,
     });
-    return (data as Map<String, dynamic>)['id'].toString()? ?? 0;
+    return (data as Map<String, dynamic>)['id']?.toString() ?? '';
   }
 
   static Future<Map<String, dynamic>> getAnnouncementUploadUrl(

@@ -63,11 +63,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final phoneCtrl = TextEditingController(text: user.phone ?? '');
     final emailCtrl = TextEditingController(text: user.email ?? '');
     bool saving = false;
-    bool _fetchDone = false;
+    bool fetchDone = false;
 
     void fetchFresh(StateSetter setSheet) {
-      if (_fetchDone) return;
-      _fetchDone = true;
+      if (fetchDone) return;
+      fetchDone = true;
       ApiClient.getMyProfile().then((data) {
         setSheet(() {
           nameCtrl.text = data['name'] as String? ?? nameCtrl.text;
@@ -447,12 +447,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) showSnack(context, 'Could not open URL', error: true);
-    }
-  }
 
   void _confirmLogout(BuildContext context) {
     showDialog(

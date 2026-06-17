@@ -68,7 +68,7 @@ class _RoutesTab extends StatefulWidget {
 class _RoutesTabState extends State<_RoutesTab> {
   List<Map<String, dynamic>> _routes = [];
   bool _loading = true;
-  final Set<int> _expanded = {};
+  final Set<String> _expanded = {};
 
   @override
   void initState() {

@@ -154,7 +154,10 @@ class _LeaveScreenState extends State<LeaveScreen> {
                           child: ListView.builder(
                             padding: const EdgeInsets.only(bottom: 16),
                             itemCount: _leaves!.length,
-                            itemBuilder: (_, i) => _LeaveItem(leave: _leaves![i]),
+                            itemBuilder: (_, i) => _LeaveItem(
+                              leave: _leaves![i],
+                              onCancelled: _load,
+                            ),
                           ),
                         ),
             ),
@@ -228,12 +231,20 @@ class _BalTile extends StatelessWidget {
       );
 }
 
-class _LeaveItem extends StatelessWidget {
+class _LeaveItem extends StatefulWidget {
   final LeaveRequest leave;
-  const _LeaveItem({required this.leave});
+  final VoidCallback onCancelled;
+  const _LeaveItem({required this.leave, required this.onCancelled});
+
+  @override
+  State<_LeaveItem> createState() => _LeaveItemState();
+}
+
+class _LeaveItemState extends State<_LeaveItem> {
+  bool _cancelling = false;
 
   String get _icon {
-    switch (leave.leaveType) {
+    switch (widget.leave.leaveType) {
       case 'sick': return '🤒';
       case 'casual': return '🌴';
       case 'earned': return '⭐';
@@ -242,11 +253,43 @@ class _LeaveItem extends StatelessWidget {
   }
 
   Color get _iconBg {
-    switch (leave.leaveType) {
+    switch (widget.leave.leaveType) {
       case 'sick': return AppColors.coralLight;
       case 'casual': return AppColors.tealLight;
       case 'earned': return AppColors.amberLight;
       default: return AppColors.violetLight;
+    }
+  }
+
+  Future<void> _cancel() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Cancel Leave?', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: const Text('This will withdraw your pending leave request.', style: TextStyle(color: AppColors.muted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Keep')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(_, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.coral),
+            child: const Text('Cancel Leave'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    setState(() => _cancelling = true);
+    try {
+      await ApiClient.cancelLeave(widget.leave.id);
+      if (mounted) {
+        showSnack(context, 'Leave request cancelled');
+        widget.onCancelled();
+      }
+    } on ApiError catch (e) {
+      if (mounted) showSnack(context, e.message, error: true);
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
     }
   }
 
@@ -274,7 +317,7 @@ class _LeaveItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${_leaveLabel(leave.leaveType)} — ${leave.daysCount} day${leave.daysCount > 1 ? "s" : ""}',
+                    '${_leaveLabel(widget.leave.leaveType)} — ${widget.leave.daysCount} day${widget.leave.daysCount > 1 ? "s" : ""}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -283,13 +326,13 @@ class _LeaveItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${fmtDate(leave.startDate)} → ${fmtDate(leave.endDate)}',
+                    '${fmtDate(widget.leave.startDate)} → ${fmtDate(widget.leave.endDate)}',
                     style: const TextStyle(fontSize: 11, color: AppColors.muted),
                   ),
-                  if (leave.reason != null && leave.reason!.isNotEmpty) ...[
+                  if (widget.leave.reason != null && widget.leave.reason!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      leave.reason!,
+                      widget.leave.reason!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 10, color: AppColors.muted),
@@ -298,7 +341,24 @@ class _LeaveItem extends StatelessWidget {
                 ],
               ),
             ),
-            statusBadgeForLeave(leave.status),
+            const SizedBox(width: 8),
+            if (widget.leave.status == 'pending')
+              _cancelling
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.coral))
+                  : GestureDetector(
+                      onTap: _cancel,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.coralLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.coral.withOpacity(0.3)),
+                        ),
+                        child: const Text('Cancel', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.coral)),
+                      ),
+                    )
+            else
+              statusBadgeForLeave(widget.leave.status),
           ],
         ),
       );

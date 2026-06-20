@@ -94,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _NavItem(icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) => setState(() => _idx = i)),
                 _NavItem(icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) => setState(() => _idx = i)),
                 _NavItem(icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '📢', label: 'Feed', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
                 _NavItem(icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) => setState(() => _idx = i)),
               ],
             ),
@@ -496,9 +496,10 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
 
-            // Admin features section (admin/principal role only)
-            if (user.role == 'admin' || user.role == 'principal') Builder(builder: (ctx) {
+            // Admin features section (admin/principal/director only)
+            if (user.role == 'admin' || user.role == 'principal' || user.role == 'director') Builder(builder: (ctx) {
               final flags = ctx.read<AuthProvider>().features;
+              final isAdminRole = user.role == 'admin';
               return SliverList(delegate: SliverChildListDelegate([
                 const SectionHeader(title: '⚙️ Admin'),
                 Padding(
@@ -523,8 +524,10 @@ class _HomeTabState extends State<_HomeTab> {
                       if (flags.payroll)
                         _FeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation',
                             onTap: () => _openScreen(context, const PayslipScreen(), recentId: 'payroll')),
-                      _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
-                          onTap: () => _openScreen(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
+                      // Leave Config: admin only
+                      if (isAdminRole)
+                        _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
+                            onTap: () => _openScreen(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
                     ],
                   ),
                 ),
@@ -588,6 +591,9 @@ class _HomeTabState extends State<_HomeTab> {
       case 'attenders':       _openScreen(context, const AdminAttendersScreen(), recentId: id);
       case 'fees':            _openScreen(context, const AdminFeeManagementScreen(), recentId: id);
       case 'leave_config':    _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
+      case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
+      case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
+      case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
     }
   }
 
@@ -596,6 +602,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'hod': return '🎓 HOD';
       case 'admin': return '⚙️ Admin';
       case 'principal': return '🏛️ Principal';
+      case 'director': return '🏢 Director';
       default: return '👩‍🏫 Teacher';
     }
   }
@@ -993,18 +1000,49 @@ class _MoreTabState extends State<_MoreTab> {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  void _confirmSignOut(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Sign Out?', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: const Text('You will need to sign in again to access the app.',
+            style: TextStyle(color: AppColors.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Pop all routes to root so LoginScreen shows cleanly
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              context.read<AuthProvider>().logout();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.coral),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user!;
     final flags = auth.features;
+    final isAdmin = user.role == 'admin';
+    final isAdminOrAbove = user.role == 'admin' || user.role == 'principal' || user.role == 'director';
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Profile card
+              // Profile card (tap to edit photo)
               GestureDetector(
                 onTap: () => _push(context, const ProfileScreen()),
                 child: Container(
@@ -1050,22 +1088,40 @@ class _MoreTabState extends State<_MoreTab> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Features (only items not accessible from profile/dashboard/quick-actions)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── MY INFO ───────────────────────────────────────────────
+                    const Text('MY INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const SizedBox(height: 8),
+                    _FeatureRow(icon: '👤', iconBg: AppColors.sunLight, title: 'Personal Details', sub: 'Name, email, contact info',
+                        onTap: () => _push(context, const ProfileScreen())),
+                    _FeatureRow(icon: '🗓️', iconBg: AppColors.coralLight, title: 'My Leaves', sub: 'Balance, history & apply',
+                        onTap: () => _push(context, const LeaveScreen(), recentId: 'leaves')),
+                    _FeatureRow(icon: '📋', iconBg: AppColors.tealLight, title: 'My Attendance', sub: 'Your attendance record',
+                        onTap: () => _push(context, const MyAttendanceScreen())),
+                    if (flags.payroll)
+                      _FeatureRow(icon: '💰', iconBg: AppColors.greenLight, title: 'Payroll History', sub: 'Monthly salary & payslips',
+                          onTap: () => _push(context, const PayslipScreen(), recentId: 'payroll')),
+                    _FeatureRow(icon: '🎓', iconBg: AppColors.violetLight, title: 'Qualifications', sub: 'Degrees & certifications',
+                        onTap: () => showSnack(context, 'Qualifications — coming soon')),
+
+                    const SizedBox(height: 16),
+
+                    // ── MORE ──────────────────────────────────────────────────
                     const Text('MORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
-                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: "Weekly timetable",
+                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: 'Weekly timetable',
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
                     _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                         onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
-                    if (user.role == 'admin' || user.role == 'principal') ...[
-                      const SizedBox(height: 12),
+
+                    if (isAdminOrAbove) ...[
+                      const SizedBox(height: 16),
                       const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1.2)),
                       const SizedBox(height: 8),
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
@@ -1083,16 +1139,34 @@ class _MoreTabState extends State<_MoreTab> {
                       if (flags.fees)
                         _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
                             onTap: () => _push(context, const AdminFeeManagementScreen(), recentId: 'fees')),
-                      if (flags.payroll)
-                        _FeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation',
-                            onTap: () => _push(context, const PayslipScreen(), recentId: 'payroll')),
-                      _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
-                          onTap: () => _push(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
+                      // Leave Config: admin only (not principal/director/hod)
+                      if (isAdmin)
+                        _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
+                            onTap: () => _push(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
                     ],
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
+                    // ── SETTINGS ──────────────────────────────────────────────
                     const Text('SETTINGS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
+
+                    // Notification preferences
+                    _FeatureRow(
+                      icon: '🔔',
+                      iconBg: AppColors.violetLight,
+                      title: 'Notification Preferences',
+                      sub: 'Manage what you receive',
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: const Text('Notification Preferences', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                          content: const Text('Notification preferences will be configurable in a future update.', style: TextStyle(color: AppColors.muted)),
+                          actions: [TextButton(onPressed: () => Navigator.pop(_), child: const Text('OK'))],
+                        ),
+                      ),
+                    ),
 
                     // Biometric unlock toggle
                     Container(
@@ -1132,7 +1206,46 @@ class _MoreTabState extends State<_MoreTab> {
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+
+                    // ── ACCOUNT ───────────────────────────────────────────────
+                    const Text('ACCOUNT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const SizedBox(height: 8),
+
+                    GestureDetector(
+                      onTap: () => _confirmSignOut(context),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.coral.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.coralLight,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(child: Text('🚪', style: TextStyle(fontSize: 18))),
+                            ),
+                            const SizedBox(width: 12),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Sign Out', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.coral)),
+                                Text('You will need to sign in again', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),

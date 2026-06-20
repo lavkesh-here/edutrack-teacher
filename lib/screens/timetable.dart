@@ -13,10 +13,10 @@ class _TimetableScreenState extends State<TimetableScreen> {
   List<TimetableSlot>? _slots;
   bool _loading = true;
   String? _error;
-  int _selectedDay = DateTime.now().weekday.clamp(1, 5); // Mon=1..Fri=5
+  int _selectedDay = DateTime.now().weekday.clamp(1, 6); // Mon=1..Sat=6
 
-  static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-  static const _dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  static const _dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // Color palette for subjects (deterministic by index)
   static const _palette = [
@@ -110,51 +110,76 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     style: const TextStyle(fontSize: 11, color: AppColors.muted),
                   ),
                   const SizedBox(height: 12),
-                  // Day chips
-                  SizedBox(
-                    height: 36,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 5,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) {
-                        final dayNum = i + 1;
-                        final active = dayNum == _selectedDay;
-                        final isToday = dayNum == DateTime.now().weekday;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedDay = dayNum),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: active ? AppColors.sun : AppColors.bg,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: active
-                                    ? AppColors.sun
-                                    : isToday
-                                        ? AppColors.sun.withOpacity(0.4)
-                                        : AppColors.border,
-                                width: 1.5,
+                  // Day chips (Mon–Sat with date)
+                  Builder(builder: (ctx) {
+                    final today = DateTime.now();
+                    final monday = today.subtract(Duration(days: today.weekday - 1));
+                    return SizedBox(
+                      height: 52,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: 6,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final dayNum = i + 1;
+                          final chipDate = monday.add(Duration(days: i));
+                          final active = dayNum == _selectedDay;
+                          final isToday = chipDate.year == today.year &&
+                              chipDate.month == today.month &&
+                              chipDate.day == today.day;
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedDay = dayNum),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: active ? AppColors.sun : AppColors.bg,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: active
+                                      ? AppColors.sun
+                                      : isToday
+                                          ? AppColors.sun.withOpacity(0.4)
+                                          : AppColors.border,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _dayNames[i],
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: active
+                                          ? Colors.white
+                                          : isToday
+                                              ? AppColors.sun
+                                              : AppColors.muted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${chipDate.day}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: active
+                                          ? Colors.white
+                                          : isToday
+                                              ? AppColors.sun
+                                              : AppColors.text,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Text(
-                              _dayNames[i],
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: active
-                                    ? Colors.white
-                                    : isToday
-                                        ? AppColors.sun
-                                        : AppColors.muted,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                          );
+                        },
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 12),
                   Container(height: 1, color: AppColors.border),
                 ],
@@ -188,7 +213,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                   const Text('☕', style: TextStyle(fontSize: 40)),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'No classes on ${_dayFull[_selectedDay - 1]}',
+                                    'No classes on ${_dayFull[(_selectedDay - 1).clamp(0, 5)]}',
                                     style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -210,7 +235,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                                 children: [
                                   Text(
-                                    '${_dayFull[_selectedDay - 1]} — ${_daySlots.length} period${_daySlots.length > 1 ? "s" : ""}',
+                                    '${_dayFull[(_selectedDay - 1).clamp(0, 5)]} — ${_daySlots.length} period${_daySlots.length > 1 ? "s" : ""}',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,

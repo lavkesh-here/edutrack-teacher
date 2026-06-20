@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
@@ -64,6 +65,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final emailCtrl = TextEditingController(text: user.email ?? '');
     bool saving = false;
     bool fetchDone = false;
+    String? nameError;
+    String? phoneError;
 
     void fetchFresh(StateSetter setSheet) {
       if (fetchDone) return;
@@ -103,13 +106,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: nameCtrl,
                 textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                maxLength: 30,
+                inputFormatters: [LengthLimitingTextInputFormatter(30)],
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  errorText: nameError,
+                  counterText: '',
+                ),
+                onChanged: (_) { if (nameError != null) setSheet(() => nameError = null); },
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(labelText: 'Phone', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                maxLength: 10,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Phone',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  errorText: phoneError,
+                  counterText: '',
+                ),
+                onChanged: (_) { if (phoneError != null) setSheet(() => phoneError = null); },
               ),
               const SizedBox(height: 10),
               TextField(
@@ -123,10 +145,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: saving ? null : () async {
+                    // Inline validation
+                    final name = nameCtrl.text.trim();
+                    final phone = phoneCtrl.text.trim();
+                    String? nErr;
+                    String? pErr;
+                    if (name.isEmpty) nErr = 'Name is required';
+                    else if (name.length > 30) nErr = 'Max 30 characters';
+                    if (phone.isNotEmpty && phone.length != 10) pErr = 'Must be exactly 10 digits';
+                    if (nErr != null || pErr != null) {
+                      setSheet(() { nameError = nErr; phoneError = pErr; });
+                      return;
+                    }
                     setSheet(() => saving = true);
                     try {
-                      final name = nameCtrl.text.trim();
-                      final phone = phoneCtrl.text.trim();
                       final email = emailCtrl.text.trim();
                       await ApiClient.updateMyProfile(
                         name: name.isNotEmpty ? name : null,
@@ -467,6 +499,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
+              Navigator.of(context).popUntil((route) => route.isFirst);
               context.read<AuthProvider>().logout();
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.coral),

@@ -831,6 +831,10 @@ class ApiClient {
     });
   }
 
+  static Future<void> cancelLeave(String leaveId) async {
+    await _delete('/api/v1/teacher/leaves/$leaveId');
+  }
+
   // ── Announcements ─────────────────────────────────────────────────────────
 
   static Future<List<Announcement>> getAnnouncements() async {

@@ -151,7 +151,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     final present = _students?.where((s) => s.status == 'present').length ?? 0;
     final absent = _students?.where((s) => s.status == 'absent').length ?? 0;
+    final late = _students?.where((s) => s.status == 'late').length ?? 0;
     final unmarked = _students?.where((s) => s.status.isEmpty).length ?? 0;
+    final canSubmit = !_saving && _students != null && unmarked == 0 && _students!.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -289,15 +291,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         _StatChip('✓ $present Present', AppColors.tealLight, AppColors.teal),
-                        const SizedBox(width: 8),
                         _StatChip('✗ $absent Absent', AppColors.coralLight, AppColors.coral),
-                        if (unmarked > 0) ...[
-                          const SizedBox(width: 8),
-                          _StatChip('? $unmarked Unmarked', AppColors.amberLight, AppColors.amber),
-                        ],
+                        if (late > 0)
+                          _StatChip('⏰ $late Late', AppColors.amberLight, AppColors.amber),
+                        if (unmarked > 0)
+                          _StatChip('? $unmarked Unmarked', const Color(0xFFF3F4F6), AppColors.muted),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -344,20 +347,33 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             // Submit bar
             if (!_swipeMode)
               Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _submit,
-                    child: _saving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                        : const Text('Save Attendance'),
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (unmarked > 0 && _students != null && _students!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6, top: 2),
+                        child: Text(
+                          '$unmarked student${unmarked == 1 ? '' : 's'} not yet marked',
+                          style: const TextStyle(fontSize: 11, color: AppColors.amber, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: canSubmit ? _submit : null,
+                        child: _saving
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : const Text('Save Attendance'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -488,11 +504,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Widget _buildWeekStrip() {
     final today = DateTime.now();
-    // Start from Monday of the current week
     final monday = today.subtract(Duration(days: today.weekday - 1));
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return SizedBox(
-      height: 52,
+      height: 56,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: 7,
@@ -501,19 +516,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           final isSunday = day.weekday == DateTime.sunday;
           final isSelected = day.year == _date.year && day.month == _date.month && day.day == _date.day;
           final isFuture = day.isAfter(today);
+          final isActualToday = day.year == today.year && day.month == today.month && day.day == today.day;
+          final isPast = day.isBefore(today) && !isSunday;
           return GestureDetector(
             onTap: isSunday || isFuture ? null : () {
               setState(() => _date = day);
               _loadStudents();
             },
             child: Container(
-              width: 40,
+              width: 42,
               margin: const EdgeInsets.only(right: 6),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.sun : isSunday ? const Color(0xFFF3F4F6) : Colors.white,
+                color: isSelected
+                    ? AppColors.sun
+                    : isSunday
+                        ? const Color(0xFFF3F4F6)
+                        : isActualToday
+                            ? AppColors.sunLight
+                            : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected ? AppColors.sun : AppColors.border,
+                  color: isSelected
+                      ? AppColors.sun
+                      : isActualToday
+                          ? AppColors.sun.withOpacity(0.5)
+                          : AppColors.border,
                   width: 1.5,
                 ),
               ),
@@ -537,6 +564,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       color: isSelected ? Colors.white : isSunday ? AppColors.muted : AppColors.text,
                     ),
                   ),
+                  if (isPast && !isSelected)
+                    Container(
+                      width: 4, height: 4,
+                      margin: const EdgeInsets.only(top: 2),
+                      decoration: const BoxDecoration(color: AppColors.muted, shape: BoxShape.circle),
+                    ),
                 ],
               ),
             ),
@@ -544,6 +577,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         },
       ),
     );
+  }
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return _date.year == now.year && _date.month == now.month && _date.day == now.day;
   }
 
   Future<void> _pickDate() async {

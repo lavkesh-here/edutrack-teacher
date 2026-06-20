@@ -26,9 +26,14 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
   bool _searching = false;
   bool _loading = false;
   bool _loadingSections = true;
+  String? _msgError;
 
   List<Map<String, dynamic>> _history = [];
+  List<Map<String, dynamic>> _filteredHistory = [];
   bool _loadingHistory = true;
+  String _historySearch = '';
+  String? _historyTypeFilter;
+  bool _historyShowAll = false;
 
   static const _typeIcons = {
     'homework': '📚',
@@ -78,10 +83,43 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
     setState(() => _loadingHistory = true);
     try {
       final data = await ApiClient.getNotifyParentsHistory();
-      if (mounted) setState(() { _history = data; _loadingHistory = false; });
+      if (mounted) {
+        setState(() {
+          _history = data;
+          _loadingHistory = false;
+          _applyHistoryFilters();
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingHistory = false);
     }
+  }
+
+  void _applyHistoryFilters() {
+    if (_historySearch.isNotEmpty) {
+      // Search applies across full history (ignores 7-day window and type filter)
+      final q = _historySearch.toLowerCase();
+      _filteredHistory = _history.where((item) {
+        final title = (item['title'] as String? ?? '').toLowerCase();
+        return title.contains(q);
+      }).toList();
+      return;
+    }
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    _filteredHistory = _history.where((item) {
+      if (!_historyShowAll) {
+        final createdAt = item['created_at'] as String? ?? '';
+        if (createdAt.isNotEmpty) {
+          final dt = DateTime.tryParse(createdAt);
+          if (dt != null && dt.isBefore(cutoff)) return false;
+        }
+      }
+      if (_historyTypeFilter != null) {
+        final subType = item['sub_type'] as String? ?? '';
+        if (subType != _historyTypeFilter) return false;
+      }
+      return true;
+    }).toList();
   }
 
   Future<void> _searchStudents(String q) async {
@@ -364,9 +402,19 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
               controller: _msgCtrl,
               maxLines: 4,
               maxLength: 500,
-              decoration: const InputDecoration(
+              onChanged: (_) { if (_msgError != null) setState(() => _msgError = null); },
+              decoration: InputDecoration(
                 hintText: 'Type your message here...',
                 alignLabelWithHint: true,
+                errorText: _msgError,
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.coral),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.coral, width: 2),
+                ),
               ),
             ),
 
@@ -457,26 +505,78 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
           // ── Tab 1: History ───────────────────────────────────────────────
           _loadingHistory
               ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
-              : _history.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('📭', style: TextStyle(fontSize: 40)),
-                          SizedBox(height: 12),
-                          Text('No activity yet', style: TextStyle(color: AppColors.muted, fontSize: 14)),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      color: AppColors.sun,
-                      onRefresh: _loadHistory,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                        itemCount: _history.length,
-                        itemBuilder: (_, i) => _HistoryItem(item: _history[i]),
+              : Column(
+                  children: [
+                    // Search bar
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: TextField(
+                        onChanged: (q) {
+                          setState(() {
+                            _historySearch = q;
+                            _applyHistoryFilters();
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          hintText: 'Search history...',
+                          prefixIcon: Icon(Icons.search, size: 18, color: AppColors.muted),
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        ),
                       ),
                     ),
+                    // Type filter chips
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        children: [
+                          _FilterChip(
+                            label: 'All',
+                            selected: _historyTypeFilter == null,
+                            onTap: () => setState(() { _historyTypeFilter = null; _applyHistoryFilters(); }),
+                          ),
+                          ..._typeLabels.entries.map((e) => _FilterChip(
+                            label: e.value,
+                            selected: _historyTypeFilter == e.key,
+                            onTap: () => setState(() { _historyTypeFilter = e.key; _applyHistoryFilters(); }),
+                          )),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: _filteredHistory.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('📭', style: TextStyle(fontSize: 40)),
+                                  SizedBox(height: 12),
+                                  Text('No activity yet', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                                ],
+                              ),
+                            )
+                          : RefreshIndicator(
+                              color: AppColors.sun,
+                              onRefresh: _loadHistory,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                itemCount: _filteredHistory.length + (_history.length > _filteredHistory.length && _historySearch.isEmpty ? 1 : 0),
+                                itemBuilder: (_, i) {
+                                  if (i == _filteredHistory.length) {
+                                    return TextButton(
+                                      onPressed: () => setState(() { _historyShowAll = !_historyShowAll; _applyHistoryFilters(); }),
+                                      child: Text(_historyShowAll ? 'Show recent 7 days only' : 'Load full history', style: const TextStyle(color: AppColors.sun)),
+                                    );
+                                  }
+                                  return _HistoryItem(item: _filteredHistory[i]);
+                                },
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
         ], // TabBarView children
       ), // TabBarView
     );
@@ -485,7 +585,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
   Future<void> _send() async {
     final msg = _msgCtrl.text.trim();
     if (msg.isEmpty) {
-      showSnack(context, 'Please enter a message', error: true);
+      setState(() => _msgError = 'Message is required');
       return;
     }
     if (_isWholeClass && _selectedSection == null) {
@@ -514,7 +614,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
           title: const Text('Send to whole class?',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           content: Text(
-            'This will notify $parentCount parent${parentCount == 1 ? '' : 's'} in ${_selectedSection!.label}.',
+            'This will send a notification to all $parentCount student${parentCount == 1 ? '' : 's'} in ${_selectedSection!.label}.',
             style: const TextStyle(fontSize: 14, color: AppColors.text),
           ),
           actions: [
@@ -585,6 +685,9 @@ class _HistoryItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isNotif = item['activity_type'] == 'notification';
     final subType = item['sub_type'] as String? ?? '';
+    final targetType = item['target_type'] as String? ?? '';
+    final sectionLabel = item['section_label'] as String?;
+    final studentName = item['student_name'] as String?;
     final icon = isNotif
         ? (_notifIcons[subType] ?? '🔔')
         : (_logIcons[subType] ?? '📝');
@@ -593,6 +696,15 @@ class _HistoryItem extends StatelessWidget {
     final dateLabel = createdAt.isNotEmpty
         ? DateFormat('d MMM, h:mm a').format(DateTime.parse(createdAt).toLocal())
         : '';
+
+    String targetLabel;
+    if (targetType == 'class' && sectionLabel != null) {
+      targetLabel = 'Whole Class · $sectionLabel';
+    } else if (studentName != null) {
+      targetLabel = 'Individual · $studentName';
+    } else {
+      targetLabel = isNotif ? 'Notification' : 'Work Log';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -630,13 +742,13 @@ class _HistoryItem extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isNotif ? AppColors.sunLight : AppColors.violetLight,
+                        color: targetType == 'class' ? AppColors.sunLight : AppColors.tealLight,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        isNotif ? 'Notification' : 'Work Log',
+                        targetLabel,
                         style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
-                            color: isNotif ? AppColors.sun : AppColors.violet),
+                            color: targetType == 'class' ? AppColors.sun : AppColors.teal),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -650,6 +762,32 @@ class _HistoryItem extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.sun : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: selected ? AppColors.sun : AppColors.border, width: 1.5),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? Colors.white : AppColors.muted),
+      ),
+    ),
+  );
 }
 
 class _ToggleOption extends StatelessWidget {

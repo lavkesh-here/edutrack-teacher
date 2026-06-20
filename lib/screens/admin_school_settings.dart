@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -20,6 +21,9 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
 
   bool _loading = true;
   bool _saving = false;
+  double? _latitude;
+  double? _longitude;
+  bool _gettingLocation = false;
 
   @override
   void initState() {
@@ -48,6 +52,8 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
       _emailCtrl.text = data['email'] as String? ?? '';
       _addressCtrl.text = data['address'] as String? ?? '';
       _websiteCtrl.text = data['website'] as String? ?? '';
+      _latitude = (data['latitude'] as num?)?.toDouble();
+      _longitude = (data['longitude'] as num?)?.toDouble();
       setState(() => _loading = false);
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
@@ -55,17 +61,59 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
     }
   }
 
+  Future<void> _useMyLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        showSnack(
+          context,
+          permission == LocationPermission.deniedForever
+              ? 'Location permission permanently denied. Enable in device Settings.'
+              : 'Location permission is required.',
+          error: true,
+        );
+      }
+      return;
+    }
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) showSnack(context, 'Please enable location services.', error: true);
+      return;
+    }
+    setState(() => _gettingLocation = true);
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+      if (mounted) showSnack(context, 'Location captured. Tap Save Changes to apply.');
+    } catch (_) {
+      if (mounted) showSnack(context, 'Could not get location. Try again.', error: true);
+    } finally {
+      if (mounted) setState(() => _gettingLocation = false);
+    }
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ApiClient.adminUpdateSchool({
+      final body = <String, dynamic>{
         'name': _nameCtrl.text.trim(),
         'board_affiliation': _boardCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
         'website': _websiteCtrl.text.trim(),
-      });
+      };
+      if (_latitude != null) body['latitude'] = _latitude;
+      if (_longitude != null) body['longitude'] = _longitude;
+      await ApiClient.adminUpdateSchool(body);
       if (mounted) showSnack(context, 'Settings saved successfully');
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
@@ -171,6 +219,107 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                         hint: 'Street, City, State, PIN',
                         maxLines: 3,
                         textCapitalization: TextCapitalization.sentences,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // School Location section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SCHOOL LOCATION',
+                        style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w800,
+                          color: AppColors.muted, letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border, width: 1.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Location status
+                            Row(
+                              children: [
+                                Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: _latitude != null ? AppColors.tealLight : AppColors.bg,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _latitude != null ? '📍' : '🗺️',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _latitude != null ? 'Location Set' : 'Location Not Set',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: _latitude != null ? AppColors.teal : AppColors.muted,
+                                        ),
+                                      ),
+                                      if (_latitude != null && _longitude != null)
+                                        Text(
+                                          '${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
+                                          style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                                        )
+                                      else
+                                        const Text(
+                                          'Required for teacher GPS attendance',
+                                          style: TextStyle(fontSize: 11, color: AppColors.muted),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Divider(height: 1, color: AppColors.border),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Teachers must be within 50 meters of this location to mark self-attendance.',
+                              style: TextStyle(fontSize: 11, color: AppColors.muted, height: 1.4),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _gettingLocation ? null : _useMyLocation,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.sky,
+                                  side: const BorderSide(color: AppColors.sky),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                icon: _gettingLocation
+                                    ? const SizedBox(width: 16, height: 16,
+                                        child: CircularProgressIndicator(color: AppColors.sky, strokeWidth: 2))
+                                    : const Icon(Icons.my_location, size: 16),
+                                label: Text(
+                                  _gettingLocation ? 'Getting location...' : 'Use My Current Location',
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

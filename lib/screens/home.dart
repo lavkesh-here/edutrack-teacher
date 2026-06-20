@@ -27,6 +27,8 @@ import 'admin_leave_config.dart';
 import 'notifications_screen.dart';
 import 'todos.dart';
 import 'my_attendance.dart';
+import 'qualifications.dart';
+import 'notification_prefs.dart';
 import '../core/recents.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -588,6 +590,10 @@ class _HomeTabState extends State<_HomeTab> {
       case 'attenders':       _openScreen(context, const AdminAttendersScreen(), recentId: id);
       case 'fees':            _openScreen(context, const AdminFeeManagementScreen(), recentId: id);
       case 'leave_config':    _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
+      case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
+      case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
+      case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
+      case 'qualifications':  _openScreen(context, const QualificationsScreen(), recentId: id);
     }
   }
 
@@ -1058,9 +1064,27 @@ class _MoreTabState extends State<_MoreTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── MY INFO ───────────────────────────────────────────────
+                    const Text('MY INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const SizedBox(height: 8),
+                    _FeatureRow(icon: '👤', iconBg: AppColors.sunLight, title: 'Personal Details', sub: 'Name, email, contact info',
+                        onTap: () => _push(context, const ProfileScreen())),
+                    _FeatureRow(icon: '🗓️', iconBg: AppColors.coralLight, title: 'My Leaves', sub: 'Balance, history & apply',
+                        onTap: () => _push(context, const LeaveScreen(), recentId: 'leaves')),
+                    _FeatureRow(icon: '📋', iconBg: AppColors.tealLight, title: 'My Attendance', sub: 'Your attendance record',
+                        onTap: () => _push(context, const MyAttendanceScreen())),
+                    if (flags.payroll)
+                      _FeatureRow(icon: '💰', iconBg: AppColors.greenLight, title: 'Payroll History', sub: 'Monthly salary & payslips',
+                          onTap: () => _push(context, const PayslipScreen(), recentId: 'payroll')),
+                    _FeatureRow(icon: '🎓', iconBg: AppColors.violetLight, title: 'Qualifications', sub: 'Degrees & certifications',
+                        onTap: () => _push(context, const QualificationsScreen(), recentId: 'qualifications')),
+
+                    const SizedBox(height: 16),
+
+                    // ── MORE ──────────────────────────────────────────────────
                     const Text('MORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
-                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: "Weekly timetable",
+                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: 'Weekly timetable',
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
                     _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                         onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
@@ -1093,6 +1117,15 @@ class _MoreTabState extends State<_MoreTab> {
                     const SizedBox(height: 20),
                     const Text('SETTINGS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
+
+                    // Notification preferences
+                    _FeatureRow(
+                      icon: '🔔',
+                      iconBg: AppColors.violetLight,
+                      title: 'Notification Preferences',
+                      sub: 'Manage what you receive',
+                      onTap: () => _push(context, const NotificationPrefsScreen()),
+                    ),
 
                     // Biometric unlock toggle
                     Container(

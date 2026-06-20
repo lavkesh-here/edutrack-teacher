@@ -27,6 +27,8 @@ import 'admin_leave_config.dart';
 import 'notifications_screen.dart';
 import 'todos.dart';
 import 'my_attendance.dart';
+import 'qualifications.dart';
+import 'notification_prefs.dart';
 import '../core/recents.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -594,6 +596,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
       case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
+      case 'qualifications':  _openScreen(context, const QualificationsScreen(), recentId: id);
     }
   }
 
@@ -1108,7 +1111,7 @@ class _MoreTabState extends State<_MoreTab> {
                       _FeatureRow(icon: '💰', iconBg: AppColors.greenLight, title: 'Payroll History', sub: 'Monthly salary & payslips',
                           onTap: () => _push(context, const PayslipScreen(), recentId: 'payroll')),
                     _FeatureRow(icon: '🎓', iconBg: AppColors.violetLight, title: 'Qualifications', sub: 'Degrees & certifications',
-                        onTap: () => showSnack(context, 'Qualifications — coming soon')),
+                        onTap: () => _push(context, const QualificationsScreen(), recentId: 'qualifications')),
 
                     const SizedBox(height: 16),
 
@@ -1157,15 +1160,7 @@ class _MoreTabState extends State<_MoreTab> {
                       iconBg: AppColors.violetLight,
                       title: 'Notification Preferences',
                       sub: 'Manage what you receive',
-                      onTap: () => showDialog(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          title: const Text('Notification Preferences', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                          content: const Text('Notification preferences will be configurable in a future update.', style: TextStyle(color: AppColors.muted)),
-                          actions: [TextButton(onPressed: () => Navigator.pop(_), child: const Text('OK'))],
-                        ),
-                      ),
+                      onTap: () => _push(context, const NotificationPrefsScreen()),
                     ),
 
                     // Biometric unlock toggle

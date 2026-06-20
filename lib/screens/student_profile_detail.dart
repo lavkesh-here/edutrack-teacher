@@ -29,6 +29,8 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   bool _loading = true;
   String? _error;
   bool _uploading = false;
+  int _selectedMonth = DateTime.now().month;
+  int _selectedYear = DateTime.now().year;
 
   @override
   void initState() {
@@ -46,7 +48,11 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final p = await ApiClient.getStudentProfile(widget.studentId);
+      final p = await ApiClient.getStudentProfile(
+        widget.studentId,
+        month: _selectedMonth,
+        year: _selectedYear,
+      );
       setState(() { _profile = p; _loading = false; });
     } catch (e) {
       setState(() { _error = e.toString(); _loading = false; });
@@ -218,7 +224,15 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
         controller: _tabs,
         children: [
           _ProfileTab(profile: _profile!),
-          _AttendanceTab(profile: _profile!),
+          _AttendanceTab(
+            profile: _profile!,
+            month: _selectedMonth,
+            year: _selectedYear,
+            onMonthChanged: (m, y) {
+              setState(() { _selectedMonth = m; _selectedYear = y; });
+              _load();
+            },
+          ),
           _TestsTab(tests: (_profile!['tests'] as List?)?.cast<Map<String, dynamic>>() ?? []),
           _WorkLogsTab(submissions: (_profile!['work_log_submissions'] as List?)?.cast<Map<String, dynamic>>() ?? []),
         ],
@@ -358,31 +372,49 @@ class _ProfileTab extends StatelessWidget {
   String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
-// ── Tab 2: Attendance ─────────────────────────────────────────────────────────
+// ── Tab 2: Attendance (calendar) ──────────────────────────────────────────────
 
 class _AttendanceTab extends StatelessWidget {
   final Map<String, dynamic> profile;
-  const _AttendanceTab({required this.profile});
+  final int month;
+  final int year;
+  final void Function(int month, int year) onMonthChanged;
 
-  String _shortDate(String raw) {
-    try {
-      final d = DateTime.parse(raw);
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${d.day} ${months[d.month - 1]}';
-    } catch (_) { return raw; }
-  }
+  const _AttendanceTab({
+    required this.profile,
+    required this.month,
+    required this.year,
+    required this.onMonthChanged,
+  });
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
 
   @override
   Widget build(BuildContext context) {
     final att = profile['attendance_this_month'] as Map<String, dynamic>? ?? {};
-    final last5 = (profile['last_5_days'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final pct = att['percentage'];
+    final attDays = (profile['attendance_days'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    // Build lookup map: date string => status
+    final statusMap = <String, String>{};
+    for (final d in attDays) {
+      final date = d['date'] as String? ?? '';
+      final status = d['status'] as String? ?? '';
+      statusMap[date] = status;
+    }
+
+    final now = DateTime.now();
+    final isCurrentMonth = month == now.month && year == now.year;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Summary badges
         _SectionCard(
-          title: 'This Month',
+          title: '${_monthNames[month - 1]} $year',
           children: [
             Row(
               children: [
@@ -392,7 +424,7 @@ class _AttendanceTab extends StatelessWidget {
                 const SizedBox(width: 8),
                 _AttBadge(label: 'Late', value: '${att['late'] ?? 0}', color: AppColors.amber, bg: AppColors.amberLight),
                 const SizedBox(width: 8),
-                _AttBadge(label: 'Attendance', value: '${pct ?? 0}%', color: AppColors.sky, bg: AppColors.skyLight),
+                _AttBadge(label: '%', value: '${pct ?? 0}%', color: AppColors.sky, bg: AppColors.skyLight),
               ],
             ),
             if (pct != null) ...[
@@ -409,41 +441,242 @@ class _AttendanceTab extends StatelessWidget {
             ],
           ],
         ),
-        if (last5.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _SectionCard(
-            title: 'Last 5 Days',
+
+        const SizedBox(height: 12),
+
+        // Month navigator
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: last5.map((d) {
-                  final status = d['status'] as String? ?? '';
-                  final date = d['date'] as String? ?? '';
-                  final (color, label) = switch (status) {
-                    'present' => (AppColors.teal, 'P'),
-                    'absent' => (AppColors.coral, 'A'),
-                    'late' => (AppColors.amber, 'L'),
-                    _ => (AppColors.muted, '?'),
-                  };
-                  return Column(
-                    children: [
-                      Container(
-                        width: 36, height: 36,
-                        decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
-                        child: Center(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color))),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(_shortDate(date), style: const TextStyle(fontSize: 9, color: AppColors.muted)),
-                    ],
-                  );
-                }).toList(),
+              IconButton(
+                onPressed: () {
+                  if (month == 1) {
+                    onMonthChanged(12, year - 1);
+                  } else {
+                    onMonthChanged(month - 1, year);
+                  }
+                },
+                icon: const Icon(Icons.chevron_left_rounded, color: AppColors.text),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+              Expanded(
+                child: Text(
+                  '${_monthNames[month - 1]} $year',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              IconButton(
+                onPressed: isCurrentMonth ? null : () {
+                  if (month == 12) {
+                    onMonthChanged(1, year + 1);
+                  } else {
+                    onMonthChanged(month + 1, year);
+                  }
+                },
+                icon: Icon(Icons.chevron_right_rounded,
+                    color: isCurrentMonth ? AppColors.border : AppColors.text),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
             ],
           ),
-        ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Calendar grid
+        _AttendanceCalendar(
+          month: month,
+          year: year,
+          statusMap: statusMap,
+        ),
+
+        const SizedBox(height: 12),
+
+        // Legend
+        _SectionCard(
+          title: 'LEGEND',
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: const [
+                _LegendItem(color: AppColors.teal, label: 'Present (P)'),
+                _LegendItem(color: AppColors.coral, label: 'Absent (A)'),
+                _LegendItem(color: AppColors.amber, label: 'Late (L)'),
+              ],
+            ),
+          ],
+        ),
       ],
     );
   }
+}
+
+class _AttendanceCalendar extends StatelessWidget {
+  final int month;
+  final int year;
+  final Map<String, String> statusMap;
+
+  const _AttendanceCalendar({
+    required this.month,
+    required this.year,
+    required this.statusMap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final firstDay = DateTime(year, month, 1);
+    final lastDay = DateTime(year, month + 1, 0);
+    final daysInMonth = lastDay.day;
+    // Monday=1, so offset = (weekday - 1) to get 0-based Mon index
+    final startOffset = (firstDay.weekday - 1) % 7;
+
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          // Day-of-week headers
+          Row(
+            children: dayLabels.map((d) => Expanded(
+              child: Center(
+                child: Text(d,
+                    style: const TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted)),
+              ),
+            )).toList(),
+          ),
+          const SizedBox(height: 8),
+          // Day cells
+          Builder(builder: (context) {
+            final cells = <Widget>[];
+            // Empty cells before first day
+            for (int i = 0; i < startOffset; i++) {
+              cells.add(const Expanded(child: SizedBox()));
+            }
+            for (int day = 1; day <= daysInMonth; day++) {
+              final dateStr = '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+              final status = statusMap[dateStr];
+              final isToday = DateTime.now().year == year &&
+                  DateTime.now().month == month &&
+                  DateTime.now().day == day;
+              cells.add(Expanded(child: _CalendarCell(
+                day: day,
+                status: status,
+                isToday: isToday,
+              )));
+            }
+            // Pad to complete the last row
+            final remainder = cells.length % 7;
+            if (remainder != 0) {
+              for (int i = 0; i < 7 - remainder; i++) {
+                cells.add(const Expanded(child: SizedBox()));
+              }
+            }
+            // Chunk into rows of 7
+            final rows = <Widget>[];
+            for (int i = 0; i < cells.length; i += 7) {
+              rows.add(Row(children: cells.sublist(i, i + 7)));
+              if (i + 7 < cells.length) rows.add(const SizedBox(height: 4));
+            }
+            return Column(children: rows);
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarCell extends StatelessWidget {
+  final int day;
+  final String? status;
+  final bool isToday;
+
+  const _CalendarCell({required this.day, this.status, required this.isToday});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, label) = switch (status) {
+      'present' => (AppColors.teal, Colors.white, 'P'),
+      'absent'  => (AppColors.coral, Colors.white, 'A'),
+      'late'    => (AppColors.amber, Colors.white, 'L'),
+      _         => (Colors.transparent, AppColors.muted, ''),
+    };
+
+    return Container(
+      margin: const EdgeInsets.all(2),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: status != null ? bg : Colors.transparent,
+            shape: BoxShape.circle,
+            border: isToday && status == null
+                ? Border.all(color: AppColors.sun, width: 1.5)
+                : null,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                '$day',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: status != null ? fg : (isToday ? AppColors.sun : AppColors.text2),
+                ),
+              ),
+              if (status != null)
+                Positioned(
+                  bottom: 2,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.w900,
+                      color: fg.withOpacity(0.85),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendItem({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 14, height: 14,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.muted)),
+        ],
+      );
 }
 
 // ── Tab 3: Tests ──────────────────────────────────────────────────────────────

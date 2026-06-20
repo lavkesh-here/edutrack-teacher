@@ -693,6 +693,30 @@ class ApiClient {
     return jsonDecode(utf8.decode(res.bodyBytes));
   }
 
+  static Future<dynamic> _put(String path, Map<String, dynamic> body) async {
+    final base = await getBaseUrl();
+    final sw = Stopwatch()..start();
+    final res = await http.put(
+      Uri.parse('$base$path'),
+      headers: await _headers(),
+      body: jsonEncode(body),
+    ).timeout(const Duration(seconds: 20));
+    final ms = sw.elapsedMilliseconds;
+    final rid = res.headers['x-request-id'];
+    if (res.statusCode == 401) {
+      _log('PUT', path, 401, ms, requestId: rid, error: 'session expired');
+      await onUnauthorized?.call();
+      throw ApiError('Session expired. Please log in again.', 401);
+    }
+    if (res.statusCode >= 400) {
+      final detail = _errorDetail(res);
+      _log('PUT', path, res.statusCode, ms, requestId: rid, error: detail);
+      throw ApiError(detail, res.statusCode);
+    }
+    _log('PUT', path, res.statusCode, ms, requestId: rid);
+    return jsonDecode(utf8.decode(res.bodyBytes));
+  }
+
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   static Future<SchoolInfo> lookupSchool(String code) async {
@@ -1020,8 +1044,12 @@ class ApiClient {
     return list.map((e) => StudentSearchResult.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<Map<String, dynamic>> getStudentProfile(String studentId) async {
-    final data = await _get('/api/v1/teacher/students/$studentId/profile');
+  static Future<Map<String, dynamic>> getStudentProfile(String studentId, {int? month, int? year}) async {
+    final params = <String>[];
+    if (month != null) params.add('month=$month');
+    if (year != null) params.add('year=$year');
+    final path = '/api/v1/teacher/students/$studentId/profile${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
     return data as Map<String, dynamic>;
   }
 
@@ -1323,6 +1351,94 @@ class ApiClient {
   static Future<Map<String, dynamic>> getFeatureConfig() async {
     final data = await _get('/api/v1/teacher/feature-config');
     return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  // ── Teacher self-attendance ────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getSelfAttendance({int? month, int? year}) async {
+    final params = <String>[];
+    if (month != null) params.add('month=$month');
+    if (year != null) params.add('year=$year');
+    final path = '/api/v1/teacher/attendance/self${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> markSelfAttendance({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final data = await _post('/api/v1/teacher/attendance/self', {
+      'latitude': latitude,
+      'longitude': longitude,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  // ── Teacher qualifications ─────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getQualifications() async {
+    final data = await _get('/api/v1/teacher/qualifications');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<String> addQualification({
+    required String degreeType,
+    required String institution,
+    String? fieldOfStudy,
+    int? yearPassed,
+  }) async {
+    final data = await _post('/api/v1/teacher/qualifications', {
+      'degree_type': degreeType,
+      'institution': institution,
+      if (fieldOfStudy != null && fieldOfStudy.isNotEmpty) 'field_of_study': fieldOfStudy,
+      if (yearPassed != null) 'year_passed': yearPassed,
+    });
+    return (data as Map<String, dynamic>)['id'].toString();
+  }
+
+  static Future<void> deleteQualification(String id) async {
+    await _delete('/api/v1/teacher/qualifications/$id');
+  }
+
+  // ── Teacher experience ─────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getExperience() async {
+    final data = await _get('/api/v1/teacher/experience');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<String> addExperience({
+    required String institution,
+    required String role,
+    required int fromYear,
+    int? toYear,
+    bool isCurrent = false,
+  }) async {
+    final data = await _post('/api/v1/teacher/experience', {
+      'institution': institution,
+      'role': role,
+      'from_year': fromYear,
+      if (toYear != null) 'to_year': toYear,
+      'is_current': isCurrent,
+    });
+    return (data as Map<String, dynamic>)['id'].toString();
+  }
+
+  static Future<void> deleteExperience(String id) async {
+    await _delete('/api/v1/teacher/experience/$id');
+  }
+
+  // ── Notification preferences ───────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getNotificationPrefs() async {
+    final data = await _get('/api/v1/teacher/notification-prefs');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, bool> prefs) async {
+    final data = await _put('/api/v1/teacher/notification-prefs', prefs.cast<String, dynamic>());
+    return data as Map<String, dynamic>;
   }
 
   // ── Caching wrappers ───────────────────────────────────────────────────────

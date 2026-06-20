@@ -35,12 +35,13 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.edutrack.dev --project-name edutrack_teacher .
 
-      - name: Bump AGP to 8.3.2
+      - name: Bump AGP to 8.1.1
         run: |
           # Flutter 3.27+ puts AGP version in settings.gradle pluginManagement block
-          sed -i 's/id "com.android.application" version "[0-9.]*" apply false/id "com.android.application" version "8.3.2" apply false/' android/settings.gradle || true
+          # AGP 8.1.1 is minimum required by androidx.webkit:1.14.0; needs only Gradle 8.0 (satisfied)
+          sed -i 's/id "com.android.application" version "[0-9.]*" apply false/id "com.android.application" version "8.1.1" apply false/' android/settings.gradle || true
           # Fallback: older template uses build.gradle classpath
-          sed -i 's/com\.android\.tools\.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.3.2/' android/build.gradle || true
+          sed -i 's/com\.android\.tools\.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.1.1/' android/build.gradle || true
 
       - name: Set app label to Teacher (Dev)
         run: |

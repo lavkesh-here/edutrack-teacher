@@ -348,7 +348,6 @@ class _DoneSectionState extends State<_DoneSection> {
 
   @override
   Widget build(BuildContext context) {
-    final show = _expanded ? widget.todos : widget.todos.take(0).toList();
     return Column(
       children: [
         InkWell(

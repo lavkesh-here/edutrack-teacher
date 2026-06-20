@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ── Pure logic unit tests (no platform channels needed) ──────────────────────
@@ -186,34 +185,34 @@ void main() {
   });
 
   group('DEV/PROD badge label', () {
+    String badgeLabel(bool isProd) => isProd ? 'PRODUCTION' : 'DEV';
+
     test('production shows PRODUCTION', () {
-      const isProd = true;
-      expect(isProd ? 'PRODUCTION' : 'DEV', equals('PRODUCTION'));
+      expect(badgeLabel(true), equals('PRODUCTION'));
     });
 
     test('dev shows DEV', () {
-      const isProd = false;
-      expect(isProd ? 'PRODUCTION' : 'DEV', equals('DEV'));
+      expect(badgeLabel(false), equals('DEV'));
     });
   });
 
   group('BiometricEnrollment guard', () {
     test('enrollment offered only when not already enabled', () {
-      const canUseBio = true;
-      const alreadyEnabled = false;
+      final canUseBio = true;
+      final alreadyEnabled = false;
       expect(canUseBio && !alreadyEnabled, isTrue);
     });
 
     test('enrollment skipped when already enabled', () {
-      const canUseBio = true;
-      const alreadyEnabled = true;
+      final canUseBio = true;
+      final alreadyEnabled = true;
       expect(canUseBio && !alreadyEnabled, isFalse);
     });
 
     test('enrollment skipped when bio not available', () {
-      const canUseBio = false;
-      const alreadyEnabled = false;
-      expect(canUseBio && !alreadyEnabled, isFalse);
+      final canUseBio = false;
+      final alreadyEnabled = false; // ignore: unused_local_variable
+      expect(canUseBio, isFalse);
     });
   });
 

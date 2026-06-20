@@ -579,11 +579,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  bool get _isToday {
-    final now = DateTime.now();
-    return _date.year == now.year && _date.month == now.month && _date.day == now.day;
-  }
-
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,

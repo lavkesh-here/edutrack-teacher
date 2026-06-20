@@ -332,8 +332,8 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
         ApiClient.adminListRoutes(),
       ]);
       setState(() {
-        _assignments = results[0] as List<Map<String, dynamic>>;
-        _routes = results[1] as List<Map<String, dynamic>>;
+        _assignments = results[0];
+        _routes = results[1];
         _loading = false;
       });
     } on ApiError catch (e) {

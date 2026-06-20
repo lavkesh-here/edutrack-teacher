@@ -58,15 +58,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  Color _eventBg(String type) {
-    switch (type) {
-      case 'holiday': return AppColors.coralLight;
-      case 'exam': return AppColors.violetLight;
-      case 'meeting': return AppColors.amberLight;
-      default: return AppColors.skyLight;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();

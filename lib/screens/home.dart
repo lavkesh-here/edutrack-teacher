@@ -11,7 +11,6 @@ import 'leave.dart';
 import 'tests.dart';
 import 'profile.dart';
 import 'feed.dart';
-import 'chat.dart';
 import 'calendar_screen.dart';
 import 'worklog.dart';
 import 'notify_parents.dart';

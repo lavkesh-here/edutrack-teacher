@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../core/auth.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 
@@ -47,7 +49,8 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
         newPassword: _newCtrl.text,
       );
       if (!mounted) return;
-      // Navigate to home — auth provider already has token
+      await context.read<AuthProvider>().disableBiometric();
+      if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
     } on ApiError catch (e) {
       setState(() => _error = e.message);

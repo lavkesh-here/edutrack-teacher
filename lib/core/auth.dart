@@ -124,6 +124,9 @@ class AuthProvider extends ChangeNotifier {
     if (_user != null) _loadFeatureFlags();
   }
 
+  Future<String?> getStoredEmail() async =>
+      (await SharedPreferences.getInstance()).getString('teacher_email');
+
   /// Returns true if user must change password (first login)
   Future<bool> login(String email, String password, {String? schoolCode}) async {
     final res = await ApiClient.login(email, password, schoolCode: schoolCode);
@@ -133,6 +136,7 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('school_name', res.schoolName);
     await prefs.setString('role', res.role);
     await prefs.setString('teacher_id', res.teacherId);
+    await prefs.setString('teacher_email', email);
     _user = AuthUser(
       teacherName: res.teacherName,
       schoolName: res.schoolName,

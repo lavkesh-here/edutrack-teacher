@@ -7,8 +7,6 @@ import 'cache.dart';
 import 'features.dart';
 
 const _secure = FlutterSecureStorage();
-const _kBioEmail = 'bio_email';
-const _kBioPass  = 'bio_password';
 const _kBioEnabled = 'bio_enabled';
 
 class AuthUser {
@@ -34,11 +32,13 @@ class AuthUser {
 class AuthProvider extends ChangeNotifier {
   AuthUser? _user;
   bool _loading = true;
+  bool _isLocked = false;
   FeatureFlags _features = FeatureFlags.defaults();
 
   AuthUser? get user => _user;
   bool get isLoggedIn => _user != null;
   bool get loading => _loading;
+  bool get isLocked => _isLocked;
   FeatureFlags get features => _features;
 
   // ── Biometric ──────────────────────────────────────────────────────────────
@@ -53,37 +53,48 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> get isBiometricEnabled async =>
       (await SharedPreferences.getInstance()).getBool(_kBioEnabled) ?? false;
 
-  Future<void> enableBiometric(String email, String password) async {
-    await _secure.write(key: _kBioEmail, value: email);
-    await _secure.write(key: _kBioPass,  value: password);
+  Future<void> enableBiometric() async {
     (await SharedPreferences.getInstance()).setBool(_kBioEnabled, true);
   }
 
   Future<void> disableBiometric() async {
-    await _secure.delete(key: _kBioEmail);
-    await _secure.delete(key: _kBioPass);
     (await SharedPreferences.getInstance()).setBool(_kBioEnabled, false);
+    // Clean up any legacy stored credentials
+    await _secure.delete(key: 'bio_email');
+    await _secure.delete(key: 'bio_password');
   }
 
-  /// Authenticates with biometric and re-logs in with stored credentials.
-  /// Returns null on success, error message on failure.
-  Future<String?> biometricLogin() async {
+  /// Prompts biometric and locks/unlocks the app. Returns null on success, error string on failure.
+  Future<String?> unlockApp() async {
     try {
       final authed = await _localAuth.authenticate(
         localizedReason: 'Unlock EduTrack',
         options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
       );
-      if (!authed) return 'Biometric authentication cancelled.';
-
-      final email    = await _secure.read(key: _kBioEmail);
-      final password = await _secure.read(key: _kBioPass);
-      if (email == null || password == null) return 'Stored credentials missing.';
-
-      await login(email, password);
+      if (!authed) return 'Authentication cancelled.';
+      _isLocked = false;
+      notifyListeners();
       return null;
     } catch (e) {
       return 'Biometric error: $e';
     }
+  }
+
+  /// Prompts biometric for confirmation (enrollment / toggle). Returns true if authenticated.
+  Future<bool> authenticateBiometric(String reason) async {
+    try {
+      return await _localAuth.authenticate(
+        localizedReason: reason,
+        options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void lockApp() {
+    _isLocked = true;
+    notifyListeners();
   }
 
   String get initials {
@@ -198,6 +209,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _isLocked = false;
     await ApiClient.setToken(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('teacher_name');

@@ -1195,7 +1195,7 @@ class _LinePainter extends CustomPainter {
     void drawLabel(int i, double val) {
       tp.text = TextSpan(text: '${val.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 9, color: AppColors.muted, fontWeight: FontWeight.w700));
       tp.layout();
-      final x = xOf(i).clamp(0, w - tp.width);
+      final x = xOf(i).clamp(0.0, w - tp.width);
       tp.paint(canvas, Offset(x, yOf(val) - 13));
     }
     drawLabel(0, points.first);

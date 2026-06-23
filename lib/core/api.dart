@@ -1346,6 +1346,18 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
+  // ── Longitudinal report ────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getLongitudinalReport(String studentId) async {
+    return (await _get('/api/v1/teacher/students/$studentId/longitudinal-report'))
+        as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> generateLongitudinalAnalysis(String studentId) async {
+    return (await _post('/api/v1/teacher/students/$studentId/longitudinal-analysis', {}))
+        as Map<String, dynamic>;
+  }
+
   // ── Feature flags ──────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getFeatureConfig() async {

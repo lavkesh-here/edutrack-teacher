@@ -35,7 +35,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
     _load();
   }
 
@@ -235,6 +235,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           ),
           _TestsTab(tests: (_profile!['tests'] as List?)?.cast<Map<String, dynamic>>() ?? []),
           _WorkLogsTab(submissions: (_profile!['work_log_submissions'] as List?)?.cast<Map<String, dynamic>>() ?? []),
+          _ReportTab(studentId: widget.studentId),
         ],
       ),
     );
@@ -268,6 +269,7 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
           Tab(text: 'Attendance'),
           Tab(text: 'Tests'),
           Tab(text: 'Work Logs'),
+          Tab(text: 'Report'),
         ],
       ),
     );
@@ -896,6 +898,416 @@ class _SubmissionCard extends StatelessWidget {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${d.day} ${months[d.month - 1]}';
     } catch (_) { return raw; }
+  }
+}
+
+// ── Tab 5: Longitudinal Report ────────────────────────────────────────────────
+
+class _ReportTab extends StatefulWidget {
+  final String studentId;
+  const _ReportTab({required this.studentId});
+
+  @override
+  State<_ReportTab> createState() => _ReportTabState();
+}
+
+class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMixin {
+  Map<String, dynamic>? _report;
+  bool _loading = true;
+  bool _generating = false;
+  String? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final r = await ApiClient.getLongitudinalReport(widget.studentId);
+      if (mounted) setState(() { _report = r; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _generateAnalysis() async {
+    setState(() => _generating = true);
+    try {
+      final r = await ApiClient.generateLongitudinalAnalysis(widget.studentId);
+      if (mounted) {
+        setState(() {
+          _report = {
+            ..._report ?? {},
+            'ai_analysis': r['analysis'],
+            'ai_analysis_generated_at': r['generated_at'],
+          };
+        });
+        showSnack(context, 'AI report generated');
+      }
+    } catch (e) {
+      if (mounted) showSnack(context, 'Generation failed', error: true);
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
+    if (_error != null) return _EmptyState(icon: '⚠️', label: 'Could not load report');
+    final report = _report!;
+
+    final history = (report['test_history'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final heatmap = (report['chapter_heatmap'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final analysis = report['ai_analysis'] as Map<String, dynamic>?;
+    final generatedAt = report['ai_analysis_generated_at'] as String?;
+    final trend = report['trend'] as String? ?? 'first_test';
+    final avg = (report['average_percentage'] as num?)?.toDouble();
+    final total = report['total_tests'] as int? ?? 0;
+
+    return RefreshIndicator(
+      color: AppColors.sun,
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // ── Summary strip ──
+          Row(children: [
+            _StatChip(label: 'Tests', value: '$total', color: AppColors.sky),
+            const SizedBox(width: 8),
+            _StatChip(
+              label: 'Average',
+              value: avg != null ? '${avg.toStringAsFixed(1)}%' : '—',
+              color: avg == null ? AppColors.muted : avg >= 75 ? AppColors.teal : avg >= 50 ? AppColors.amber : AppColors.coral,
+            ),
+            const SizedBox(width: 8),
+            _StatChip(
+              label: 'Trend',
+              value: switch (trend) {
+                'improving' => '↑ Improving',
+                'declining' => '↓ Declining',
+                'stable' => '→ Stable',
+                _ => '— First',
+              },
+              color: switch (trend) {
+                'improving' => AppColors.teal,
+                'declining' => AppColors.coral,
+                _ => AppColors.amber,
+              },
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          // ── Score trend chart ──
+          if (history.isNotEmpty) ...[
+            _SectionCard(title: 'Score Trend', children: [
+              _ScoreTrendChart(history: history),
+            ]),
+            const SizedBox(height: 12),
+          ],
+
+          // ── AI Analysis ──
+          if (analysis != null) ...[
+            _SectionCard(title: 'AI Analysis${generatedAt != null ? ' · ${_fmtDate(generatedAt)}' : ''}', children: [
+              _AnalysisCard(analysis: analysis),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _generating ? null : _generateAnalysis,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.sun,
+                    side: const BorderSide(color: AppColors.sun),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _generating
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun))
+                      : const Text('Refresh AI Analysis', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ]),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(children: [
+                const Text('🤖', style: TextStyle(fontSize: 36)),
+                const SizedBox(height: 10),
+                const Text('No AI analysis yet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+                const SizedBox(height: 4),
+                const Text('Generate a longitudinal analysis of this student\'s performance across all tests.', style: TextStyle(fontSize: 12, color: AppColors.muted), textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: total == 0 || _generating ? null : _generateAnalysis,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.sun,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: _generating
+                        ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Generate AI Report', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                if (total == 0) ...[
+                  const SizedBox(height: 8),
+                  const Text('No test records yet — enter scores first', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                ],
+              ]),
+            ),
+          ],
+          const SizedBox(height: 12),
+
+          // ── Chapter heatmap ──
+          if (heatmap.isNotEmpty) ...[
+            _SectionCard(title: 'Chapter Performance', children: [
+              ...heatmap.map((c) => _ChapterHeatRow(chapter: c)),
+            ]),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _fmtDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${d.day} ${months[d.month - 1]}';
+    } catch (_) { return iso; }
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _StatChip({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(children: [
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color.withOpacity(0.7))),
+      ]),
+    ),
+  );
+}
+
+class _ScoreTrendChart extends StatelessWidget {
+  final List<Map<String, dynamic>> history;
+  const _ScoreTrendChart({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    final dataPoints = history
+        .where((t) => t['percentage'] != null && t['is_absent'] == false)
+        .map((t) => (t['percentage'] as num).toDouble())
+        .toList();
+
+    if (dataPoints.isEmpty) {
+      return const Center(child: Text('No scored tests yet', style: TextStyle(fontSize: 12, color: AppColors.muted)));
+    }
+
+    return SizedBox(
+      height: 120,
+      child: CustomPaint(
+        painter: _LinePainter(dataPoints),
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '${dataPoints.length} test${dataPoints.length == 1 ? '' : 's'}',
+              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LinePainter extends CustomPainter {
+  final List<double> points;
+  _LinePainter(this.points);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.length < 2) return;
+
+    final linePaint = Paint()
+      ..color = AppColors.sun
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final dotPaint = Paint()..color = AppColors.sun..style = PaintingStyle.fill;
+    final bgPaint = Paint()..color = AppColors.sun.withOpacity(0.08)..style = PaintingStyle.fill;
+
+    final h = size.height - 16;
+    final w = size.width;
+    final min = points.reduce((a, b) => a < b ? a : b).clamp(0, 100).toDouble();
+    final max = points.reduce((a, b) => a > b ? a : b).clamp(0, 100).toDouble();
+    final range = (max - min).clamp(10, 100).toDouble();
+
+    double xOf(int i) => i / (points.length - 1) * w;
+    double yOf(double v) => h - ((v - min) / range * h);
+
+    final path = Path()..moveTo(xOf(0), yOf(points[0]));
+    for (int i = 1; i < points.length; i++) path.lineTo(xOf(i), yOf(points[i]));
+
+    final fill = Path.from(path)
+      ..lineTo(xOf(points.length - 1), h)
+      ..lineTo(xOf(0), h)
+      ..close();
+    canvas.drawPath(fill, bgPaint);
+    canvas.drawPath(path, linePaint);
+
+    for (int i = 0; i < points.length; i++) {
+      canvas.drawCircle(Offset(xOf(i), yOf(points[i])), 4, dotPaint);
+    }
+
+    // Draw first and last % labels
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+    void drawLabel(int i, double val) {
+      tp.text = TextSpan(text: '${val.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 9, color: AppColors.muted, fontWeight: FontWeight.w700));
+      tp.layout();
+      final x = xOf(i).clamp(0, w - tp.width);
+      tp.paint(canvas, Offset(x, yOf(val) - 13));
+    }
+    drawLabel(0, points.first);
+    if (points.length > 1) drawLabel(points.length - 1, points.last);
+  }
+
+  @override
+  bool shouldRepaint(covariant _LinePainter old) => old.points != points;
+}
+
+class _AnalysisCard extends StatelessWidget {
+  final Map<String, dynamic> analysis;
+  const _AnalysisCard({required this.analysis});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = analysis['performance_level'] as String? ?? '';
+    final (levelColor, levelBg) = switch (level) {
+      'excellent' => (const Color(0xFF166534), const Color(0xFFDCFCE7)),
+      'good' => (const Color(0xFF1E40AF), const Color(0xFFDBEAFE)),
+      'average' => (const Color(0xFF854D0E), const Color(0xFFFEF9C3)),
+      'needs_attention' => (const Color(0xFF9A3412), const Color(0xFFFFEDD5)),
+      _ => (const Color(0xFF991B1B), const Color(0xFFFEE2E2)),
+    };
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(color: levelBg, borderRadius: BorderRadius.circular(20)),
+        child: Text(level.replaceAll('_', ' ').toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: levelColor)),
+      ),
+      const SizedBox(height: 12),
+      if ((analysis['strengths'] as String? ?? '').isNotEmpty) ...[
+        _AnalysisRow(icon: '✅', label: 'Strengths', text: analysis['strengths'] as String),
+        const SizedBox(height: 8),
+      ],
+      if ((analysis['weak_areas'] as String? ?? '').isNotEmpty) ...[
+        _AnalysisRow(icon: '⚠️', label: 'Weak Areas', text: analysis['weak_areas'] as String),
+        const SizedBox(height: 8),
+      ],
+      if ((analysis['action_plan'] as String? ?? '').isNotEmpty) ...[
+        _AnalysisRow(icon: '📋', label: 'Action Plan', text: analysis['action_plan'] as String),
+        const SizedBox(height: 8),
+      ],
+      if ((analysis['parent_note'] as String? ?? '').isNotEmpty)
+        _AnalysisRow(icon: '💬', label: 'Parent Note', text: analysis['parent_note'] as String),
+    ]);
+  }
+}
+
+class _AnalysisRow extends StatelessWidget {
+  final String icon;
+  final String label;
+  final String text;
+  const _AnalysisRow({required this.icon, required this.label, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('$icon $label', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.text)),
+      const SizedBox(height: 3),
+      Text(text, style: const TextStyle(fontSize: 12, color: AppColors.text2, height: 1.45)),
+    ],
+  );
+}
+
+class _ChapterHeatRow extends StatelessWidget {
+  final Map<String, dynamic> chapter;
+  const _ChapterHeatRow({required this.chapter});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = chapter['chapter_name'] as String? ?? '';
+    final pct = (chapter['avg_pct'] as num?)?.toDouble();
+    final heat = chapter['heat_level'] as String? ?? 'none';
+    final (barColor, bg) = switch (heat) {
+      'green' => (AppColors.teal, AppColors.tealLight),
+      'amber' => (AppColors.amber, AppColors.amberLight),
+      'red'   => (AppColors.coral, AppColors.coralLight),
+      _       => (AppColors.muted, AppColors.bg),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: pct != null ? (pct / 100).clamp(0.0, 1.0) : 0,
+                backgroundColor: AppColors.border,
+                color: barColor,
+                minHeight: 6,
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+          child: Text(
+            pct != null ? '${pct.toStringAsFixed(0)}%' : '—',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: barColor),
+          ),
+        ),
+      ]),
+    );
   }
 }
 

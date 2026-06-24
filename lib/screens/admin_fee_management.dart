@@ -130,9 +130,9 @@ class _ComponentsTabState extends State<_ComponentsTab> {
               const Text('Add Fee Component',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
               const SizedBox(height: 16),
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Component Name')),
+              TextField(key: const Key('fee_component_name_field'), controller: nameCtrl, decoration: const InputDecoration(labelText: 'Component Name')),
               const SizedBox(height: 10),
-              TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description (optional)')),
+              TextField(key: const Key('fee_component_desc_field'), controller: descCtrl, decoration: const InputDecoration(labelText: 'Description (optional)')),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -149,6 +149,7 @@ class _ComponentsTabState extends State<_ComponentsTab> {
                 width: double.infinity,
                 height: 46,
                 child: ElevatedButton(
+                  key: const Key('add_fee_component_button'),
                   onPressed: saving
                       ? null
                       : () async {

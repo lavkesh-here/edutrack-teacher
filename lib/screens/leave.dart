@@ -67,6 +67,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                   ),
                   const Spacer(),
                   ElevatedButton.icon(
+                    key: const Key('apply_leave_button'),
                     onPressed: () => _showApplySheet(context),
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Apply'),
@@ -578,6 +579,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                     ),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('leave_reason_field'),
                       controller: _reason,
                       maxLines: 3,
                       maxLength: 500,
@@ -590,6 +592,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('submit_leave_button'),
                         onPressed: _saving ? null : _submit,
                         child: _saving
                             ? const SizedBox(

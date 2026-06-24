@@ -81,6 +81,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             pinned: true,
             actions: [
               IconButton(
+                key: const Key('preview_test_button'),
                 icon: const Icon(Icons.preview_outlined, color: Colors.white),
                 tooltip: 'Preview Test Paper',
                 onPressed: _openPreview,

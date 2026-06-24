@@ -209,6 +209,7 @@ class _ChatViewScreenState extends State<ChatViewScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: TextField(
+                        key: const Key('chat_message_field'),
                         controller: _msgCtrl,
                         maxLines: null,
                         textCapitalization: TextCapitalization.sentences,
@@ -224,6 +225,7 @@ class _ChatViewScreenState extends State<ChatViewScreen> {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
+                    key: const Key('send_message_button'),
                     onTap: _send,
                     child: Container(
                       width: 44,

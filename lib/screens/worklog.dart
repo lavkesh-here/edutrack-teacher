@@ -791,6 +791,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                   ),
                 const SizedBox(height: 10),
                 TextField(
+                  key: const Key('worklog_description_field'),
                   controller: descCtrl,
                   maxLines: 3,
                   maxLength: 2000,
@@ -852,6 +853,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    key: const Key('save_worklog_button'),
                     onPressed: () async {
                       if (descCtrl.text.trim().isEmpty) {
                         showSnack(context, 'Please enter a description', error: true);

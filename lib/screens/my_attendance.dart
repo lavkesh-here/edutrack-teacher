@@ -431,6 +431,7 @@ class _TodayCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
+                key: const Key('mark_attendance_button'),
                 onPressed: marking ? null : onMark,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,

@@ -168,6 +168,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                     title: 'SCHOOL INFO',
                     children: [
                       _LabeledField(
+                        fieldKey: const Key('school_name_field'),
                         label: 'School Name',
                         controller: _nameCtrl,
                         hint: 'e.g. St. Mary\'s School',
@@ -175,6 +176,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                       ),
                       const SizedBox(height: 14),
                       _LabeledField(
+                        fieldKey: const Key('school_board_field'),
                         label: 'Board Affiliation',
                         controller: _boardCtrl,
                         hint: 'e.g. CBSE, ICSE, State Board',
@@ -187,6 +189,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                     title: 'CONTACT',
                     children: [
                       _LabeledField(
+                        fieldKey: const Key('school_phone_field'),
                         label: 'Phone',
                         controller: _phoneCtrl,
                         hint: 'e.g. +91 98765 43210',
@@ -194,6 +197,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                       ),
                       const SizedBox(height: 14),
                       _LabeledField(
+                        fieldKey: const Key('school_email_field'),
                         label: 'Email',
                         controller: _emailCtrl,
                         hint: 'e.g. office@school.edu.in',
@@ -201,6 +205,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                       ),
                       const SizedBox(height: 14),
                       _LabeledField(
+                        fieldKey: const Key('school_website_field'),
                         label: 'Website',
                         controller: _websiteCtrl,
                         hint: 'e.g. https://school.edu.in',
@@ -214,6 +219,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                     title: 'ADDRESS',
                     children: [
                       _LabeledField(
+                        fieldKey: const Key('school_address_field'),
                         label: 'Full Address',
                         controller: _addressCtrl,
                         hint: 'Street, City, State, PIN',
@@ -329,6 +335,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
+                      key: const Key('save_school_settings_button'),
                       onPressed: _saving ? null : _save,
                       child: _saving
                           ? const SizedBox(
@@ -391,6 +398,7 @@ class _LabeledField extends StatelessWidget {
   final TextInputType? keyboardType;
   final TextCapitalization textCapitalization;
   final int? maxLines;
+  final Key? fieldKey;
 
   const _LabeledField({
     required this.label,
@@ -399,6 +407,7 @@ class _LabeledField extends StatelessWidget {
     this.keyboardType,
     this.textCapitalization = TextCapitalization.none,
     this.maxLines = 1,
+    this.fieldKey,
   });
 
   @override
@@ -416,6 +425,7 @@ class _LabeledField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         TextField(
+          key: fieldKey,
           controller: controller,
           keyboardType: keyboardType,
           textCapitalization: textCapitalization,

@@ -50,6 +50,7 @@ class _FeedScreenState extends State<FeedScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: const Key('new_announcement_fab'),
         onPressed: _showCreateSheet,
         backgroundColor: AppColors.sun,
         foregroundColor: Colors.white,
@@ -154,11 +155,13 @@ class _FeedScreenState extends State<FeedScreen> {
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.text)),
                   const SizedBox(height: 14),
                   TextField(
+                    key: const Key('announcement_title_field'),
                     controller: titleCtrl,
                     decoration: const InputDecoration(labelText: 'Title'),
                   ),
                   const SizedBox(height: 10),
                   TextField(
+                    key: const Key('announcement_body_field'),
                     controller: bodyCtrl,
                     maxLines: 3,
                     decoration: const InputDecoration(labelText: 'Message'),
@@ -246,6 +249,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   if (pickedImages.length < 10) ...[
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
+                      key: const Key('add_images_button'),
                       onPressed: () async {
                         final picker = ImagePicker();
                         final picked = await picker.pickMultiImage(imageQuality: 80);
@@ -261,6 +265,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      key: const Key('post_announcement_button'),
                       onPressed: saving
                           ? null
                           : () async {
@@ -592,6 +597,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('comment_field'),
                     controller: _ctrl,
                     decoration: InputDecoration(
                       hintText: 'Write a comment...',
@@ -605,6 +611,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
+                  key: const Key('post_comment_button'),
                   onTap: _post,
                   child: Container(
                     width: 40, height: 40,

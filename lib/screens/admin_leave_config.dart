@@ -103,23 +103,24 @@ class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen> {
                   const SizedBox(height: 24),
                   const SectionHeader(title: 'Annual Leave Allowances'),
                   const SizedBox(height: 12),
-                  _ConfigField(ctrl: _casualCtrl, label: 'Casual Leave (days/year)', keyboardType: TextInputType.number),
+                  _ConfigField(fieldKey: const Key('casual_leave_field'), ctrl: _casualCtrl, label: 'Casual Leave (days/year)', keyboardType: TextInputType.number),
                   const SizedBox(height: 12),
-                  _ConfigField(ctrl: _sickCtrl, label: 'Sick Leave (days/year)', keyboardType: TextInputType.number),
+                  _ConfigField(fieldKey: const Key('sick_leave_field'), ctrl: _sickCtrl, label: 'Sick Leave (days/year)', keyboardType: TextInputType.number),
                   const SizedBox(height: 12),
-                  _ConfigField(ctrl: _earnedCtrl, label: 'Earned Leave (days/year)', keyboardType: TextInputType.number),
+                  _ConfigField(fieldKey: const Key('earned_leave_field'), ctrl: _earnedCtrl, label: 'Earned Leave (days/year)', keyboardType: TextInputType.number),
                   const SizedBox(height: 24),
                   const SectionHeader(title: 'Salary Calculation'),
                   const SizedBox(height: 12),
-                  _ConfigField(ctrl: _workingDaysCtrl, label: 'Working Days per Month', keyboardType: TextInputType.number),
+                  _ConfigField(fieldKey: const Key('working_days_field'), ctrl: _workingDaysCtrl, label: 'Working Days per Month', keyboardType: TextInputType.number),
                   const SizedBox(height: 24),
                   const SectionHeader(title: 'Probation'),
                   const SizedBox(height: 12),
-                  _ConfigField(ctrl: _probationCtrl, label: 'Probation Period (months)', keyboardType: TextInputType.number),
+                  _ConfigField(fieldKey: const Key('probation_months_field'), ctrl: _probationCtrl, label: 'Probation Period (months)', keyboardType: TextInputType.number),
                   const SizedBox(height: 32),
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
+                      key: const Key('save_leave_config_button'),
                       onPressed: _saving ? null : _save,
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
                       child: _saving
@@ -138,10 +139,12 @@ class _ConfigField extends StatelessWidget {
   final TextEditingController ctrl;
   final String label;
   final TextInputType? keyboardType;
-  const _ConfigField({required this.ctrl, required this.label, this.keyboardType});
+  final Key? fieldKey;
+  const _ConfigField({required this.ctrl, required this.label, this.keyboardType, this.fieldKey});
 
   @override
   Widget build(BuildContext context) => TextField(
+        key: fieldKey,
         controller: ctrl,
         keyboardType: keyboardType,
         decoration: InputDecoration(labelText: label),

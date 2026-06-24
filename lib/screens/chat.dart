@@ -106,6 +106,7 @@ class _ChatScreenState extends State<ChatScreen> {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: TextField(
+              key: const Key('chat_search_field'),
               controller: _searchCtrl,
               onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(

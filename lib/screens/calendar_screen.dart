@@ -79,6 +79,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: const Key('add_event_fab'),
         onPressed: _showAddEventSheet,
         backgroundColor: AppColors.sun,
         foregroundColor: Colors.white,
@@ -339,6 +340,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 14),
                 TextField(
+                  key: const Key('event_title_field'),
                   controller: titleCtrl,
                   decoration: const InputDecoration(labelText: 'Event Title'),
                 ),
@@ -432,6 +434,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    key: const Key('save_event_button'),
                     onPressed: () async {
                       if (titleCtrl.text.trim().isEmpty || startDate == null) return;
                       try {

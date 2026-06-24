@@ -104,6 +104,7 @@ class _RoutesTabState extends State<_RoutesTab> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       floatingActionButton: FloatingActionButton.extended(
+        key: const Key('add_route_fab'),
         onPressed: _showAddRouteSheet,
         backgroundColor: AppColors.sky,
         foregroundColor: Colors.white,
@@ -473,6 +474,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
+                  key: const Key('assign_student_button'),
                   onPressed: _showAssignSheet,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Assign Student'),
@@ -611,7 +613,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                   children: [
                     _SheetLabel('ROUTE NAME *'),
                     const SizedBox(height: 6),
-                    TextField(controller: _nameCtrl, decoration: const InputDecoration(hintText: 'e.g. North Route')),
+                    TextField(key: const Key('route_name_field'), controller: _nameCtrl, decoration: const InputDecoration(hintText: 'e.g. North Route')),
                     const SizedBox(height: 14),
                     _SheetLabel('VEHICLE NUMBER'),
                     const SizedBox(height: 6),
@@ -619,11 +621,11 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                     const SizedBox(height: 14),
                     _SheetLabel('DRIVER NAME'),
                     const SizedBox(height: 6),
-                    TextField(controller: _driverNameCtrl, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(hintText: 'e.g. Suresh Patil')),
+                    TextField(key: const Key('driver_name_field'), controller: _driverNameCtrl, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(hintText: 'e.g. Suresh Patil')),
                     const SizedBox(height: 14),
                     _SheetLabel('DRIVER PHONE'),
                     const SizedBox(height: 6),
-                    TextField(controller: _driverPhoneCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(hintText: 'e.g. 9876543210')),
+                    TextField(key: const Key('driver_phone_field'), controller: _driverPhoneCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(hintText: 'e.g. 9876543210')),
                     const SizedBox(height: 14),
                     _SheetLabel('CAPACITY'),
                     const SizedBox(height: 6),
@@ -633,6 +635,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('create_route_button'),
                         onPressed: _saving ? null : _submit,
                         child: _saving
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
@@ -770,6 +773,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                     _SheetLabel('SEARCH STUDENT'),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('transport_student_search_field'),
                       controller: _searchCtrl,
                       onSubmitted: _search,
                       decoration: InputDecoration(
@@ -884,6 +888,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('assign_route_button'),
                         onPressed: _saving ? null : _submit,
                         child: _saving
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))

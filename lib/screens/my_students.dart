@@ -144,6 +144,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: TextField(
+              key: const Key('student_search_field'),
               controller: _searchCtrl,
               onChanged: (v) => setState(() => _search = v),
               decoration: InputDecoration(

@@ -110,6 +110,7 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _PasswordField(
+                      fieldKey: const Key('current_password_field'),
                       label: 'TEMPORARY PASSWORD',
                       controller: _currentCtrl,
                       obscure: _obscureCurrent,
@@ -118,6 +119,7 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
                     ),
                     const SizedBox(height: 16),
                     _PasswordField(
+                      fieldKey: const Key('new_password_field'),
                       label: 'NEW PASSWORD',
                       controller: _newCtrl,
                       obscure: _obscureNew,
@@ -126,6 +128,7 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
                     ),
                     const SizedBox(height: 16),
                     _PasswordField(
+                      fieldKey: const Key('confirm_password_field'),
                       label: 'CONFIRM NEW PASSWORD',
                       controller: _confirmCtrl,
                       obscure: _obscureConfirm,
@@ -155,6 +158,7 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
                     SizedBox(
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('set_password_button'),
                         onPressed: _loading ? null : _submit,
                         child: _loading
                             ? const SizedBox(
@@ -183,6 +187,7 @@ class _PasswordField extends StatelessWidget {
   final VoidCallback onToggle;
   final String hint;
   final VoidCallback? onSubmit;
+  final Key? fieldKey;
 
   const _PasswordField({
     required this.label,
@@ -191,6 +196,7 @@ class _PasswordField extends StatelessWidget {
     required this.onToggle,
     required this.hint,
     this.onSubmit,
+    this.fieldKey,
   });
 
   @override
@@ -204,6 +210,7 @@ class _PasswordField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         TextField(
+          key: fieldKey,
           controller: controller,
           obscureText: obscure,
           maxLength: 128,

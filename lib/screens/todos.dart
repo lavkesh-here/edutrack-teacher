@@ -135,6 +135,7 @@ class _TodosScreenState extends State<TodosScreen> {
               const Text('New Todo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
               const SizedBox(height: 14),
               TextField(
+                key: const Key('todo_title_field'),
                 controller: titleCtrl,
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
@@ -145,6 +146,7 @@ class _TodosScreenState extends State<TodosScreen> {
               ),
               const SizedBox(height: 10),
               TextField(
+                key: const Key('todo_notes_field'),
                 controller: notesCtrl,
                 maxLines: 2,
                 textCapitalization: TextCapitalization.sentences,
@@ -194,6 +196,7 @@ class _TodosScreenState extends State<TodosScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
+                  key: const Key('add_todo_button'),
                   onPressed: () async {
                     final title = titleCtrl.text.trim();
                     if (title.isEmpty) {

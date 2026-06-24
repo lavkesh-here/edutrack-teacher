@@ -1021,6 +1021,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
+                  key: const Key('refresh_analysis_button'),
                   onPressed: _generating ? null : _generateAnalysis,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.sun,
@@ -1051,6 +1052,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    key: const Key('generate_ai_report_button'),
                     onPressed: total == 0 || _generating ? null : _generateAnalysis,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.sun,

@@ -284,6 +284,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                 ),
               ] else ...[
                 TextField(
+                  key: const Key('student_search_field'),
                   controller: _searchCtrl,
                   onChanged: _searchStudents,
                   decoration: InputDecoration(
@@ -399,6 +400,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
             const Text('MESSAGE', style: _labelStyle),
             const SizedBox(height: 8),
             TextField(
+              key: const Key('notification_message_field'),
               controller: _msgCtrl,
               maxLines: 4,
               maxLength: 500,
@@ -468,6 +470,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                key: const Key('send_notification_button'),
                 onPressed: _loading ? null : _send,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.sun,

@@ -113,6 +113,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
               child: Row(
                 children: [
                   IconButton(
+                    key: const Key('prev_month_button'),
                     icon: const Icon(Icons.chevron_left_rounded),
                     onPressed: _previousMonth,
                     color: AppColors.muted,
@@ -132,6 +133,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
                     ),
                   ),
                   IconButton(
+                    key: const Key('next_month_button'),
                     icon: Icon(
                       Icons.chevron_right_rounded,
                       color: isCurrentMonth ? AppColors.border : AppColors.muted,

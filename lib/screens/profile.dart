@@ -103,6 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Text('Edit Personal Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
               const SizedBox(height: 14),
               TextField(
+                key: const Key('profile_name_field'),
                 controller: nameCtrl,
                 textCapitalization: TextCapitalization.words,
                 maxLength: 30,
@@ -117,6 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 10),
               TextField(
+                key: const Key('profile_phone_field'),
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
                 maxLength: 10,
@@ -134,6 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 10),
               TextField(
+                key: const Key('profile_email_field'),
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
@@ -143,6 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
+                  key: const Key('profile_save_button'),
                   onPressed: saving ? null : () async {
                     // Inline validation
                     final name = nameCtrl.text.trim();

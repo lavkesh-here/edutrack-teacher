@@ -221,6 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('school_code_field'),
                       controller: _codeCtrl,
                       textCapitalization: TextCapitalization.characters,
                       textInputAction: TextInputAction.go,
@@ -252,6 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('school_code_submit'),
                         onPressed: _loading ? null : _next,
                         child: _loading
                             ? const SizedBox(
@@ -443,6 +445,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                     ),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('email_field'),
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
@@ -460,6 +463,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                     ),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('password_field'),
                       controller: _pass,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.done,
@@ -501,6 +505,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                     SizedBox(
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('login_button'),
                         onPressed: _loading ? null : _login,
                         child: _loading
                             ? const SizedBox(

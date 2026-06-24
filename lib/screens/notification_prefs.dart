@@ -177,6 +177,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
                           ),
                         ),
                         Switch(
+                          key: Key('notif_pref_${m.key}'),
                           value: value,
                           onChanged: (v) => _toggle(m.key, v),
                           activeColor: AppColors.sun,

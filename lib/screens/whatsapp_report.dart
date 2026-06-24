@@ -163,6 +163,7 @@ class _WhatsAppReportScreenState extends State<WhatsAppReportScreen> {
                           border: Border.all(color: AppColors.border, width: 1.5),
                         ),
                         child: TextField(
+                          key: const Key('whatsapp_message_field'),
                           controller: _msgCtrl,
                           maxLines: null,
                           style: const TextStyle(fontSize: 14, color: AppColors.text, height: 1.6),
@@ -185,6 +186,7 @@ class _WhatsAppReportScreenState extends State<WhatsAppReportScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
+                              key: const Key('copy_report_button'),
                               onPressed: _copyToClipboard,
                               icon: const Icon(Icons.copy, size: 16),
                               label: const Text('Copy'),
@@ -200,6 +202,7 @@ class _WhatsAppReportScreenState extends State<WhatsAppReportScreen> {
                           Expanded(
                             flex: 2,
                             child: ElevatedButton.icon(
+                              key: const Key('open_whatsapp_button'),
                               onPressed: _openWhatsApp,
                               icon: const Text('💬', style: TextStyle(fontSize: 16)),
                               label: const Text('Open in WhatsApp', style: TextStyle(fontWeight: FontWeight.w700)),

@@ -92,11 +92,11 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 62,
             child: Row(
               children: [
-                _NavItem(icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(key: const Key('nav_home'), icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(key: const Key('nav_attendance'), icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(key: const Key('nav_students'), icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(key: const Key('nav_forum'), icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(key: const Key('nav_more'), icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) => setState(() => _idx = i)),
               ],
             ),
           ),
@@ -115,6 +115,7 @@ class _NavItem extends StatelessWidget {
   final void Function(int) onTap;
 
   const _NavItem({
+    super.key,
     required this.icon,
     required this.label,
     required this.index,

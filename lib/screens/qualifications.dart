@@ -474,6 +474,7 @@ class _AddQualificationSheetState extends State<_AddQualificationSheet> {
         const SizedBox(height: 14),
         _SheetLabel('Institution'),
         TextField(
+          key: const Key('qualification_institution_field'),
           controller: _institutionCtrl,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(hintText: 'e.g. Delhi University'),
@@ -481,6 +482,7 @@ class _AddQualificationSheetState extends State<_AddQualificationSheet> {
         const SizedBox(height: 14),
         _SheetLabel('Field of Study (optional)'),
         TextField(
+          key: const Key('qualification_field_of_study'),
           controller: _fieldCtrl,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(hintText: 'e.g. Mathematics'),
@@ -488,6 +490,7 @@ class _AddQualificationSheetState extends State<_AddQualificationSheet> {
         const SizedBox(height: 14),
         _SheetLabel('Year Passed (optional)'),
         TextField(
+          key: const Key('qualification_year_field'),
           controller: _yearCtrl,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)],
@@ -575,6 +578,7 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
       children: [
         _SheetLabel('Institution / School Name'),
         TextField(
+          key: const Key('experience_institution_field'),
           controller: _institutionCtrl,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(hintText: 'e.g. St. Mary\'s School'),
@@ -582,6 +586,7 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
         const SizedBox(height: 14),
         _SheetLabel('Role / Position'),
         TextField(
+          key: const Key('experience_role_field'),
           controller: _roleCtrl,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(hintText: 'e.g. Science Teacher'),
@@ -595,6 +600,7 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
                 children: [
                   _SheetLabel('From Year'),
                   TextField(
+                    key: const Key('experience_from_year_field'),
                     controller: _fromCtrl,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)],
@@ -610,6 +616,7 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
                 children: [
                   _SheetLabel('To Year'),
                   TextField(
+                    key: const Key('experience_to_year_field'),
                     controller: _toCtrl,
                     keyboardType: TextInputType.number,
                     enabled: !_isCurrent,

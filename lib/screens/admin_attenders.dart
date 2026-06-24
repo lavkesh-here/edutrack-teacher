@@ -74,6 +74,7 @@ class _AdminAttendersScreenState extends State<AdminAttendersScreen> {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             child: TextField(
+              key: const Key('attender_search_field'),
               controller: _searchCtrl,
               decoration: const InputDecoration(
                 hintText: 'Search by attender or student name...',

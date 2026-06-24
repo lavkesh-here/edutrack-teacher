@@ -239,6 +239,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       const LinearProgressIndicator(color: AppColors.sun)
                     else if (_sections != null && _sections!.isNotEmpty)
                       SizedBox(
+                        key: const Key('section_selector'),
                         height: 34,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
@@ -367,6 +368,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
+                        key: const Key('save_attendance_button'),
                         onPressed: canSubmit ? _submit : null,
                         child: _saving
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))

@@ -178,6 +178,7 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             child: TextField(
+              key: const Key('parent_search_field'),
               controller: _searchCtrl,
               decoration: const InputDecoration(
                 hintText: 'Search by name or phone...',
@@ -626,6 +627,7 @@ class _AddParentSheetState extends State<_AddParentSheet> {
                     _FieldLabel('FULL NAME *'),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('add_parent_name_field'),
                       controller: _nameCtrl,
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(hintText: 'e.g. Ramesh Kumar'),
@@ -634,6 +636,7 @@ class _AddParentSheetState extends State<_AddParentSheet> {
                     _FieldLabel('PHONE NUMBER *'),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('add_parent_phone_field'),
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(hintText: 'e.g. 9876543210'),
@@ -642,6 +645,7 @@ class _AddParentSheetState extends State<_AddParentSheet> {
                     _FieldLabel('EMAIL (OPTIONAL)'),
                     const SizedBox(height: 6),
                     TextField(
+                      key: const Key('add_parent_email_field'),
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(hintText: 'e.g. ramesh@email.com'),
@@ -651,6 +655,7 @@ class _AddParentSheetState extends State<_AddParentSheet> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
+                        key: const Key('create_parent_button'),
                         onPressed: _saving ? null : _submit,
                         child: _saving
                             ? const SizedBox(

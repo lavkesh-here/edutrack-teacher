@@ -272,18 +272,20 @@ class _HomeTabState extends State<_HomeTab> {
                           ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => _openScreen(context, const SupportChatScreen()),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
-                            shape: BoxShape.circle,
+                      if (auth.features.aiSupportChat) ...[
+                        GestureDetector(
+                          onTap: () => _openScreen(context, const SupportChatScreen()),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 22),
                           ),
-                          child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 22),
                         ),
-                      ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 8),
+                      ],
                       GestureDetector(
                         onTap: () => _openScreen(context, const NotificationsScreen()),
                         child: Container(

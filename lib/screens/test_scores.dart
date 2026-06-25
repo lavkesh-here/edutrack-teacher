@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -171,17 +173,18 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
               ),
             ),
 
-          // AI Analysis section
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-              child: _AnalysisCard(
-                analysis: _analysis,
-                loading: _loadingAnalysis,
-                onLoad: _loadAnalysis,
+          // AI Analysis section — hidden if SA has disabled ai_analysis for this school/teacher
+          if (context.read<AuthProvider>().features.aiAnalysis)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: _AnalysisCard(
+                  analysis: _analysis,
+                  loading: _loadingAnalysis,
+                  onLoad: _loadAnalysis,
+                ),
               ),
             ),
-          ),
 
           // Scores list
           const SliverToBoxAdapter(

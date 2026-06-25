@@ -273,7 +273,7 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => _push(context, const SupportChatScreen()),
+                        onTap: () => _openScreen(context, const SupportChatScreen()),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(

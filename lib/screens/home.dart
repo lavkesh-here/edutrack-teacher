@@ -28,6 +28,7 @@ import 'todos.dart';
 import 'my_attendance.dart';
 import 'qualifications.dart';
 import 'notification_prefs.dart';
+import 'faq_screen.dart';
 import '../core/recents.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -1128,6 +1129,8 @@ class _MoreTabState extends State<_MoreTab> {
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
                     _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                         onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
+                    _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'How to use the app',
+                        onTap: () => _push(context, const FaqScreen())),
 
                     if (isAdminOrAbove) ...[
                       const SizedBox(height: 16),

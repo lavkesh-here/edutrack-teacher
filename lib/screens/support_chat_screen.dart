@@ -16,6 +16,15 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   bool _loading = false;
 
   static const _maxChars = 500;
+  static List<_Msg> _cache = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (_cache.isNotEmpty) {
+      _messages.addAll(_cache);
+    }
+  }
 
   @override
   void dispose() {
@@ -49,7 +58,10 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         history: history,
       );
       if (mounted) {
-        setState(() => _messages.add(_Msg(role: 'model', text: reply)));
+        setState(() {
+          _messages.add(_Msg(role: 'model', text: reply));
+          _cache = _messages.takeLast(2).toList();
+        });
         _scrollToBottom();
       }
     } catch (e) {
@@ -80,6 +92,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 
   void _clearChat() {
     setState(() => _messages.clear());
+    _cache = [];
   }
 
   @override
@@ -268,9 +281,9 @@ class _MessageBubble extends StatelessWidget {
                         width: 1.5,
                       ),
               ),
-              child: Text(
+              child: _buildBoldText(
                 msg.text,
-                style: TextStyle(
+                TextStyle(
                   fontSize: 14,
                   height: 1.45,
                   color: isUser
@@ -456,4 +469,19 @@ class _SuggestionChip extends StatelessWidget {
 
 extension _ListTakeLast<T> on List<T> {
   List<T> takeLast(int n) => length <= n ? this : sublist(length - n);
+}
+
+// Renders **bold** markdown inline without a full markdown package.
+Widget _buildBoldText(String text, TextStyle base) {
+  final parts = text.split(RegExp(r'\*\*'));
+  if (parts.length == 1) return Text(text, style: base);
+  final spans = <TextSpan>[];
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i].isEmpty) continue;
+    spans.add(TextSpan(
+      text: parts[i],
+      style: i.isOdd ? base.copyWith(fontWeight: FontWeight.w700) : base,
+    ));
+  }
+  return RichText(text: TextSpan(children: spans));
 }

@@ -273,6 +273,18 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
                       ),
                       GestureDetector(
+                        onTap: () => _push(context, const SupportChatScreen()),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
                         onTap: () => _openScreen(context, const NotificationsScreen()),
                         child: Container(
                           padding: const EdgeInsets.all(8),
@@ -1130,8 +1142,6 @@ class _MoreTabState extends State<_MoreTab> {
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
                     _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                         onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
-                    _FeatureRow(icon: '💬', iconBg: AppColors.sunLight, title: 'Ask EduTrack Support', sub: 'Chat — get instant app help',
-                        onTap: () => _push(context, const SupportChatScreen())),
                     _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'Browse common questions',
                         onTap: () => _push(context, const FaqScreen())),
 

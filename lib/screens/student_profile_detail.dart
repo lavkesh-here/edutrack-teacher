@@ -712,7 +712,7 @@ class _TestScoreCard extends StatelessWidget {
     final isAbsent = test['is_absent'] as bool? ?? false;
     final pct = (test['percentage'] as num?)?.toDouble();
     final date = test['scheduled_date'] as String?;
-    final examType = test['exam_type'] as String? ?? '';
+    final examType = (test['work_type'] ?? test['exam_type']) as String? ?? '';
 
     final (Color statusColor, String statusLabel) = isAbsent
         ? (AppColors.coral, 'Absent')

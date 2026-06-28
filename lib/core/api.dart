@@ -863,7 +863,7 @@ class ApiClient {
 
   static Future<List<Announcement>> getAnnouncements() async {
     final data = await _get('/api/v1/admin/announcements');
-    final list = data as List<dynamic>;
+    final list = (data as Map<String, dynamic>)['announcements'] as List<dynamic>;
     return list
         .map((e) => Announcement.fromJson(e as Map<String, dynamic>))
         .toList();

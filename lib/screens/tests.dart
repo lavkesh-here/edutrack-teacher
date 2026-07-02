@@ -242,6 +242,22 @@ class _TestCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     _FooterChip('${test.durationMinutes} min', AppColors.bg, AppColors.muted),
                   ],
+                  if (test.variantLevel != null) ...[
+                    const SizedBox(width: 8),
+                    _FooterChip(
+                      test.variantLevel![0].toUpperCase() + test.variantLevel!.substring(1),
+                      test.variantLevel == 'remedial'
+                          ? const Color(0xFFFFF3CD)
+                          : test.variantLevel == 'advanced'
+                              ? const Color(0xFFD1ECF1)
+                              : AppColors.bg,
+                      test.variantLevel == 'remedial'
+                          ? const Color(0xFF856404)
+                          : test.variantLevel == 'advanced'
+                              ? const Color(0xFF0C5460)
+                              : AppColors.muted,
+                    ),
+                  ],
                   const Spacer(),
                   if (test.scheduledDate != null)
                     Text(

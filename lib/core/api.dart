@@ -131,6 +131,7 @@ class TestSummary {
   final int questionCount;
   final int scoreCount;
   final String? workType;
+  final int? durationMinutes;
 
   const TestSummary({
     required this.id,
@@ -144,6 +145,7 @@ class TestSummary {
     required this.questionCount,
     required this.scoreCount,
     this.workType,
+    this.durationMinutes,
   });
 
   factory TestSummary.fromJson(Map<String, dynamic> j) => TestSummary(
@@ -161,6 +163,7 @@ class TestSummary {
         questionCount: j['question_count'] as int? ?? 0,
         scoreCount: j['score_count'] as int? ?? 0,
         workType: j['work_type'] as String?,
+        durationMinutes: j['exam_duration_minutes'] as int?,
       );
 }
 

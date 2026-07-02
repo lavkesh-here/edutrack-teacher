@@ -238,6 +238,10 @@ class _TestCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     _FooterChip('${test.scoreCount} scored', AppColors.greenLight, AppColors.green),
                   ],
+                  if (test.durationMinutes != null && test.durationMinutes! > 0) ...[
+                    const SizedBox(width: 8),
+                    _FooterChip('${test.durationMinutes} min', AppColors.bg, AppColors.muted),
+                  ],
                   const Spacer(),
                   if (test.scheduledDate != null)
                     Text(

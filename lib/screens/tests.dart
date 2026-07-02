@@ -191,6 +191,10 @@ class _TestCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  if (test.workType != null) ...[
+                    _FooterChip(_workTypeLabel(test.workType!), AppColors.amberLight, AppColors.amber),
+                    const SizedBox(width: 8),
+                  ],
                   _FooterChip('${test.totalMarks.toInt()} marks', AppColors.violetLight, AppColors.violet),
                   const SizedBox(width: 8),
                   _FooterChip('${test.questionCount} questions', AppColors.skyLight, AppColors.sky),
@@ -214,6 +218,15 @@ class _TestCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _workTypeLabel(String wt) {
+  const labels = {
+    'classwork': 'Classwork', 'homework': 'Homework', 'quiz': 'Quiz',
+    'assignment': 'Assignment', 'unit_test': 'Unit Test',
+    'half_yearly': 'Half Yearly', 'annual': 'Annual',
+  };
+  return labels[wt] ?? wt;
 }
 
 class _FooterChip extends StatelessWidget {

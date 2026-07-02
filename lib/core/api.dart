@@ -130,6 +130,7 @@ class TestSummary {
   final DateTime createdAt;
   final int questionCount;
   final int scoreCount;
+  final String? workType;
 
   const TestSummary({
     required this.id,
@@ -142,6 +143,7 @@ class TestSummary {
     required this.createdAt,
     required this.questionCount,
     required this.scoreCount,
+    this.workType,
   });
 
   factory TestSummary.fromJson(Map<String, dynamic> j) => TestSummary(
@@ -158,6 +160,7 @@ class TestSummary {
             DateTime.now(),
         questionCount: j['question_count'] as int? ?? 0,
         scoreCount: j['score_count'] as int? ?? 0,
+        workType: j['work_type'] as String?,
       );
 }
 
@@ -1371,6 +1374,16 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
+  static Future<Map<String, dynamic>> getStudentFullReport(String studentId) async {
+    return (await _get('/api/v1/admin/students/$studentId/full-report'))
+        as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> generateStudentFullReport(String studentId) async {
+    return (await _post('/api/v1/admin/students/$studentId/full-report', {}))
+        as Map<String, dynamic>;
+  }
+
   // ── Feature flags ──────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getFeatureConfig() async {
@@ -1481,6 +1494,18 @@ class ApiClient {
           'period_number': s.periodNumber, 'start_time': s.startTime, 'end_time': s.endTime,
           'subject_name': s.subjectName, 'class_section_id': s.classSectionId}).toList()},
     );
+  }
+
+  // ── Director ──────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> directorDashboard() async {
+    final data = await _get('/api/v1/admin/director-dashboard');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> directorClassAnalytics() async {
+    final data = await _get('/api/v1/admin/director/class-analytics');
+    return data as Map<String, dynamic>;
   }
 
   static Future<T> _cachedOrFetch<T>({

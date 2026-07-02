@@ -23,6 +23,7 @@ import 'admin_work_logs.dart';
 import 'admin_attenders.dart';
 import 'admin_fee_management.dart';
 import 'admin_leave_config.dart';
+import 'director_dashboard.dart';
 import 'notifications_screen.dart';
 import 'todos.dart';
 import 'my_attendance.dart';
@@ -524,6 +525,9 @@ class _HomeTabState extends State<_HomeTab> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: Column(
                     children: [
+                      if (user.role == 'director')
+                        _FeatureRow(icon: '📊', iconBg: AppColors.violetLight, title: 'Director Analytics', sub: 'School KPIs, class & teacher performance',
+                            onTap: () => _openScreen(context, const DirectorDashboardScreen(), recentId: 'director_analytics')),
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
                           onTap: () => _openScreen(context, const AdminParentsScreen(), recentId: 'parents')),
                       if (flags.transport)
@@ -608,7 +612,8 @@ class _HomeTabState extends State<_HomeTab> {
       case 'admin_worklogs':  _openScreen(context, const AdminWorkLogsScreen(), recentId: id);
       case 'attenders':       _openScreen(context, const AdminAttendersScreen(), recentId: id);
       case 'fees':            _openScreen(context, const AdminFeeManagementScreen(), recentId: id);
-      case 'leave_config':    _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
+      case 'leave_config':         _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
+      case 'director_analytics':   _openScreen(context, const DirectorDashboardScreen(), recentId: id);
       case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
       case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);

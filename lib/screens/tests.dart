@@ -15,6 +15,7 @@ class _TestsScreenState extends State<TestsScreen> {
   List<TestSummary>? _tests;
   bool _loading = true;
   String? _error;
+  String? _filterWorkType;
 
   @override
   void initState() {
@@ -50,7 +51,34 @@ class _TestsScreenState extends State<TestsScreen> {
           ),
         ],
       ),
-      body: _loading
+      body: Column(
+        children: [
+          // Work type filter chips
+          if (_tests != null && _tests!.any((t) => t.workType != null))
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterChip('All', _filterWorkType == null, () => setState(() => _filterWorkType = null)),
+                    const SizedBox(width: 6),
+                    ...const [
+                      ('classwork', 'Classwork'), ('homework', 'Homework'), ('quiz', 'Quiz'),
+                      ('assignment', 'Assignment'), ('unit_test', 'Unit Test'),
+                      ('half_yearly', 'Half Yearly'), ('annual', 'Annual'),
+                    ].where((e) => _tests!.any((t) => t.workType == e.$1)).map((e) =>
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _FilterChip(e.$2, _filterWorkType == e.$1, () => setState(() => _filterWorkType = e.$1)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(child: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
           : _error != null
               ? Center(
@@ -89,23 +117,31 @@ class _TestsScreenState extends State<TestsScreen> {
                         ],
                       ),
                     )
-                  : RefreshIndicator(
-                      color: AppColors.sun,
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                        itemCount: _tests!.length,
-                        itemBuilder: (_, i) => _TestCard(
-                          test: _tests![i],
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => TestScoresScreen(test: _tests![i]),
+                  : Builder(builder: (ctx) {
+                      final filtered = _filterWorkType == null
+                          ? _tests!
+                          : _tests!.where((t) => t.workType == _filterWorkType).toList();
+                      return RefreshIndicator(
+                        color: AppColors.sun,
+                        onRefresh: _load,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) => _TestCard(
+                            test: filtered[i],
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TestScoresScreen(test: filtered[i]),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -241,5 +277,36 @@ class _FooterChip extends StatelessWidget {
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
         child: Text(label,
             style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: fg)),
+      );
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+  const _FilterChip(this.label, this.isActive, this.onTap);
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.violet : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isActive ? AppColors.violet : AppColors.border,
+              width: 1.5,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: isActive ? Colors.white : AppColors.muted,
+            ),
+          ),
+        ),
       );
 }

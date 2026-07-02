@@ -182,6 +182,7 @@ class _HomeTabState extends State<_HomeTab> {
   List<LeaveRequest>? _recentLeaves;
   List<TodoItem>? _activeTodos;
   List<RecentScreen> _recents = [];
+  List<SpacedRepChapter> _spacedRep = [];
   bool _loadingTimetable = true;
 
   @override
@@ -219,6 +220,10 @@ class _HomeTabState extends State<_HomeTab> {
     try {
       final r = await RecentsManager.load();
       if (mounted) setState(() => _recents = r);
+    } catch (_) {}
+    try {
+      final sr = await ApiClient.getSpacedRepetition();
+      if (mounted) setState(() => _spacedRep = sr);
     } catch (_) {}
   }
 
@@ -514,6 +519,60 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
+
+            // D3 — Revision reminders (spaced repetition)
+            if (_spacedRep.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: '🔁 Revision Reminders',
+                  action: 'Web Studio →',
+                  onAction: () {},
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'These chapters need attention based on class performance:',
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: _spacedRep.take(6).map((c) {
+                            final isLowScore = c.urgency == 'low_score';
+                            final bg = isLowScore ? AppColors.coralLight : AppColors.amberLight;
+                            final fg = isLowScore ? AppColors.coral : AppColors.amber;
+                            final label = c.avgPct != null
+                                ? '${c.chapterName} · ${c.avgPct!.toStringAsFixed(0)}%'
+                                : '${c.chapterName} · Stale';
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+                              child: Text(
+                                label,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Generate revision tests in Assessment Studio on web.',
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted, fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
 
             // Admin features section (admin/principal/director only)
             if (user.role == 'admin' || user.role == 'principal' || user.role == 'director') Builder(builder: (ctx) {

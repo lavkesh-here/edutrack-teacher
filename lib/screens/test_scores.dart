@@ -216,21 +216,35 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 child: AppCard(
                   padding: EdgeInsets.zero,
-                  child: Column(
-                    children: _scores!.scores.asMap().entries.map((e) {
-                      final s = e.value;
-                      final isLast = e.key == _scores!.scores.length - 1;
-                      final pct = s.marks != null && widget.test.totalMarks > 0
-                          ? (s.marks! / widget.test.totalMarks * 100)
-                          : null;
-                      return _ScoreRow(
-                        score: s,
-                        totalMarks: widget.test.totalMarks,
-                        percentage: pct,
-                        isLast: isLast,
-                      );
-                    }).toList(),
-                  ),
+                  child: Builder(builder: (_) {
+                    // Peer comparison: rank students by score (absents unranked)
+                    final ranked = _scores!.scores
+                        .where((s) => !s.isAbsent && s.marks != null)
+                        .toList()
+                      ..sort((a, b) => b.marks!.compareTo(a.marks!));
+                    final rankMap = <String, int>{};
+                    for (int i = 0; i < ranked.length; i++) {
+                      rankMap[ranked[i].name] = i + 1;
+                    }
+                    final totalRanked = ranked.length;
+                    return Column(
+                      children: _scores!.scores.asMap().entries.map((e) {
+                        final s = e.value;
+                        final isLast = e.key == _scores!.scores.length - 1;
+                        final pct = s.marks != null && widget.test.totalMarks > 0
+                            ? (s.marks! / widget.test.totalMarks * 100)
+                            : null;
+                        return _ScoreRow(
+                          score: s,
+                          totalMarks: widget.test.totalMarks,
+                          percentage: pct,
+                          isLast: isLast,
+                          rank: rankMap[s.name],
+                          totalRanked: totalRanked,
+                        );
+                      }).toList(),
+                    );
+                  }),
                 ),
               ),
             ),
@@ -425,12 +439,16 @@ class _ScoreRow extends StatelessWidget {
   final double totalMarks;
   final double? percentage;
   final bool isLast;
+  final int? rank;
+  final int? totalRanked;
 
   const _ScoreRow({
     required this.score,
     required this.totalMarks,
     this.percentage,
     required this.isLast,
+    this.rank,
+    this.totalRanked,
   });
 
   Color get _pctColor {
@@ -485,11 +503,22 @@ class _ScoreRow extends StatelessWidget {
                     color: AppColors.text,
                   ),
                 ),
-                if (score.rollNo.isNotEmpty)
-                  Text(
-                    'Roll ${score.rollNo}',
-                    style: const TextStyle(fontSize: 10, color: AppColors.muted),
-                  ),
+                if (score.rollNo.isNotEmpty || rank != null)
+                  Row(children: [
+                    if (score.rollNo.isNotEmpty)
+                      Text('Roll ${score.rollNo}', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                    if (score.rollNo.isNotEmpty && rank != null)
+                      const Text(' · ', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                    if (rank != null && totalRanked != null)
+                      Text(
+                        '#$rank / $totalRanked',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: rank == 1 ? AppColors.amber : AppColors.muted,
+                        ),
+                      ),
+                  ]),
               ],
             ),
           ),

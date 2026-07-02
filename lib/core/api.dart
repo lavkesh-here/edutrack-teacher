@@ -213,6 +213,33 @@ class TestScoresResponse {
   }
 }
 
+class SpacedRepChapter {
+  final String chapterId;
+  final String chapterName;
+  final String subjectName;
+  final double? avgPct;
+  final String? lastTested;
+  final String urgency;
+
+  const SpacedRepChapter({
+    required this.chapterId,
+    required this.chapterName,
+    required this.subjectName,
+    this.avgPct,
+    this.lastTested,
+    required this.urgency,
+  });
+
+  factory SpacedRepChapter.fromJson(Map<String, dynamic> j) => SpacedRepChapter(
+    chapterId: j['chapter_id']?.toString() ?? '',
+    chapterName: j['chapter_name'] as String? ?? '',
+    subjectName: j['subject_name'] as String? ?? '',
+    avgPct: (j['avg_pct'] as num?)?.toDouble(),
+    lastTested: j['last_tested'] as String?,
+    urgency: j['urgency'] as String? ?? 'low_score',
+  );
+}
+
 class TimetableSlot {
   final String id;
   final int dayOfWeek;
@@ -1382,6 +1409,14 @@ class ApiClient {
   static Future<Map<String, dynamic>> generateStudentFullReport(String studentId) async {
     return (await _post('/api/v1/admin/students/$studentId/full-report', {}))
         as Map<String, dynamic>;
+  }
+
+  // ── Group D: Spaced repetition ─────────────────────────────────────────────
+
+  static Future<List<SpacedRepChapter>> getSpacedRepetition({String? sectionId}) async {
+    final path = '/api/v1/teacher/spaced-repetition${sectionId != null ? '?class_section_id=$sectionId' : ''}';
+    final data = await _get(path) as List<dynamic>;
+    return data.map((e) => SpacedRepChapter.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // ── Feature flags ──────────────────────────────────────────────────────────

@@ -1,5 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -603,6 +606,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     StudentSearchResult? selectedStudent;
     List<StudentSearchResult> studentResults = [];
     bool searchingStudent = false;
+    List<XFile> pickedImages = [];
 
     showModalBottomSheet(
       context: context,
@@ -849,6 +853,71 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 10),
+                // Image attachments (up to 2)
+                if (pickedImages.isNotEmpty) ...[
+                  SizedBox(
+                    height: 72,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: pickedImages.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) => Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: FutureBuilder<Uint8List>(
+                              future: pickedImages[i].readAsBytes(),
+                              builder: (_, snap) => snap.hasData
+                                  ? Image.memory(snap.data!, width: 72, height: 72, fit: BoxFit.cover)
+                                  : Container(width: 72, height: 72, color: AppColors.border),
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: () => setSheet(() => pickedImages.removeAt(i)),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                child: const Icon(Icons.close, size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                if (pickedImages.length < 2)
+                  GestureDetector(
+                    onTap: () async {
+                      final picker = ImagePicker();
+                      final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                      if (img != null) setSheet(() => pickedImages.add(img));
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                        color: AppColors.bg,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add_photo_alternate_outlined, size: 16, color: AppColors.muted),
+                          const SizedBox(width: 6),
+                          Text(
+                            pickedImages.isEmpty ? 'Add photo (optional, up to 2)' : 'Add another photo',
+                            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
@@ -860,6 +929,18 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         return;
                       }
                       try {
+                        // Upload images first, collect GCS URLs
+                        final gcsUrls = <String>[];
+                        for (final img in pickedImages) {
+                          final bytes = await img.readAsBytes();
+                          final ext = img.name.split('.').last.toLowerCase();
+                          final ct = ext == 'png' ? 'image/png' : 'image/jpeg';
+                          final urlData = await ApiClient.getWorkLogUploadUrl(img.name, ct, bytes.length);
+                          await http.put(Uri.parse(urlData['upload_url'] as String),
+                              headers: {'Content-Type': ct}, body: bytes);
+                          gcsUrls.add(urlData['gcs_url'] as String);
+                        }
+
                         final dateStr = DateFormat('yyyy-MM-dd').format(_date);
                         final dueDateStr = dueDate != null ? DateFormat('yyyy-MM-dd').format(dueDate!) : null;
                         final desc = descCtrl.text.trim();
@@ -870,6 +951,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             logType: logType,
                             description: desc,
                             dueDate: dueDateStr,
+                            imageUrls: gcsUrls.isNotEmpty ? gcsUrls : null,
                           );
                         }
                         descCtrl.clear();
@@ -1180,6 +1262,24 @@ class _WorkLogCard extends StatelessWidget {
                 ],
               ),
             ],
+            if (entry.imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: entry.imageUrls.map((url) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => _openImageViewer(context, entry.imageUrls, entry.imageUrls.indexOf(url)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(url, width: 64, height: 64, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                              width: 64, height: 64, color: AppColors.border,
+                              child: const Icon(Icons.broken_image_outlined, size: 20, color: AppColors.muted))),
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ],
             if (entry.acknowledgmentCount > 0) ...[
               const SizedBox(height: 6),
               Row(
@@ -1200,4 +1300,38 @@ class _WorkLogCard extends StatelessWidget {
           ],
         ),
       );
+}
+
+void _openImageViewer(BuildContext context, List<String> urls, int initialIndex) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog.fullscreen(
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: PageController(initialPage: initialIndex),
+            itemCount: urls.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              child: Center(
+                child: Image.network(urls[i], fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.muted)),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                child: const Icon(Icons.close, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

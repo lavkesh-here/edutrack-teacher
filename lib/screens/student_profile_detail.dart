@@ -918,9 +918,61 @@ class _WorkLogCard extends StatelessWidget {
             style: const TextStyle(fontSize: 11, color: AppColors.muted),
           ),
         ],
+        if (entry.imageUrls.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: entry.imageUrls.map((url) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => _openImageViewer(context, entry.imageUrls, entry.imageUrls.indexOf(url)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(url, width: 64, height: 64, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                          width: 64, height: 64, color: AppColors.border,
+                          child: const Icon(Icons.broken_image_outlined, size: 20, color: AppColors.muted))),
+                ),
+              ),
+            )).toList(),
+          ),
+        ],
       ]),
     );
   }
+}
+
+void _openImageViewer(BuildContext context, List<String> urls, int initialIndex) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog.fullscreen(
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: PageController(initialPage: initialIndex),
+            itemCount: urls.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              child: Center(
+                child: Image.network(urls[i], fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.muted)),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                child: const Icon(Icons.close, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 

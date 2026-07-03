@@ -485,6 +485,7 @@ class WorkLogEntry {
   final String? studentName;
   final String? studentRollNo;
   final String? studentClassLabel;
+  final List<String> imageUrls;
 
   const WorkLogEntry({
     required this.id,
@@ -501,6 +502,7 @@ class WorkLogEntry {
     this.studentName,
     this.studentRollNo,
     this.studentClassLabel,
+    this.imageUrls = const [],
   });
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
@@ -518,6 +520,10 @@ class WorkLogEntry {
         studentName: j['student_name'] as String?,
         studentRollNo: j['student_roll_no']?.toString(),
         studentClassLabel: j['student_class_label'] as String?,
+        imageUrls: (j['image_urls'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
       );
 }
 
@@ -1018,6 +1024,19 @@ class ApiClient {
         .toList();
   }
 
+  static Future<Map<String, dynamic>> getWorkLogUploadUrl(
+    String filename,
+    String contentType,
+    int fileSize,
+  ) async {
+    final data = await _post('/api/v1/teacher/work-log/upload-url', {
+      'filename': filename,
+      'content_type': contentType,
+      'file_size': fileSize,
+    });
+    return data as Map<String, dynamic>;
+  }
+
   static Future<void> createWorkLog({
     required String classSectionId,
     String? subjectId,
@@ -1025,6 +1044,7 @@ class ApiClient {
     required String logType,
     required String description,
     String? dueDate,
+    List<String>? imageUrls,
   }) async {
     await _post('/api/v1/teacher/work-log', {
       'class_section_id': classSectionId,
@@ -1033,6 +1053,7 @@ class ApiClient {
       'log_type': logType,
       'description': description,
       if (dueDate != null) 'due_date': dueDate,
+      if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
     });
   }
 

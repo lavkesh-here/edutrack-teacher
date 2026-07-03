@@ -905,7 +905,7 @@ class _WorkLogCard extends StatelessWidget {
         ]),
         const SizedBox(height: 8),
         Text(entry.description,
-            style: const TextStyle(fontSize: 13, color: AppColors.text1, height: 1.4)),
+            style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.4)),
         if (entry.dueDate != null) ...[
           const SizedBox(height: 6),
           Text('Due: ${entry.dueDate}',

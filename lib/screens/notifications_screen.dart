@@ -128,7 +128,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 // Type filter row
                 SizedBox(
-                  height: 44,
+                  height: 56,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),

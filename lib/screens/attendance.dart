@@ -585,7 +585,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final monday = today.subtract(Duration(days: today.weekday - 1));
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return SizedBox(
-      height: 56,
+      height: 72,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: 7,

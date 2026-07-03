@@ -115,7 +115,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     final today = DateTime.now();
                     final monday = today.subtract(Duration(days: today.weekday - 1));
                     return SizedBox(
-                      height: 52,
+                      height: 72,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: 6,

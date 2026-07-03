@@ -525,7 +525,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                     ),
                     // Type filter chips
                     SizedBox(
-                      height: 40,
+                      height: 52,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

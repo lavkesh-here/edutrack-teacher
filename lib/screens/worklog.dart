@@ -189,7 +189,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       child: SizedBox(
-        height: 52,
+        height: 72,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           itemCount: 7,

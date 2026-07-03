@@ -93,16 +93,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         child: SafeArea(
-          child: SizedBox(
-            height: 62,
-            child: Row(
-              children: [
-                _NavItem(key: const Key('nav_home'), icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
-                _NavItem(key: const Key('nav_attendance'), icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
-                _NavItem(key: const Key('nav_students'), icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
-                _NavItem(key: const Key('nav_forum'), icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
-                _NavItem(key: const Key('nav_more'), icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
-              ],
+          child: MediaQuery.withNoTextScaling(
+            child: SizedBox(
+              height: 62,
+              child: Row(
+                children: [
+                  _NavItem(key: const Key('nav_home'), icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                  _NavItem(key: const Key('nav_attendance'), icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                  _NavItem(key: const Key('nav_students'), icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                  _NavItem(key: const Key('nav_forum'), icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                  _NavItem(key: const Key('nav_more'), icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                ],
+              ),
             ),
           ),
         ),

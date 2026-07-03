@@ -51,24 +51,20 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
     'custom': 'Custom Message',
   };
 
-  static const _templates = {
-    'homework':
-        'Homework has been assigned. Please ensure it is completed on time.',
-    'attention':
-        'Your child needs attention in class. Please meet the teacher at your earliest convenience.',
-    'announcement': '',
-    'test_result':
-        'Test results have been posted. Please check the EduTrack app.',
-    'custom': '',
-  };
-
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _loadSections();
     _loadHistory();
-    _msgCtrl.text = _templates[_notifType]!;
+  }
+
+  bool get _canSend {
+    final msg = _msgCtrl.text.trim();
+    if (msg.length < 10) return false;
+    if (_isWholeClass && _selectedSection == null) return false;
+    if (!_isWholeClass && _selectedStudent == null) return false;
+    return true;
   }
 
   @override
@@ -357,7 +353,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                   onTap: () {
                     setState(() {
                       _notifType = entry.key;
-                      _msgCtrl.text = _templates[entry.key]!;
+                      _msgCtrl.clear();
                     });
                   },
                   child: AnimatedContainer(
@@ -404,7 +400,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
               controller: _msgCtrl,
               maxLines: 4,
               maxLength: 500,
-              onChanged: (_) { if (_msgError != null) setState(() => _msgError = null); },
+              onChanged: (_) => setState(() => _msgError = null),
               decoration: InputDecoration(
                 hintText: 'Type your message here...',
                 alignLabelWithHint: true,
@@ -471,7 +467,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
               width: double.infinity,
               child: ElevatedButton(
                 key: const Key('send_notification_button'),
-                onPressed: _loading ? null : _send,
+                onPressed: _loading ? null : (_canSend ? _send : null),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.sun,
                   foregroundColor: Colors.white,
@@ -649,7 +645,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
         showSnack(context,
             'Notification sent to ${result.recipientCount} parent${result.recipientCount == 1 ? '' : 's'} ✓');
         setState(() {
-          _msgCtrl.text = _templates[_notifType]!;
+          _msgCtrl.clear();
           _searchCtrl.clear();
           _searchResults = [];
           _selectedStudent = null;

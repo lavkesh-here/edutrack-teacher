@@ -36,6 +36,14 @@ class _TodosScreenState extends State<TodosScreen> {
     try {
       await ApiClient.updateTodo(todo.id, status: newStatus);
       await _load();
+      if (mounted) {
+        final msg = switch (newStatus) {
+          'in_progress' => 'Moved to In Progress',
+          'done' => 'Marked as Done ✓',
+          _ => 'Moved to To Do',
+        };
+        showSnack(context, msg);
+      }
     } catch (_) {
       if (mounted) showSnack(context, 'Update failed', error: true);
     }
@@ -110,6 +118,7 @@ class _TodosScreenState extends State<TodosScreen> {
     final notesCtrl = TextEditingController();
     DateTime? dueDate;
     bool isPersonal = false;
+    String? titleError;
 
     showModalBottomSheet(
       context: context,
@@ -139,8 +148,10 @@ class _TodosScreenState extends State<TodosScreen> {
                 controller: titleCtrl,
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
+                onChanged: (_) { if (titleError != null) setSheet(() => titleError = null); },
                 decoration: InputDecoration(
                   labelText: 'Title *',
+                  errorText: titleError,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -200,7 +211,7 @@ class _TodosScreenState extends State<TodosScreen> {
                   onPressed: () async {
                     final title = titleCtrl.text.trim();
                     if (title.isEmpty) {
-                      showSnack(context, 'Please enter a title', error: true);
+                      setSheet(() => titleError = 'Please enter a title');
                       return;
                     }
                     Navigator.pop(ctx);
@@ -214,6 +225,7 @@ class _TodosScreenState extends State<TodosScreen> {
                         isPersonal: isPersonal,
                       );
                       await _load();
+                      if (mounted) showSnack(context, 'Todo added ✓');
                     } catch (_) {
                       if (mounted) showSnack(context, 'Create failed', error: true);
                     }
@@ -277,7 +289,7 @@ class _TodosScreenState extends State<TodosScreen> {
                         ...active.map((t) => _TodoCard(
                               todo: t,
                               onLongPress: () => _showStatusSheet(t),
-                              onToggle: () => _setStatus(t, t.status == 'done' ? 'todo' : 'done'),
+                              onToggle: () => _showStatusSheet(t),
                               onDelete: () => _delete(t),
                             )),
                       ],
@@ -461,7 +473,10 @@ class _TodoCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            _StatusChip(todo.status),
+                            GestureDetector(
+                              onTap: onLongPress,
+                              child: _StatusChip(todo.status),
+                            ),
                             if (todo.isPersonal) ...[
                               const SizedBox(width: 4),
                               _PersonalChip(),

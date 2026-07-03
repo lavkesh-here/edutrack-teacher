@@ -97,6 +97,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void forceUnlock() {
+    _isLocked = false;
+    notifyListeners();
+  }
+
   String get initials {
     if (_user == null) return '?';
     final parts = _user!.teacherName.trim().split(' ');

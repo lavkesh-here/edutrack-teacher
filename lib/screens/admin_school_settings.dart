@@ -21,6 +21,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
 
   bool _loading = true;
   bool _saving = false;
+  bool _isDirty = false;
   double? _latitude;
   double? _longitude;
   bool _gettingLocation = false;
@@ -31,8 +32,21 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
     _load();
   }
 
+  void _onTextChanged() {
+    if (!_isDirty) setState(() => _isDirty = true);
+  }
+
+  void _initListeners() {
+    for (final c in [_nameCtrl, _boardCtrl, _phoneCtrl, _emailCtrl, _addressCtrl, _websiteCtrl]) {
+      c.addListener(_onTextChanged);
+    }
+  }
+
   @override
   void dispose() {
+    for (final c in [_nameCtrl, _boardCtrl, _phoneCtrl, _emailCtrl, _addressCtrl, _websiteCtrl]) {
+      c.removeListener(_onTextChanged);
+    }
     _nameCtrl.dispose();
     _boardCtrl.dispose();
     _phoneCtrl.dispose();
@@ -55,6 +69,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
       _latitude = (data['latitude'] as num?)?.toDouble();
       _longitude = (data['longitude'] as num?)?.toDouble();
       setState(() => _loading = false);
+      _initListeners();
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
       setState(() => _loading = false);
@@ -91,6 +106,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
       setState(() {
         _latitude = position.latitude;
         _longitude = position.longitude;
+        _isDirty = true;
       });
       if (mounted) showSnack(context, 'Location captured. Tap Save Changes to apply.');
     } catch (_) {
@@ -114,7 +130,10 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
       if (_latitude != null) body['latitude'] = _latitude;
       if (_longitude != null) body['longitude'] = _longitude;
       await ApiClient.adminUpdateSchool(body);
-      if (mounted) showSnack(context, 'Settings saved successfully');
+      if (mounted) {
+        showSnack(context, 'Settings saved successfully');
+        setState(() => _isDirty = false);
+      }
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
     } finally {
@@ -336,7 +355,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                     height: 52,
                     child: ElevatedButton(
                       key: const Key('save_school_settings_button'),
-                      onPressed: _saving ? null : _save,
+                      onPressed: _saving ? null : (_isDirty ? _save : null),
                       child: _saving
                           ? const SizedBox(
                               width: 22,

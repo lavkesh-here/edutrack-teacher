@@ -20,6 +20,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool _loadingSections = true;
   bool _loadingStudents = false;
   bool _saving = false;
+  bool _isSubmitted = false;
   bool _swipeMode = false;
   int _swipeIndex = 0;
 
@@ -66,7 +67,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _loadStudents() async {
     if (_selectedSection == null) return;
-    setState(() { _loadingStudents = true; _students = null; });
+    setState(() { _loadingStudents = true; _students = null; _isSubmitted = false; });
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_date);
       final students = await ApiClient.getAttendance(_selectedSection!.id, dateStr);
@@ -81,6 +82,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _submit() async {
     if (_students == null || _selectedSection == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Save Attendance?',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Text(
+          'Confirm saving attendance for ${_selectedSection!.label} on ${DateFormat('d MMM').format(_date)}.',
+          style: const TextStyle(fontSize: 14, color: AppColors.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(_, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(_, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     setState(() => _saving = true);
     try {
       final statuses = <String, String>{};
@@ -92,7 +119,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         date: DateFormat('yyyy-MM-dd').format(_date),
         statuses: statuses,
       );
-      if (mounted) showSnack(context, 'Attendance saved ✓');
+      if (mounted) {
+        showSnack(context, 'Attendance saved ✓');
+        setState(() => _isSubmitted = true);
+      }
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
     } finally {
@@ -142,7 +172,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     });
     if (_swipeIndex >= _students!.length) {
       Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) setState(() { _swipeMode = false; _swipeIndex = 0; });
+        if (mounted) {
+          setState(() { _swipeMode = false; _swipeIndex = 0; });
+          showSnack(context, 'All marked! Review and tap Save Attendance');
+        }
       });
     }
   }
@@ -339,8 +372,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               itemCount: _students!.length,
                               itemBuilder: (_, i) => _StudentCard(
                                 student: _students![i],
-                                onTap: () => _cycleStatus(i),
-                                onLongPress: () => _showStudentModal(context, _students![i]),
+                                onTap: _isSubmitted ? null : () => _cycleStatus(i),
+                                onLongPress: _isSubmitted ? null : () => _showStudentModal(context, _students![i]),
                               ),
                             ),
             ),
@@ -353,30 +386,55 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   color: Colors.white,
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (unmarked > 0 && _students != null && _students!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6, top: 2),
-                        child: Text(
-                          '$unmarked student${unmarked == 1 ? '' : 's'} not yet marked',
-                          style: const TextStyle(fontSize: 11, color: AppColors.amber, fontWeight: FontWeight.w600),
-                        ),
+                child: _isSubmitted
+                    ? Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: AppColors.teal, size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Attendance submitted',
+                              style: TextStyle(fontSize: 13, color: AppColors.teal, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => setState(() => _isSubmitted = false),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.sunLight,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text('Edit',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.sun)),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (unmarked > 0 && _students != null && _students!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6, top: 2),
+                              child: Text(
+                                '$unmarked student${unmarked == 1 ? '' : 's'} not yet marked',
+                                style: const TextStyle(fontSize: 11, color: AppColors.amber, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              key: const Key('save_attendance_button'),
+                              onPressed: canSubmit ? _submit : null,
+                              child: _saving
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                                  : const Text('Save Attendance'),
+                            ),
+                          ),
+                        ],
                       ),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        key: const Key('save_attendance_button'),
-                        onPressed: canSubmit ? _submit : null,
-                        child: _saving
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : const Text('Save Attendance'),
-                      ),
-                    ),
-                  ],
-                ),
               ),
           ],
         ),
@@ -389,20 +447,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return const Center(child: Text('No students', style: TextStyle(color: AppColors.muted)));
     }
     if (_swipeIndex >= _students!.length) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle_outline, size: 64, color: AppColors.teal),
-            const SizedBox(height: 16),
-            const Text('All marked!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.text)),
-            const SizedBox(height: 8),
-            const Text('Tap Save Attendance below', style: TextStyle(fontSize: 13, color: AppColors.muted)),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () { _exitSwipeMode(); _submit(); },
-              child: const Text('Save & Exit'),
-            ),
+            Icon(Icons.check_circle_outline, size: 64, color: AppColors.teal),
+            SizedBox(height: 16),
+            Text('All marked!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.text)),
+            SizedBox(height: 8),
+            Text('Returning to marking view…', style: TextStyle(fontSize: 13, color: AppColors.muted)),
           ],
         ),
       );
@@ -419,19 +472,42 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ),
 
-        // Hint labels: right = Present, left = Absent, up = Late
+        // Action buttons: Absent | Late | Present
         Positioned(
-          bottom: 32,
-          left: 0,
-          right: 0,
+          bottom: 20,
+          left: 16,
+          right: 16,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _HintPill(label: '← Absent', color: AppColors.coral),
+              Expanded(
+                child: _SwipeActionBtn(
+                  label: 'Absent',
+                  icon: Icons.close_rounded,
+                  color: AppColors.coral,
+                  lightColor: AppColors.coralLight,
+                  onTap: () => _onSwipeDecision('absent'),
+                ),
+              ),
               const SizedBox(width: 8),
-              _HintPill(label: '↑ Late', color: AppColors.amber),
+              Expanded(
+                child: _SwipeActionBtn(
+                  label: 'Late',
+                  icon: Icons.alarm,
+                  color: AppColors.amber,
+                  lightColor: AppColors.amberLight,
+                  onTap: () => _onSwipeDecision('late'),
+                ),
+              ),
               const SizedBox(width: 8),
-              _HintPill(label: 'Present →', color: AppColors.teal),
+              Expanded(
+                child: _SwipeActionBtn(
+                  label: 'Present',
+                  icon: Icons.check_rounded,
+                  color: AppColors.teal,
+                  lightColor: AppColors.tealLight,
+                  onTap: () => _onSwipeDecision('present'),
+                ),
+              ),
             ],
           ),
         ),
@@ -891,21 +967,41 @@ class _Arrow extends StatelessWidget {
       );
 }
 
-class _HintPill extends StatelessWidget {
+class _SwipeActionBtn extends StatelessWidget {
   final String label;
+  final IconData icon;
   final Color color;
-  const _HintPill({required this.label, required this.color});
+  final Color lightColor;
+  final VoidCallback onTap;
+
+  const _SwipeActionBtn({
+    required this.label, required this.icon, required this.color,
+    required this.lightColor, required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-      );
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: lightColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: color.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+        ],
+      ),
+    ),
+  );
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -949,10 +1045,10 @@ class _StatChip extends StatelessWidget {
 
 class _StudentCard extends StatelessWidget {
   final AttendanceStudent student;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
-  const _StudentCard({required this.student, required this.onTap, this.onLongPress});
+  const _StudentCard({required this.student, this.onTap, this.onLongPress});
 
   Color get _bg {
     switch (student.status) {

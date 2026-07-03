@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../core/auth.dart';
 import '../core/api.dart';
@@ -96,11 +97,11 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 62,
             child: Row(
               children: [
-                _NavItem(key: const Key('nav_home'), icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(key: const Key('nav_attendance'), icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(key: const Key('nav_students'), icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(key: const Key('nav_forum'), icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) => setState(() => _idx = i)),
-                _NavItem(key: const Key('nav_more'), icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) => setState(() => _idx = i)),
+                _NavItem(key: const Key('nav_home'), icon: '🏠', label: 'Home', index: 0, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                _NavItem(key: const Key('nav_attendance'), icon: '📋', label: 'Attendance', index: 1, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                _NavItem(key: const Key('nav_students'), icon: '👥', label: 'Students', index: 2, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                _NavItem(key: const Key('nav_forum'), icon: '📢', label: 'Forum', index: 3, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
+                _NavItem(key: const Key('nav_more'), icon: '☰', label: 'More', index: 4, current: _idx, onTap: (i) { FocusManager.instance.primaryFocus?.unfocus(); setState(() => _idx = i); }),
               ],
             ),
           ),
@@ -474,7 +475,7 @@ class _HomeTabState extends State<_HomeTab> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                   child: Column(
-                    children: _activeTodos!.take(5).map((t) => _TodoMiniTile(todo: t)).toList(),
+                    children: _activeTodos!.take(5).map((t) => _TodoMiniTile(todo: t, onTap: () => _showTodoStatusSheet(t))).toList(),
                   ),
                 ),
               ),
@@ -641,6 +642,83 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
+  Future<void> _setTodoStatus(TodoItem todo, String status) async {
+    try {
+      await ApiClient.updateTodo(todo.id, status: status);
+      await _load();
+      if (mounted) {
+        final msg = switch (status) {
+          'in_progress' => 'Moved to In Progress',
+          'done' => 'Marked as Done ✓',
+          _ => 'Moved to To Do',
+        };
+        showSnack(context, msg);
+      }
+    } catch (_) {
+      if (mounted) showSnack(context, 'Update failed', error: true);
+    }
+  }
+
+  void _showTodoStatusSheet(TodoItem todo) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 16),
+            Text(todo.title,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            const Text('Update status', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+            const SizedBox(height: 16),
+            ...['todo', 'in_progress', 'done'].map((s) {
+              final (label, color, bg) = switch (s) {
+                'in_progress' => ('In Progress', const Color(0xFFB45309), const Color(0xFFFEF3C7)),
+                'done'        => ('Done', AppColors.teal, const Color(0xFFD1FAE5)),
+                _             => ('To Do', AppColors.muted, const Color(0xFFF3F4F6)),
+              };
+              final isSelected = todo.status == s;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  onTap: () { Navigator.pop(context); _setTodoStatus(todo, s); },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: isSelected ? Border.all(color: color, width: 2) : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                        const SizedBox(width: 10),
+                        Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+                        const Spacer(),
+                        if (isSelected) Icon(Icons.check, color: color, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _navigateTab(BuildContext context, int tab, {String? recentId}) async {
     if (recentId != null) {
       await RecentsManager.record(recentId);
@@ -769,7 +847,8 @@ class _StatTile extends StatelessWidget {
 
 class _TodoMiniTile extends StatelessWidget {
   final TodoItem todo;
-  const _TodoMiniTile({required this.todo});
+  final VoidCallback? onTap;
+  const _TodoMiniTile({required this.todo, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -782,31 +861,38 @@ class _TodoMiniTile extends StatelessWidget {
                         isOverdue ? const Color(0xFFFFEDED) : const Color(0xFFF3F4F6),
                         isOverdue ? AppColors.coral : AppColors.muted),
     };
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isOverdue ? AppColors.coral.withOpacity(0.3) : AppColors.border,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isOverdue ? AppColors.coral.withOpacity(0.3) : AppColors.border,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(todo.title,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(color: chipBg, borderRadius: BorderRadius.circular(6)),
-            child: Text(chipLabel,
-                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: chipFg)),
-          ),
-        ],
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(todo.title,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: chipBg, borderRadius: BorderRadius.circular(6)),
+              child: Text(chipLabel,
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: chipFg)),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.muted),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1054,11 +1140,15 @@ class _MoreTab extends StatefulWidget {
 
 class _MoreTabState extends State<_MoreTab> {
   bool _bioEnabled = false;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadBioState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    });
   }
 
   Future<void> _loadBioState() async {
@@ -1333,6 +1423,14 @@ class _MoreTabState extends State<_MoreTab> {
                     ),
 
                     const SizedBox(height: 32),
+
+                    Center(
+                      child: Text(
+                        _appVersion.isEmpty ? 'EduTrack Teacher' : 'EduTrack Teacher v$_appVersion',
+                        style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),

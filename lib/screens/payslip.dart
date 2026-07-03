@@ -19,6 +19,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
   bool _loading = false;
   bool _loadingHistory = true;
   bool _notFound = false;
+  bool _currentMonthEmpty = false;
 
   static const _monthNames = [
     '', 'January', 'February', 'March', 'April', 'May', 'June',
@@ -33,8 +34,21 @@ class _PayslipScreenState extends State<PayslipScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCurrent();
-    _loadHistory();
+    _initLoad();
+  }
+
+  Future<void> _initLoad() async {
+    await Future.wait([_loadCurrent(), _loadHistory()]);
+    if (mounted && _notFound && _history.isNotEmpty) {
+      final latest = _history.first;
+      setState(() {
+        _selectedMonth = latest.month;
+        _selectedYear = latest.year;
+        _record = latest;
+        _notFound = false;
+        _currentMonthEmpty = true;
+      });
+    }
   }
 
   Future<void> _loadCurrent() async {
@@ -191,6 +205,31 @@ class _PayslipScreenState extends State<PayslipScreen> {
                 record: _record!,
                 teacherName: user.teacherName,
                 schoolName: user.schoolName,
+              ),
+
+            const SizedBox(height: 16),
+
+            // Info banner when current month has no payslip yet
+            if (_currentMonthEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.amberLight,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Text('ℹ️', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Payroll for ${_monthNames[DateTime.now().month]} ${DateTime.now().year} hasn\'t been processed yet.',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.amber),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
             const SizedBox(height: 20),

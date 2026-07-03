@@ -244,11 +244,24 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     }
 
     if (!auth.isLoggedIn) return const LoginScreen();
-    if (auth.isLocked) return const _BiometricLockScreen();
-    return Listener(
+
+    final home = Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _resetInactivityTimer(),
       child: const HomeScreen(),
+    );
+
+    if (!auth.isLocked) return home;
+
+    return Stack(
+      children: [
+        IgnorePointer(child: home),
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(color: Colors.black.withOpacity(0.35)),
+        ),
+        const _BiometricLockScreen(),
+      ],
     );
   }
 }
@@ -263,31 +276,91 @@ class _BiometricLockScreen extends StatefulWidget {
 }
 
 class _BiometricLockScreenState extends State<_BiometricLockScreen> {
-  String? _error;
-  bool _loading = false;
+  String? _bioError;
+  bool _bioLoading = false;
+
+  // Password fallback state
+  bool _showPassword = false;
+  bool _obscure = true;
+  bool _passLoading = false;
+  String? _passError;
+  int _failedAttempts = 0;
+  bool _accountLocked = false;
+  final _passCtrl = TextEditingController();
+
+  static const _maxAttempts = 3;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _triggerBiometric());
   }
 
-  Future<void> _unlock() async {
+  @override
+  void dispose() {
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _triggerBiometric() async {
     if (!mounted) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() { _bioLoading = true; _bioError = null; });
     final auth = context.read<AuthProvider>();
     final err = await auth.unlockApp();
     if (!mounted) return;
-    setState(() { _loading = false; _error = err; });
+    if (err != null) {
+      setState(() { _bioLoading = false; _bioError = err; });
+    } else {
+      setState(() => _bioLoading = false);
+    }
+  }
+
+  Future<void> _submitPassword() async {
+    if (_passCtrl.text.trim().isEmpty) return;
+    setState(() { _passLoading = true; _passError = null; });
+    final auth = context.read<AuthProvider>();
+    final email = await auth.getStoredEmail() ?? '';
+    try {
+      final res = await ApiClient.login(email, _passCtrl.text.trim());
+      await ApiClient.setToken(res.token);
+      if (!mounted) return;
+      auth.lockApp(); // triggers isLocked = false via unlockApp bypass
+      // Directly unlock: set isLocked false then notify
+      auth.forceUnlock();
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      final newCount = _failedAttempts + 1;
+      if (newCount >= _maxAttempts) {
+        // Lock the account on the backend
+        try { await ApiClient.lockMyAccount(); } catch (_) {}
+        setState(() { _passLoading = false; _accountLocked = true; _failedAttempts = newCount; });
+      } else {
+        setState(() {
+          _passLoading = false;
+          _failedAttempts = newCount;
+          _passError = e.message.contains('locked')
+              ? e.message
+              : 'Incorrect password. ${_maxAttempts - newCount} attempt${_maxAttempts - newCount == 1 ? '' : 's'} remaining.';
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _passLoading = false; _passError = 'Something went wrong. Try again.'; });
+    }
+  }
+
+  Future<void> _cancelToLogout() async {
+    final auth = context.read<AuthProvider>();
+    await auth.logout();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F3),
-      body: SafeArea(
+    return PopScope(
+      canPop: false,
+      child: SafeArea(
         child: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -304,7 +377,7 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFF97316).withOpacity(0.35),
+                        color: Color(0xFFF97316),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -313,53 +386,166 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
                   child: const Center(child: Text('🎓', style: TextStyle(fontSize: 38))),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'EduTrack is locked',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1C1917)),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Use your fingerprint or face to continue',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF78716C)),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                if (_error != null) ...[
+
+                if (_accountLocked) ...[
+                  // ── Account locked state ──────────────────────────────
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF1F2),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFFDA4AF)),
                     ),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFFBE123C), fontWeight: FontWeight.w600),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      children: const [
+                        Text('🔒', style: TextStyle(fontSize: 32)),
+                        SizedBox(height: 10),
+                        Text(
+                          'Account Locked',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFFBE123C)),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Too many incorrect attempts. Contact your admin to unlock your account.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: Color(0xFFBE123C), height: 1.4),
+                        ),
+                      ],
                     ),
                   ),
+                ] else if (_showPassword) ...[
+                  // ── Password entry mode ───────────────────────────────
+                  const Text(
+                    'Enter your password',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1C1917)),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${_maxAttempts - _failedAttempts} attempt${_maxAttempts - _failedAttempts == 1 ? '' : 's'} remaining',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF78716C)),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _passCtrl,
+                    obscureText: _obscure,
+                    autofocus: true,
+                    onSubmitted: (_) => _passLoading ? null : _submitPassword(),
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
+                  ),
+                  if (_passError != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF1F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDA4AF)),
+                      ),
+                      child: Text(
+                        _passError!,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFFBE123C), fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
-                ],
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: _loading ? null : _unlock,
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                          )
-                        : const Icon(Icons.fingerprint_rounded, size: 22),
-                    label: Text(_loading ? 'Verifying…' : 'Unlock'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF97316),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _passLoading ? null : _submitPassword,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF97316),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: _passLoading
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                          : const Text('Login', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: _passLoading ? null : _cancelToLogout,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF78716C),
+                        side: const BorderSide(color: Color(0xFFE7E5E4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Cancel (Logout)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    ),
+                  ),
+                ] else ...[
+                  // ── Biometric unlock mode ─────────────────────────────
+                  const Text(
+                    'EduTrack is locked',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1C1917)),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Use your fingerprint or face to continue',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF78716C)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  if (_bioError != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF1F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDA4AF)),
+                      ),
+                      child: Text(
+                        _bioError!,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFFBE123C), fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: _bioLoading ? null : _triggerBiometric,
+                      icon: _bioLoading
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                          : const Icon(Icons.fingerprint_rounded, size: 22),
+                      label: Text(_bioLoading ? 'Verifying…' : 'Unlock'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF97316),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: () => setState(() { _showPassword = true; _passCtrl.clear(); _passError = null; }),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF78716C),
+                        side: const BorderSide(color: Color(0xFFE7E5E4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Use Password Instead', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -368,3 +554,5 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
     );
   }
 }
+
+

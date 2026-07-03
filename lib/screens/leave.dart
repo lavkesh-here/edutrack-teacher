@@ -13,6 +13,7 @@ class LeaveScreen extends StatefulWidget {
 
 class _LeaveScreenState extends State<LeaveScreen> {
   List<LeaveRequest>? _leaves;
+  Map<String, dynamic>? _balance;
   bool _loading = true;
 
   @override
@@ -24,8 +25,15 @@ class _LeaveScreenState extends State<LeaveScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final data = await ApiClient.getMyLeaves();
-      setState(() { _leaves = data; _loading = false; });
+      final results = await Future.wait([
+        ApiClient.getMyLeaves(),
+        ApiClient.getMyLeaveBalance().then<dynamic>((v) => v).catchError((_) => null),
+      ]);
+      setState(() {
+        _leaves = results[0] as List<LeaveRequest>;
+        _balance = results[1] as Map<String, dynamic>?;
+        _loading = false;
+      });
     } catch (_) {
       setState(() => _loading = false);
     }
@@ -36,6 +44,18 @@ class _LeaveScreenState extends State<LeaveScreen> {
     // Leave balance counts
     final approved = _leaves?.where((l) => l.status == 'approved').length ?? 0;
     final pending = _leaves?.where((l) => l.status == 'pending').length ?? 0;
+
+    // Split into upcoming/active and history
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    final upcomingLeaves = _leaves?.where((l) {
+      final end = DateTime.tryParse(l.endDate);
+      return end == null || !end.isBefore(todayMidnight);
+    }).toList() ?? [];
+    final historyLeaves = _leaves?.where((l) {
+      final end = DateTime.tryParse(l.endDate);
+      return end != null && end.isBefore(todayMidnight);
+    }).toList() ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -120,6 +140,46 @@ class _LeaveScreenState extends State<LeaveScreen> {
               ),
             ),
 
+            // Available quota section
+            if (_balance != null) ...[
+              Container(height: 1, color: AppColors.border),
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'LEAVE BALANCE',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.6),
+                        ),
+                        if (_balance!['in_probation'] == true) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.amberLight, borderRadius: BorderRadius.circular(6)),
+                            child: const Text('On Probation', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.amber)),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _QuotaTile('Casual', _balance!['casual'] as Map<String, dynamic>?, AppColors.sky)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _QuotaTile('Sick', _balance!['sick'] as Map<String, dynamic>?, AppColors.coral)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _QuotaTile('Earned', _balance!['earned'] as Map<String, dynamic>?, AppColors.teal)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             Container(height: 1, color: AppColors.border),
 
             // List
@@ -152,13 +212,18 @@ class _LeaveScreenState extends State<LeaveScreen> {
                       : RefreshIndicator(
                           color: AppColors.sun,
                           onRefresh: _load,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            itemCount: _leaves!.length,
-                            itemBuilder: (_, i) => _LeaveItem(
-                              leave: _leaves![i],
-                              onCancelled: _load,
-                            ),
+                          child: ListView(
+                            padding: const EdgeInsets.only(bottom: 32),
+                            children: [
+                              if (upcomingLeaves.isEmpty && historyLeaves.isEmpty)
+                                const Center(child: Text('No leave requests', style: TextStyle(color: AppColors.muted))),
+                              if (upcomingLeaves.isNotEmpty) ...[
+                                const _SectionLabel('UPCOMING & ACTIVE'),
+                                ...upcomingLeaves.map((l) => _LeaveItem(leave: l, onCancelled: _load)),
+                              ],
+                              if (historyLeaves.isNotEmpty)
+                                _HistorySection(leaves: historyLeaves, onCancelled: _load),
+                            ],
                           ),
                         ),
             ),
@@ -232,6 +297,38 @@ class _BalTile extends StatelessWidget {
       );
 }
 
+class _QuotaTile extends StatelessWidget {
+  final String label;
+  final Map<String, dynamic>? quota;
+  final Color color;
+
+  const _QuotaTile(this.label, this.quota, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = quota?['remaining'] as int? ?? 0;
+    final total = quota?['quota'] as int? ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '$remaining',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color),
+          ),
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.text)),
+          Text('of $total', style: const TextStyle(fontSize: 9, color: AppColors.muted)),
+        ],
+      ),
+    );
+  }
+}
+
 class _LeaveItem extends StatefulWidget {
   final LeaveRequest leave;
   final VoidCallback onCancelled;
@@ -265,14 +362,14 @@ class _LeaveItemState extends State<_LeaveItem> {
   Future<void> _cancel() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cancel Leave?', style: TextStyle(fontWeight: FontWeight.w800)),
         content: const Text('This will withdraw your pending leave request.', style: TextStyle(color: AppColors.muted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Keep')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(_, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.coral),
             child: const Text('Cancel Leave'),
           ),
@@ -374,6 +471,64 @@ class _LeaveItemState extends State<_LeaveItem> {
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+    child: Text(text,
+      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+  );
+}
+
+class _HistorySection extends StatefulWidget {
+  final List<LeaveRequest> leaves;
+  final VoidCallback onCancelled;
+  const _HistorySection({required this.leaves, required this.onCancelled});
+
+  @override
+  State<_HistorySection> createState() => _HistorySectionState();
+}
+
+class _HistorySectionState extends State<_HistorySection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            child: Row(
+              children: [
+                const Text('HISTORY',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(6)),
+                  child: Text('${widget.leaves.length}',
+                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.muted)),
+                ),
+                const Spacer(),
+                Icon(_expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                  size: 16, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded)
+          ...widget.leaves.map((l) => _LeaveItem(leave: l, onCancelled: widget.onCancelled)),
+      ],
+    );
+  }
+}
+
 // ── Apply Leave Bottom Sheet ──────────────────────────────────────────────────
 
 class _ApplyLeaveSheet extends StatefulWidget {
@@ -386,10 +541,12 @@ class _ApplyLeaveSheet extends StatefulWidget {
 
 class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
   String _leaveType = 'casual';
-  DateTime _start = DateTime.now();
-  DateTime _end = DateTime.now();
+  DateTime? _start;
+  DateTime? _end;
   final _reason = TextEditingController();
   bool _saving = false;
+
+  bool get _canSubmit => _start != null && _end != null && !_saving;
 
   static const _types = [
     ('casual', '🌴', 'Casual'),
@@ -404,7 +561,8 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
   }
 
   Future<void> _submit() async {
-    if (_end.isBefore(_start)) {
+    if (_start == null || _end == null) return;
+    if (_end!.isBefore(_start!)) {
       showSnack(context, 'End date must be after start date', error: true);
       return;
     }
@@ -412,8 +570,8 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
     try {
       await ApiClient.createLeave(
         leaveType: _leaveType,
-        startDate: DateFormat('yyyy-MM-dd').format(_start),
-        endDate: DateFormat('yyyy-MM-dd').format(_end),
+        startDate: DateFormat('yyyy-MM-dd').format(_start!),
+        endDate: DateFormat('yyyy-MM-dd').format(_end!),
         reason: _reason.text.trim(),
       );
       if (mounted) {
@@ -429,7 +587,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final days = _end.difference(_start).inDays + 1;
+    final days = (_start != null && _end != null) ? _end!.difference(_start!).inDays + 1 : 0;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -536,7 +694,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                             value: _start,
                             onPick: (d) => setState(() {
                               _start = d;
-                              if (_end.isBefore(_start)) _end = _start;
+                              if (_end != null && _end!.isBefore(_start!)) _end = _start;
                             }),
                           ),
                         ),
@@ -546,26 +704,27 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                             label: 'END DATE',
                             value: _end,
                             onPick: (d) => setState(() => _end = d),
-                            firstDate: _start,
+                            firstDate: _start ?? DateTime.now(),
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.sunLight,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$days day${days > 1 ? "s" : ""} selected',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.sun,
+                    if (_start != null && _end != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.sunLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$days day${days > 1 ? "s" : ""} selected',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.sun,
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 14),
                     // Reason
                     const Text(
@@ -593,7 +752,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                       height: 50,
                       child: ElevatedButton(
                         key: const Key('submit_leave_button'),
-                        onPressed: _saving ? null : _submit,
+                        onPressed: _canSubmit ? _submit : null,
                         child: _saving
                             ? const SizedBox(
                                 width: 20,
@@ -617,7 +776,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
 
 class _DateField extends StatelessWidget {
   final String label;
-  final DateTime value;
+  final DateTime? value;
   final void Function(DateTime) onPick;
   final DateTime? firstDate;
 
@@ -645,11 +804,12 @@ class _DateField extends StatelessWidget {
         const SizedBox(height: 6),
         GestureDetector(
           onTap: () async {
+            final now = DateTime.now();
             final picked = await showDatePicker(
               context: context,
-              initialDate: value,
-              firstDate: firstDate ?? DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
+              initialDate: value ?? (firstDate ?? now),
+              firstDate: firstDate ?? now,
+              lastDate: now.add(const Duration(days: 365)),
               selectableDayPredicate: (date) => date.weekday != DateTime.sunday,
               builder: (ctx, child) => Theme(
                 data: ThemeData(
@@ -664,19 +824,22 @@ class _DateField extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.bg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border, width: 1.5),
+              border: Border.all(
+                color: value == null ? AppColors.sun.withOpacity(0.5) : AppColors.border,
+                width: value == null ? 2 : 1.5,
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today_outlined,
-                    size: 14, color: AppColors.muted),
+                Icon(Icons.calendar_today_outlined,
+                    size: 14, color: value == null ? AppColors.sun : AppColors.muted),
                 const SizedBox(width: 8),
                 Text(
-                  DateFormat('d MMM yy').format(value),
-                  style: const TextStyle(
+                  value != null ? DateFormat('d MMM yy').format(value!) : 'Select date',
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.text,
+                    color: value != null ? AppColors.text : AppColors.sun,
                   ),
                 ),
               ],

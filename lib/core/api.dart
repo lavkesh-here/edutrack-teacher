@@ -785,6 +785,14 @@ class ApiClient {
     });
   }
 
+  static Future<void> lockMyAccount() async {
+    await _post('/api/v1/auth/lock-account', {});
+  }
+
+  static Future<void> adminUnlockTeacher(String teacherId) async {
+    await _patch('/api/v1/admin/teachers/$teacherId/unlock', {});
+  }
+
   // ── Tests ─────────────────────────────────────────────────────────────────
 
   static Future<List<TestSummary>> getTests({int page = 0, int pageSize = 50}) async {
@@ -852,12 +860,14 @@ class ApiClient {
     final students = (map['students'] as List<dynamic>? ?? [])
         .map((e) => AttendanceStudent.fromJson(e as Map<String, dynamic>))
         .toList();
-    // Merge existing statuses
+    // Merge existing statuses, sanitising to only known values
+    const validStatuses = {'present', 'absent', 'late'};
     final record = map['record'] as Map<String, dynamic>?;
     if (record != null) {
       final statuses = record['statuses'] as Map<String, dynamic>? ?? {};
       for (final s in students) {
-        s.status = statuses[s.id.toString()] as String? ?? '';
+        final raw = statuses[s.id.toString()] as String? ?? '';
+        s.status = validStatuses.contains(raw) ? raw : '';
       }
     }
     return students;
@@ -1296,7 +1306,8 @@ class ApiClient {
     if (status != null) params.add('status=$status');
     final path = '/api/v1/admin/fees/structures${params.isEmpty ? '' : '?${params.join('&')}'}';
     final data = await _get(path);
-    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+    final map = data as Map<String, dynamic>;
+    return (map['items'] as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
   static Future<void> adminUpdateFeeStatus(String structureId, String status) async {
@@ -1325,6 +1336,24 @@ class ApiClient {
 
   static Future<void> adminUpdateLeaveConfig(Map<String, dynamic> updates) async {
     await _patch('/api/v1/admin/leave-config', updates);
+  }
+
+  static Future<List<Map<String, dynamic>>> adminListTeacherLeaveOverrides() async {
+    final data = await _get('/api/v1/admin/leave-config/teachers');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> adminSetTeacherLeaveOverride(String teacherId, Map<String, dynamic> payload) async {
+    await _put('/api/v1/admin/leave-config/teacher/$teacherId', payload);
+  }
+
+  static Future<void> adminClearTeacherLeaveOverride(String teacherId) async {
+    await _delete('/api/v1/admin/leave-config/teacher/$teacherId');
+  }
+
+  static Future<Map<String, dynamic>> getMyLeaveBalance() async {
+    final data = await _get('/api/v1/teacher/leave-balance');
+    return data as Map<String, dynamic>;
   }
 
   // ── Teacher profile ────────────────────────────────────────────────────────

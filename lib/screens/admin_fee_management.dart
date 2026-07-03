@@ -81,6 +81,8 @@ class _ComponentsTabState extends State<_ComponentsTab> {
       if (mounted) setState(() { _components = data; _loading = false; });
     } on ApiError catch (e) {
       if (mounted) { showSnack(context, e.message, error: true); setState(() => _loading = false); }
+    } catch (_) {
+      if (mounted) { showSnack(context, 'Failed to load. Please try again.', error: true); setState(() => _loading = false); }
     }
   }
 
@@ -308,6 +310,8 @@ class _StructuresTabState extends State<_StructuresTab> {
       if (mounted) setState(() { _structures = data; _loading = false; });
     } on ApiError catch (e) {
       if (mounted) { showSnack(context, e.message, error: true); setState(() => _loading = false); }
+    } catch (_) {
+      if (mounted) { showSnack(context, 'Failed to load. Please try again.', error: true); setState(() => _loading = false); }
     }
   }
 

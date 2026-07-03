@@ -402,19 +402,46 @@ class _SimpleClassCard extends StatelessWidget {
 
 // ── Teachers Tab ──────────────────────────────────────────────────────────────
 
-class _TeachersTab extends StatelessWidget {
+class _TeachersTab extends StatefulWidget {
   const _TeachersTab({required this.dash});
   final Map<String, dynamic> dash;
 
   @override
+  State<_TeachersTab> createState() => _TeachersTabState();
+}
+
+class _TeachersTabState extends State<_TeachersTab> {
+  late List<Map<String, dynamic>> _teachers;
+
+  @override
+  void initState() {
+    super.initState();
+    _teachers = (widget.dash['teacher_metrics'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  Future<void> _unlock(String teacherId, String teacherName) async {
+    try {
+      await ApiClient.adminUnlockTeacher(teacherId);
+      setState(() {
+        final idx = _teachers.indexWhere((t) => t['teacher_id'] == teacherId);
+        if (idx >= 0) _teachers[idx] = {..._teachers[idx], 'is_locked': false};
+      });
+      if (mounted) showSnack(context, '$teacherName unlocked successfully');
+    } on ApiError catch (e) {
+      if (mounted) showSnack(context, e.message, error: true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final teachers = dash['teacher_metrics'] as List<dynamic>? ?? [];
-    if (teachers.isEmpty) {
+    if (_teachers.isEmpty) {
       return const Center(child: Text('No teacher data yet.', style: TextStyle(color: AppColors.muted)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: teachers.length + 1,
+      itemCount: _teachers.length + 1,
       itemBuilder: (context, i) {
         if (i == 0) {
           return Column(
@@ -425,17 +452,20 @@ class _TeachersTab extends StatelessWidget {
             ],
           );
         }
-        final t = teachers[i - 1] as Map<String, dynamic>;
+        final t = _teachers[i - 1];
         final followPct = t['follow_through_pct'] as int? ?? 0;
         final attendPct = t['attendance_pct'] as int? ?? 0;
+        final isLocked = t['is_locked'] as bool? ?? false;
+        final teacherId = t['teacher_id'] as String? ?? '';
+        final teacherName = t['teacher_name'] as String? ?? '—';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: isLocked ? AppColors.coralLight : AppColors.card,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: isLocked ? AppColors.coral.withOpacity(0.4) : AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,10 +473,24 @@ class _TeachersTab extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(t['teacher_name'] as String? ?? '—',
+                    child: Text(teacherName,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
-                  _RoleBadge(t['role'] as String? ?? ''),
+                  if (isLocked)
+                    GestureDetector(
+                      onTap: () => _unlock(teacherId, teacherName),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.coral,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('🔒 Unlock',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                      ),
+                    )
+                  else
+                    _RoleBadge(t['role'] as String? ?? ''),
                 ],
               ),
               const SizedBox(height: 8),

@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
-import 'leave.dart';
-import 'payslip.dart';
-import 'my_attendance.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,15 +17,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingPhoto = false;
-  String _appVersion = '';
-
-  @override
-  void initState() {
-    super.initState();
-    PackageInfo.fromPlatform().then((info) {
-      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
-    });
-  }
 
   Future<void> _pickAndUploadPhoto(BuildContext context) async {
     final picker = ImagePicker();
@@ -47,12 +34,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final resp = await ApiClient.getPhotoUploadUrl(file.name, contentType, bytes.lengthInBytes);
       final uploadUrl = resp['upload_url'] as String;
       final photoUrl = resp['photo_url'] as String;
-      await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      final putRes = await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      if (putRes.statusCode >= 400) throw Exception('Could not upload to storage (${putRes.statusCode}). Try again.');
       await ApiClient.savePhotoUrl(photoUrl);
       if (mounted) await context.read<AuthProvider>().updatePhotoUrl(photoUrl);
       if (mounted) showSnack(context, 'Photo updated');
     } catch (e) {
-      if (mounted) showSnack(context, 'Upload failed', error: true);
+      if (mounted) {
+        final msg = e is ApiError ? e.message : e.toString().replaceFirst('Exception: ', '');
+        showSnack(context, msg, error: true);
+      }
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
@@ -300,90 +291,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 16),
 
-              // My Info section
+              // Edit details
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'MY INFO',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.muted,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _ProfileRow(
-                      icon: '👤',
-                      iconColor: AppColors.sunLight,
-                      label: 'Personal Details',
-                      sub: 'Name, email, contact info',
-                      onTap: () => _showEditSheet(context, user),
-                    ),
-                    _ProfileRow(
-                      icon: '🎓',
-                      iconColor: AppColors.violetLight,
-                      label: 'Qualifications',
-                      sub: 'Degrees & certifications',
-                      onTap: () => showSnack(context, 'Qualifications — coming soon'),
-                    ),
-                    _ProfileRow(
-                      icon: '🗓️',
-                      iconColor: AppColors.coralLight,
-                      label: 'My Leaves',
-                      sub: 'Balance, history & apply',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const LeaveScreen())),
-                    ),
-                    _ProfileRow(
-                      icon: '💰',
-                      iconColor: AppColors.greenLight,
-                      label: 'Payroll History',
-                      sub: 'Monthly salary & payslips',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const PayslipScreen())),
-                    ),
-                    _ProfileRow(
-                      icon: '📋',
-                      iconColor: AppColors.tealLight,
-                      label: 'My Attendance',
-                      sub: 'Your attendance record',
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const MyAttendanceScreen())),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Settings
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'SETTINGS',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.muted,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _ProfileRow(
-                      icon: '🔔',
-                      iconColor: AppColors.violetLight,
-                      label: 'Notifications',
-                      sub: 'Manage notification preferences',
-                      onTap: () {},
-                    ),
-                  ],
+                child: _ProfileRow(
+                  icon: '👤',
+                  iconColor: AppColors.sunLight,
+                  label: 'Edit Details',
+                  sub: 'Name, email, contact info',
+                  onTap: () => _showEditSheet(context, user),
                 ),
               ),
 
@@ -457,14 +373,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
               const SizedBox(height: 32),
-
-              Center(
-                child: Text(
-                  _appVersion.isEmpty ? 'EduTrack Teacher' : 'EduTrack Teacher v$_appVersion',
-                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                ),
-              ),
-              const SizedBox(height: 24),
             ],
           ),
         ),

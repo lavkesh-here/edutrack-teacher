@@ -130,6 +130,9 @@ class AuthProvider extends ChangeNotifier {
         );
       }
     }
+    if (_user != null && (prefs.getBool(_kBioEnabled) ?? false)) {
+      _isLocked = true;
+    }
     _loading = false;
     notifyListeners();
     if (_user != null) _loadFeatureFlags();

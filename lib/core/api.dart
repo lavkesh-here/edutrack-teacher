@@ -1000,6 +1000,7 @@ class ApiClient {
     String? dateFrom,
     String? dateTo,
     List<String>? sectionIds,
+    String? studentId,
   }) async {
     final params = <String>[];
     if (date != null) params.add('date=$date');
@@ -1008,6 +1009,7 @@ class ApiClient {
     if (sectionIds != null && sectionIds.isNotEmpty) {
       params.add('section_ids=${sectionIds.join(',')}');
     }
+    if (studentId != null) params.add('student_id=$studentId');
     final path = '/api/v1/teacher/work-log${params.isEmpty ? '' : '?${params.join('&')}'}';
     final data = await _get(path);
     final list = data as List<dynamic>;

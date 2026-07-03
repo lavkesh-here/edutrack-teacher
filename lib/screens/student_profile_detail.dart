@@ -234,7 +234,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
             },
           ),
           _TestsTab(tests: (_profile!['tests'] as List?)?.cast<Map<String, dynamic>>() ?? []),
-          _WorkLogsTab(submissions: (_profile!['work_log_submissions'] as List?)?.cast<Map<String, dynamic>>() ?? []),
+          _StudentWorkLogsTab(studentId: widget.studentId),
           _ReportTab(studentId: widget.studentId),
           _FullReportCardTab(studentId: widget.studentId),
         ],
@@ -810,98 +810,119 @@ class _TestScoreCard extends StatelessWidget {
 
 // ── Tab 4: Work Logs ──────────────────────────────────────────────────────────
 
-class _WorkLogsTab extends StatelessWidget {
-  final List<Map<String, dynamic>> submissions;
-  const _WorkLogsTab({required this.submissions});
+class _StudentWorkLogsTab extends StatefulWidget {
+  final String studentId;
+  const _StudentWorkLogsTab({required this.studentId});
+
+  @override
+  State<_StudentWorkLogsTab> createState() => _StudentWorkLogsTabState();
+}
+
+class _StudentWorkLogsTabState extends State<_StudentWorkLogsTab>
+    with AutomaticKeepAliveClientMixin {
+  List<WorkLogEntry> _logs = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await ApiClient.getWorkLogs(studentId: widget.studentId);
+      if (mounted) setState(() { _logs = data; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (submissions.isEmpty) return const _EmptyState(icon: '📝', label: 'No work log records');
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: submissions.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _SubmissionCard(sub: submissions[i]),
+    super.build(context);
+    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.teal));
+    if (_error != null) return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('⚠️', style: TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          const SizedBox(height: 12),
+          TextButton(onPressed: _load, child: const Text('Retry')),
+        ]),
+      ),
+    );
+    if (_logs.isEmpty) return const _EmptyState(icon: '📝', label: 'No work logs assigned to this student');
+    return RefreshIndicator(
+      color: AppColors.teal,
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _logs.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => _WorkLogCard(entry: _logs[i]),
+      ),
     );
   }
 }
 
-class _SubmissionCard extends StatelessWidget {
-  final Map<String, dynamic> sub;
-  const _SubmissionCard({required this.sub});
+class _WorkLogCard extends StatelessWidget {
+  final WorkLogEntry entry;
+  const _WorkLogCard({required this.entry});
 
   @override
   Widget build(BuildContext context) {
-    final desc = sub['description'] as String? ?? '';
-    final logType = sub['log_type'] as String? ?? 'classwork';
-    final date = sub['log_date'] as String? ?? '';
-    final status = sub['status'] as String? ?? 'pending';
-    final note = sub['parent_note'] as String?;
-
-    final (typeIcon, typeColor, typeBg) = switch (logType) {
-      'homework' => ('📚', AppColors.coral, AppColors.coralLight),
-      'note' => ('📌', AppColors.amber, AppColors.amberLight),
-      _ => ('📖', AppColors.sky, AppColors.skyLight),
-    };
-
-    final (statusColor, statusLabel) = switch (status) {
-      'acknowledged' => (AppColors.teal, '✓ Acknowledged'),
-      'pending' => (AppColors.muted, 'Pending'),
-      _ => (AppColors.amber, status),
+    final (typeIcon, typeColor, typeBg) = switch (entry.logType) {
+      'homework'  => ('📚', AppColors.coral, AppColors.coralLight),
+      'note'      => ('📌', AppColors.amber, AppColors.amberLight),
+      _           => ('📖', AppColors.sky,   AppColors.skyLight),
     };
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: typeBg, borderRadius: BorderRadius.circular(20)),
-                child: Text('$typeIcon ${_fmtType(logType)}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: typeColor)),
-              ),
-              const Spacer(),
-              Text(_fmtDate(date), style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-            ],
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: typeBg, borderRadius: BorderRadius.circular(6)),
+            child: Text('$typeIcon ${entry.logType[0].toUpperCase()}${entry.logType.substring(1)}',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: typeColor)),
           ),
-          const SizedBox(height: 8),
-          Text(desc, style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-                child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
-              ),
-              if (note != null && note.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('"$note"',
-                    style: const TextStyle(fontSize: 11, color: AppColors.muted, fontStyle: FontStyle.italic),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ],
-            ],
+          const Spacer(),
+          Text(entry.date, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+        ]),
+        const SizedBox(height: 8),
+        Text(entry.description,
+            style: const TextStyle(fontSize: 13, color: AppColors.text1, height: 1.4)),
+        if (entry.dueDate != null) ...[
+          const SizedBox(height: 6),
+          Text('Due: ${entry.dueDate}',
+              style: const TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w500)),
+        ],
+        if (entry.subjectName != null || entry.sectionLabel.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            [if (entry.subjectName != null) entry.subjectName!, if (entry.sectionLabel.isNotEmpty) entry.sectionLabel].join(' · '),
+            style: const TextStyle(fontSize: 11, color: AppColors.muted),
           ),
         ],
-      ),
+      ]),
     );
   }
-
-  String _fmtType(String t) => switch (t) { 'homework' => 'Homework', 'note' => 'Note', _ => 'Classwork' };
-
-  String _fmtDate(String raw) {
-    try {
-      final d = DateTime.parse(raw);
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${d.day} ${months[d.month - 1]}';
-    } catch (_) { return raw; }
-  }
 }
+
 
 // ── Tab 5: Longitudinal Report ────────────────────────────────────────────────
 

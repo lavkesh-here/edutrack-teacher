@@ -28,6 +28,7 @@ import 'notifications_screen.dart';
 import 'todos.dart';
 import 'my_attendance.dart';
 import 'qualifications.dart';
+import 'syllabus.dart';
 import 'notification_prefs.dart';
 import 'faq_screen.dart';
 import 'support_chat_screen.dart';
@@ -677,6 +678,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
       case 'qualifications':  _openScreen(context, const QualificationsScreen(), recentId: id);
+      case 'syllabus':        _openScreen(context, const SyllabusScreen(), recentId: id);
     }
   }
 
@@ -1206,6 +1208,8 @@ class _MoreTabState extends State<_MoreTab> {
                     const SizedBox(height: 8),
                     _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: 'Weekly timetable',
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
+                    _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
+                        onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
                     _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                         onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
                     _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'Browse common questions',

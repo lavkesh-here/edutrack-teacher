@@ -1560,6 +1560,25 @@ class ApiClient {
     );
   }
 
+  // ── Syllabus progress ─────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getSyllabus(String classSectionId) async {
+    final data = await _get('/api/v1/teacher/syllabus?class_section_id=$classSectionId');
+    return (data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> updateChapterStatus({
+    required String classSectionId,
+    required String chapterId,
+    required String status,
+  }) async {
+    await _put('/api/v1/teacher/syllabus/chapter', {
+      'class_section_id': classSectionId,
+      'chapter_id': chapterId,
+      'status': status,
+    });
+  }
+
   // ── Director ──────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> directorDashboard() async {

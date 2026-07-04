@@ -1577,7 +1577,17 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
       final r = await ApiClient.getStudentFullReport(widget.studentId);
       if (mounted) setState(() { _report = r; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) {
+        // 404 = no report generated yet — not an error, just show Generate button
+        final is404 = e is ApiError && e.statusCode == 404 ||
+            e.toString().contains('404') || e.toString().contains('Not Found') ||
+            e.toString().contains('No report');
+        setState(() {
+          _report = null;
+          _error = is404 ? null : e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -1590,7 +1600,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
         showSnack(context, 'Report card generated');
       }
     } catch (e) {
-      if (mounted) showSnack(context, 'Generation failed', error: true);
+      if (mounted) showSnack(context, 'Generation failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _generating = false);
     }

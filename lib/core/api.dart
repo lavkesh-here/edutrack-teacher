@@ -232,7 +232,7 @@ class TestScoresResponse {
       scores: raw.map((e) => StudentScore.fromJson(e as Map<String, dynamic>)).toList(),
       classAverage: (report?['average_percentage'] as num?)?.toDouble(),
       highestMark: (report?['highest'] as num?)?.toDouble(),
-      belowAverageCount: (report?['below_40_percent'] as num?)?.toInt(),
+      belowAverageCount: (report?['below_40_percent'] as List?)?.length,
     );
   }
 }

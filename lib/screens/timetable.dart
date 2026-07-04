@@ -14,6 +14,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
   bool _loading = true;
   String? _error;
   int _selectedDay = DateTime.now().weekday.clamp(1, 6); // Mon=1..Sat=6
+  final _stripCtrl = ScrollController();
 
   static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -32,6 +33,22 @@ class _TimetableScreenState extends State<TimetableScreen> {
   void initState() {
     super.initState();
     _load();
+    // Scroll strip so today is roughly centered after layout
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      const chipW = 56.0;
+      const gap = 8.0;
+      final todayIndex = 7; // 14-day strip, today is at index 7 (0-based center)
+      final offset = todayIndex * (chipW + gap) - (MediaQuery.of(context).size.width / 2) + chipW / 2;
+      if (_stripCtrl.hasClients) {
+        _stripCtrl.jumpTo(offset.clamp(0.0, _stripCtrl.position.maxScrollExtent));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _stripCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -110,36 +127,45 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     style: const TextStyle(fontSize: 11, color: AppColors.muted),
                   ),
                   const SizedBox(height: 12),
-                  // Day chips (Mon–Sat with date)
+                  // 2-week day strip centered on today (14 days: -7 to +6)
                   Builder(builder: (ctx) {
                     final today = DateTime.now();
-                    final monday = today.subtract(Duration(days: today.weekday - 1));
+                    final stripStart = today.subtract(const Duration(days: 7));
                     return SizedBox(
                       height: 72,
                       child: ListView.separated(
+                        controller: _stripCtrl,
                         scrollDirection: Axis.horizontal,
-                        itemCount: 6,
+                        itemCount: 14,
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (_, i) {
-                          final dayNum = i + 1;
-                          final chipDate = monday.add(Duration(days: i));
-                          final active = dayNum == _selectedDay;
+                          final chipDate = stripStart.add(Duration(days: i));
+                          final isSun = chipDate.weekday == DateTime.sunday;
+                          final dayNum = chipDate.weekday.clamp(1, 6);
+                          final active = !isSun && dayNum == _selectedDay;
                           final isToday = chipDate.year == today.year &&
                               chipDate.month == today.month &&
                               chipDate.day == today.day;
+                          const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                          final label = dayLabels[chipDate.weekday - 1];
                           return GestureDetector(
-                            onTap: () => setState(() => _selectedDay = dayNum),
+                            onTap: isSun ? null : () => setState(() => _selectedDay = dayNum),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 160),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              width: 48,
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                               decoration: BoxDecoration(
-                                color: active ? AppColors.sun : AppColors.bg,
+                                color: active
+                                    ? AppColors.sun
+                                    : isSun
+                                        ? const Color(0xFFF3F4F6)
+                                        : AppColors.bg,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: active
                                       ? AppColors.sun
                                       : isToday
-                                          ? AppColors.sun.withOpacity(0.4)
+                                          ? AppColors.sun.withOpacity(0.5)
                                           : AppColors.border,
                                   width: 1.5,
                                 ),
@@ -148,15 +174,17 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    _dayNames[i],
+                                    label,
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                       color: active
                                           ? Colors.white
-                                          : isToday
-                                              ? AppColors.sun
-                                              : AppColors.muted,
+                                          : isSun
+                                              ? AppColors.muted
+                                              : isToday
+                                                  ? AppColors.sun
+                                                  : AppColors.muted,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -167,9 +195,11 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                       fontWeight: FontWeight.w900,
                                       color: active
                                           ? Colors.white
-                                          : isToday
-                                              ? AppColors.sun
-                                              : AppColors.text,
+                                          : isSun
+                                              ? AppColors.muted
+                                              : isToday
+                                                  ? AppColors.sun
+                                                  : AppColors.text,
                                     ),
                                   ),
                                 ],

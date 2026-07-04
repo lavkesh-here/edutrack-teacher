@@ -9,10 +9,10 @@ class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
 
   @override
-  State<AttendanceScreen> createState() => _AttendanceScreenState();
+  State<AttendanceScreen> createState() => AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
+class AttendanceScreenState extends State<AttendanceScreen> {
   List<SectionInfo>? _sections;
   SectionInfo? _selectedSection;
   DateTime _date = DateTime.now();
@@ -22,6 +22,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool _saving = false;
   bool _isSubmitted = false;
   bool _swipeMode = false;
+  final Map<String, bool> _submittedCache = {};
   int _swipeIndex = 0;
 
   // onboarding: remaining views allowed for swipe tutorial
@@ -67,7 +68,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _loadStudents() async {
     if (_selectedSection == null) return;
-    setState(() { _loadingStudents = true; _students = null; _isSubmitted = false; });
+    final dateStr = DateFormat('yyyy-MM-dd').format(_date);
+    final cacheKey = '${_selectedSection!.id}_$dateStr';
+    setState(() { _loadingStudents = true; _students = null; _isSubmitted = _submittedCache[cacheKey] ?? false; });
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_date);
       final students = await ApiClient.getAttendance(_selectedSection!.id, dateStr);
@@ -120,6 +123,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         statuses: statuses,
       );
       if (mounted) {
+        final cacheKey = '${_selectedSection!.id}_${DateFormat('yyyy-MM-dd').format(_date)}';
+        _submittedCache[cacheKey] = true;
         showSnack(context, 'Attendance saved ✓');
         setState(() => _isSubmitted = true);
       }
@@ -141,12 +146,46 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   void _enterSwipeMode() {
     if (_students == null || _students!.isEmpty) return;
+    if (_isSubmitted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Reset Attendance?', style: TextStyle(fontWeight: FontWeight.w800)),
+          content: const Text(
+            'Entering swipe mode will reset all marks. You\'ll need to re-submit for all students.',
+            style: TextStyle(color: AppColors.muted),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _isSubmitted = false;
+                  for (final s in _students!) s.status = '';
+                });
+                _doEnterSwipeMode();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.coral),
+              child: const Text('Reset & Swipe'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    _doEnterSwipeMode();
+  }
+
+  void _doEnterSwipeMode() {
     setState(() {
       _swipeMode = true;
       _swipeIndex = 0;
-      if (_tutorialViewsLeft > 0) {
-        _showTutorial = true;
-      }
+      if (_tutorialViewsLeft > 0) _showTutorial = true;
     });
     if (_tutorialViewsLeft > 0) {
       ApiClient.markOnboardingSeen('attendance_swipe').catchError((_) {});
@@ -188,12 +227,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final unmarked = _students?.where((s) => s.status.isEmpty).length ?? 0;
     final canSubmit = !_saving && _students != null && unmarked == 0 && _students!.isNotEmpty;
 
-    return PopScope(
-      canPop: !_swipeMode,
-      onPopInvoked: (didPop) {
-        if (!didPop && _swipeMode) _exitSwipeMode();
-      },
-      child: Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
@@ -444,8 +478,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ],
         ),
       ),
-    ), // Scaffold
-    ); // PopScope
+    );
+  }
+
+  // Called by HomeScreen's PopScope to intercept back when in swipe mode
+  bool tryExitSwipeMode() {
+    if (_swipeMode) { _exitSwipeMode(); return true; }
+    return false;
   }
 
   Widget _buildSwipeView() {
@@ -1136,15 +1175,21 @@ class _StudentCard extends StatelessWidget {
                     ),
                   const SizedBox(height: 6),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      student.name.split(' ').first,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.text),
+                      student.name,
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.text),
                       overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  if (student.rollNo.isNotEmpty)
+                    Text(
+                      student.rollNo,
+                      style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: AppColors.muted),
+                    ),
+                  const SizedBox(height: 2),
                   Text(
                     _statusLabel,
                     style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _avatarFg),

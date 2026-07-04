@@ -574,6 +574,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
   bool _posting = false;
   String? _replyToId;
   String? _replyToAuthor;
+  String? _replyToText;
   bool _showBackToTop = false;
 
   @override
@@ -610,7 +611,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
     try {
       await ApiClient.createComment(widget.announcement.id, text, parentId: _replyToId);
       _ctrl.clear();
-      setState(() { _replyToId = null; _replyToAuthor = null; });
+      setState(() { _replyToId = null; _replyToAuthor = null; _replyToText = null; });
       await _load();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollCtrl.hasClients) {
@@ -670,9 +671,10 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                                   return _CommentBlock(
                                     comment: c,
                                     replies: replies,
-                                    onReply: (id, author) => setState(() {
+                                    onReply: (id, author, body) => setState(() {
                                       _replyToId = id;
                                       _replyToAuthor = author;
+                                      _replyToText = body;
                                       FocusScope.of(context).requestFocus(FocusNode());
                                     }),
                                   );
@@ -702,23 +704,42 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                   ),
           ),
 
-          // Reply banner
+          // Reply banner with quote
           if (_replyToAuthor != null)
             Container(
               color: AppColors.sunLight,
-              padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.reply_rounded, size: 14, color: AppColors.sun),
-                  const SizedBox(width: 6),
+                  Container(
+                    width: 3,
+                    height: _replyToText != null ? 40 : 20,
+                    margin: const EdgeInsets.only(right: 8, top: 2),
+                    decoration: BoxDecoration(color: AppColors.sun, borderRadius: BorderRadius.circular(2)),
+                  ),
                   Expanded(
-                    child: Text(
-                      'Replying to $_replyToAuthor',
-                      style: const TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _replyToAuthor!,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.sun),
+                        ),
+                        if (_replyToText != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _replyToText!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: AppColors.text2),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => setState(() { _replyToId = null; _replyToAuthor = null; }),
+                    onTap: () => setState(() { _replyToId = null; _replyToAuthor = null; _replyToText = null; }),
                     child: const Icon(Icons.close, size: 16, color: AppColors.sun),
                   ),
                 ],
@@ -736,7 +757,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                     key: const Key('comment_field'),
                     controller: _ctrl,
                     decoration: InputDecoration(
-                      hintText: _replyToAuthor != null ? 'Reply to $_replyToAuthor…' : 'Say something…',
+                      hintText: _replyToAuthor != null ? 'Write a reply…' : 'Say something…',
                       filled: true,
                       fillColor: AppColors.bg,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -774,7 +795,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
 class _CommentBlock extends StatelessWidget {
   final AnnouncementComment comment;
   final List<AnnouncementComment> replies;
-  final void Function(String id, String author) onReply;
+  final void Function(String id, String author, String body) onReply;
 
   const _CommentBlock({required this.comment, required this.replies, required this.onReply});
 
@@ -796,7 +817,7 @@ class _CommentBlock extends StatelessWidget {
 
 class _CommentTile extends StatefulWidget {
   final AnnouncementComment comment;
-  final void Function(String id, String author) onReply;
+  final void Function(String id, String author, String body) onReply;
   final bool isReply;
 
   const _CommentTile({required this.comment, required this.onReply, this.isReply = false});
@@ -902,7 +923,7 @@ class _CommentTileState extends State<_CommentTile> {
                       if (!widget.isReply) ...[
                         const SizedBox(width: 12),
                         GestureDetector(
-                          onTap: () => onReply(c.id, c.authorName ?? 'Teacher'),
+                          onTap: () => onReply(c.id, c.authorName ?? 'Teacher', c.body),
                           child: const Row(
                             children: [
                               Icon(Icons.reply_rounded, size: 14, color: AppColors.muted),
@@ -924,7 +945,7 @@ class _CommentTileState extends State<_CommentTile> {
     );
   }
 
-  void onReply(String id, String author) => widget.onReply(id, author);
+  void onReply(String id, String author, String body) => widget.onReply(id, author, body);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

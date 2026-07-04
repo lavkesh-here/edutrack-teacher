@@ -46,9 +46,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _idx = 0;
 
-  static const _screens = [
+  static final _attendanceKey = GlobalKey<AttendanceScreenState>();
+
+  static final _screens = [
     _HomeTab(),
-    AttendanceScreen(),
+    AttendanceScreen(key: _attendanceKey),
     MyStudentsScreen(),
     FeedScreen(),
     _MoreTab(),
@@ -61,6 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return PopScope(
       canPop: false,
       onPopInvoked: (_) {
+        // If on attendance tab and in swipe mode, exit swipe instead of switching tabs
+        if (_idx == 1 && (_attendanceKey.currentState?.tryExitSwipeMode() ?? false)) return;
         if (_idx != 0) {
           setState(() => _idx = 0);
           return;

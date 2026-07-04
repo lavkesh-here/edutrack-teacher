@@ -12,7 +12,7 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _viewMonth = DateTime(DateTime.now().year, DateTime.now().month);
-  DateTime _selectedDay = DateTime.now();
+  DateTime? _selectedDay;
   List<CalendarEvent> _events = [];
   bool _loading = true;
 
@@ -69,7 +69,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text('${monthNames[_viewMonth.month]} ${_viewMonth.year}'),
+        title: const Text('Events'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -104,6 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPressed: () {
                         setState(() {
                           _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1);
+                          _selectedDay = null;
                         });
                         _loadEvents();
                       },
@@ -122,6 +123,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       onPressed: () {
                         setState(() {
                           _viewMonth = DateTime(_viewMonth.year, _viewMonth.month + 1);
+                          _selectedDay = null;
                         });
                         _loadEvents();
                       },
@@ -167,7 +169,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               const SizedBox(height: 8),
 
-              // Events for selected day
+              // Event list — all month or filtered by selected day
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
@@ -176,7 +178,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
-                        'Events on ${_selectedDay.day} ${monthNames[_selectedDay.month]}',
+                        _selectedDay == null
+                            ? 'All Events — ${monthNames[_viewMonth.month]} ${_viewMonth.year}'
+                            : 'Events on ${_selectedDay!.day} ${monthNames[_selectedDay!.month]}',
                         style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.text),
                       ),
@@ -208,14 +212,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final date = DateTime(_viewMonth.year, _viewMonth.month, day);
       final isToday =
           date.year == now.year && date.month == now.month && date.day == now.day;
-      final isSelected = date.year == _selectedDay.year &&
-          date.month == _selectedDay.month &&
-          date.day == _selectedDay.day;
+      final isSelected = _selectedDay != null &&
+          date.year == _selectedDay!.year &&
+          date.month == _selectedDay!.month &&
+          date.day == _selectedDay!.day;
       final dayEvents = _eventsForDay(date);
 
       cells.add(
         GestureDetector(
-          onTap: () => setState(() => _selectedDay = date),
+          onTap: () => setState(() => _selectedDay = isSelected ? null : date),
           child: Container(
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
@@ -278,8 +283,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   List<Widget> _buildEventList() {
-    final dayEvents = _eventsForDay(_selectedDay);
-    if (dayEvents.isEmpty) {
+    final displayEvents = _selectedDay == null
+        ? (_events..sort((a, b) => a.startDate.compareTo(b.startDate)))
+        : _eventsForDay(_selectedDay!);
+    if (displayEvents.isEmpty) {
       return [
         Container(
           padding: const EdgeInsets.all(14),
@@ -288,16 +295,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
-          child: const Center(
+          child: Center(
             child: Text(
-              'No events on this day',
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
+              _selectedDay == null ? 'No events this month' : 'No events on this day',
+              style: const TextStyle(color: AppColors.muted, fontSize: 13),
             ),
           ),
         ),
       ];
     }
-    return dayEvents.map((e) => _EventRow(event: e)).toList();
+    return displayEvents.map((e) => _EventRow(event: e)).toList();
   }
 
   void _showAddEventSheet() {

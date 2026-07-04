@@ -32,10 +32,15 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     setState(() => _loadingScores = true);
     try {
       final scores = await ApiClient.getTestScores(widget.test.id);
-      setState(() { _scores = scores; _loadingScores = false; });
+      if (mounted) setState(() { _scores = scores; _loadingScores = false; });
       _loadAnalysis();
-    } catch (_) {
-      setState(() => _loadingScores = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingScores = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Score load error: $e'), backgroundColor: Colors.orange, duration: const Duration(seconds: 6)),
+        );
+      }
     }
   }
 
@@ -101,7 +106,10 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
             )
           : null,
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        onRefresh: _loadScores,
+        color: AppColors.violet,
+        child: CustomScrollView(
         slivers: [
           SliverAppBar(
             backgroundColor: AppColors.violet,
@@ -334,6 +342,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             ),
         ],
       ),
+      ), // RefreshIndicator
     );
   }
 }
@@ -752,7 +761,11 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
         });
       }
       await ApiClient.submitTestScores(widget.test.id, scores);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        showSnack(context, '${scores.length} scores saved');
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) Navigator.pop(context, true);
+      }
     } catch (e) {
       if (mounted) {
         showSnack(context, 'Failed to save: $e', error: true);

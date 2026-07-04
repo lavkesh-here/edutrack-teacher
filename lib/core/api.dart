@@ -206,7 +206,7 @@ class StudentScore {
   factory StudentScore.fromJson(Map<String, dynamic> j) => StudentScore(
         rollNo: j['roll_no']?.toString() ?? '',
         name: j['student_name'] as String? ?? j['name'] as String? ?? '',
-        marks: (j['marks'] as num?)?.toDouble(),
+        marks: (j['score'] as num?)?.toDouble(),
         isAbsent: j['is_absent'] as bool? ?? false,
         remarks: j['remarks'] as String?,
       );

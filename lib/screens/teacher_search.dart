@@ -18,6 +18,7 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
   Timer? _debounce;
   TeacherSearchResult? _results;
   bool _loading = false;
+  bool _hasError = false;
   String _lastQuery = '';
 
   @override
@@ -41,10 +42,10 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
     _lastQuery = q;
     _debounce?.cancel();
     if (q.length < 2) {
-      setState(() { _results = null; _loading = false; });
+      setState(() { _results = null; _loading = false; _hasError = false; });
       return;
     }
-    setState(() => _loading = true);
+    setState(() { _loading = true; _hasError = false; });
     _debounce = Timer(const Duration(milliseconds: 350), () => _search(q));
   }
 
@@ -52,10 +53,10 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
     try {
       final r = await ApiClient.teacherSearch(q, limit: limit);
       if (mounted && _controller.text.trim() == q) {
-        setState(() { _results = r; _loading = false; });
+        setState(() { _results = r; _loading = false; _hasError = false; });
       }
     } catch (_) {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted) setState(() { _loading = false; _hasError = true; _results = null; });
     }
   }
 
@@ -152,6 +153,21 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
 
     if (_loading && _results == null) {
       return const Center(child: CircularProgressIndicator(color: AppColors.violet));
+    }
+
+    if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('⚠️', style: TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            const Text('Search unavailable', style: TextStyle(fontSize: 14, color: AppColors.text)),
+            const SizedBox(height: 4),
+            const Text('Check your connection and try again', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+          ],
+        ),
+      );
     }
 
     if (_results == null || _results!.isEmpty) {

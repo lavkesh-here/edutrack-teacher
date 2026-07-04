@@ -34,6 +34,7 @@ import 'syllabus.dart';
 import 'notification_prefs.dart';
 import 'faq_screen.dart';
 import 'support_chat_screen.dart';
+import 'teacher_search.dart';
 import '../core/recents.dart';
 import '../core/features.dart';
 
@@ -1728,6 +1729,17 @@ class _MoreTabState extends State<_MoreTab> {
                           const SizedBox(height: 2),
                           Text(user.schoolName, style: const TextStyle(fontSize: 11, color: Colors.white70)),
                         ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherSearchScreen())),
+                      child: Container(
+                        width: 38, height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.search, color: Colors.white, size: 20),
                       ),
                     ),
                   ],

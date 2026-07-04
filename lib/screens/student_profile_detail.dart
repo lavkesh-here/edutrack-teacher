@@ -1059,6 +1059,8 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
   bool _loading = true;
   bool _generating = false;
   String? _error;
+  final _notesController = TextEditingController();
+  String? _previousTeacherNotes; // notes from before the most recent analysis
 
   @override
   bool get wantKeepAlive => true;
@@ -1069,11 +1071,28 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
     _load();
   }
 
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
       final r = await ApiClient.getLongitudinalReport(widget.studentId);
-      if (mounted) setState(() { _report = r; _loading = false; });
+      if (mounted) {
+        // Restore saved notes into the text field
+        final savedNotes = r['teacher_notes'] as String?;
+        if (savedNotes != null && savedNotes.isNotEmpty) {
+          _notesController.text = savedNotes;
+        }
+        setState(() {
+          _report = r;
+          _previousTeacherNotes = r['previous_teacher_notes'] as String?;
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
@@ -1081,20 +1100,25 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
 
   Future<void> _generateAnalysis() async {
     setState(() => _generating = true);
+    final notes = _notesController.text.trim().isEmpty ? null : _notesController.text.trim();
     try {
-      final r = await ApiClient.generateLongitudinalAnalysis(widget.studentId);
+      final r = await ApiClient.generateLongitudinalAnalysis(widget.studentId, teacherNotes: notes);
       if (mounted) {
         setState(() {
           _report = {
             ..._report ?? {},
             'ai_analysis': r['analysis'],
             'ai_analysis_generated_at': r['generated_at'],
+            'teacher_notes': r['teacher_notes'],
+            'analysis_version': r['version_number'],
           };
+          // Previous notes become the notes from before this regeneration
+          _previousTeacherNotes = _report?['teacher_notes'] as String?;
         });
         showSnack(context, 'AI report generated');
       }
     } catch (e) {
-      if (mounted) showSnack(context, 'Generation failed', error: true);
+      if (mounted) showSnack(context, 'Generation failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -1160,7 +1184,50 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
           if (analysis != null) ...[
             _SectionCard(title: 'AI Analysis${generatedAt != null ? ' · ${_fmtDate(generatedAt)}' : ''}', children: [
               _AnalysisCard(analysis: analysis),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              // Teacher notes — shown pre-filled when regenerating
+              if (_previousTeacherNotes != null && _previousTeacherNotes!.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.sunLight,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.sun.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Your previous notes',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.sun)),
+                      const SizedBox(height: 4),
+                      Text(_previousTeacherNotes!,
+                          style: const TextStyle(fontSize: 12, color: AppColors.text, height: 1.4)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              TextField(
+                controller: _notesController,
+                maxLines: 3,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Add your observations before refreshing (optional)…',
+                  hintStyle: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  filled: true,
+                  fillColor: AppColors.bg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -1190,8 +1257,29 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                 const SizedBox(height: 10),
                 const Text('No AI analysis yet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
                 const SizedBox(height: 4),
-                const Text('Generate a longitudinal analysis of this student\'s performance across all tests.', style: TextStyle(fontSize: 12, color: AppColors.muted), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
+                const Text('Add your observations to personalise the AI report.', style: TextStyle(fontSize: 12, color: AppColors.muted), textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _notesController,
+                  maxLines: 3,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Your observations about this student (optional)…',
+                    hintStyle: const TextStyle(fontSize: 12, color: AppColors.muted),
+                    filled: true,
+                    fillColor: AppColors.bg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(

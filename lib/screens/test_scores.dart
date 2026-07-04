@@ -17,9 +17,11 @@ class TestScoresScreen extends StatefulWidget {
 class _TestScoresScreenState extends State<TestScoresScreen> {
   TestScoresResponse? _scores;
   AnalysisInsight? _analysis;
+  TestAnalysisResult? _fullAnalysis;
   List<TestQuestion> _questions = [];
   bool _loadingScores = true;
   bool _loadingAnalysis = false;
+  bool _runningAnalysis = false;
 
   @override
   void initState() {
@@ -58,6 +60,36 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
       setState(() { _analysis = a; _loadingAnalysis = false; });
     } catch (_) {
       setState(() => _loadingAnalysis = false);
+    }
+  }
+
+  Future<void> _runAnalysis({bool isRefresh = false}) async {
+    if (_runningAnalysis) return;
+    setState(() => _runningAnalysis = true);
+    try {
+      final result = await ApiClient.runTestAnalysis(widget.test.id, isRefresh: isRefresh);
+      if (mounted) {
+        setState(() {
+          _fullAnalysis = result;
+          // Also update the slim AnalysisInsight so _AnalysisCard shows something if visible
+          _analysis = AnalysisInsight(
+            summary: result.summary,
+            concernAreas: result.concernAreas,
+            recommendedAction: result.recommendedAction,
+          );
+          _runningAnalysis = false;
+        });
+        if (result.isUpToDate) {
+          showSnack(context, 'Analysis is already up to date');
+        } else {
+          showSnack(context, 'Smart analysis complete');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _runningAnalysis = false);
+        showSnack(context, 'Analysis failed: $e', error: true);
+      }
     }
   }
 
@@ -116,6 +148,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             foregroundColor: Colors.white,
             expandedHeight: 120,
             pinned: true,
+            centerTitle: false,
             actions: [
               IconButton(
                 key: const Key('preview_test_button'),
@@ -125,6 +158,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
               title: Text(
                 widget.test.title,
                 style: const TextStyle(
@@ -265,15 +299,27 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             ),
           ],
 
-          // AI Analysis section — hidden if SA has disabled ai_analysis for this school/teacher
+          // Smart Analysis section
           if (context.read<AuthProvider>().features.aiAnalysis)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                child: _AnalysisCard(
-                  analysis: _analysis,
+                child: _SmartAnalysisSection(
+                  analysis: _fullAnalysis ?? (_analysis != null
+                      ? TestAnalysisResult(
+                          generatedAt: '',
+                          studentCount: 0,
+                          summary: _analysis!.summary,
+                          concernAreas: _analysis!.concernAreas,
+                          recommendedAction: _analysis!.recommendedAction,
+                          studentPlans: const [],
+                        )
+                      : null),
                   loading: _loadingAnalysis,
-                  onLoad: _loadAnalysis,
+                  running: _runningAnalysis,
+                  hasScores: _scores != null && _scores!.scores.isNotEmpty,
+                  onRun: () => _runAnalysis(isRefresh: false),
+                  onRerun: () => _runAnalysis(isRefresh: true),
                 ),
               ),
             ),
@@ -392,11 +438,22 @@ class _ScoreTile extends StatelessWidget {
       );
 }
 
-class _AnalysisCard extends StatelessWidget {
-  final AnalysisInsight? analysis;
+class _SmartAnalysisSection extends StatelessWidget {
+  final TestAnalysisResult? analysis;
   final bool loading;
-  final VoidCallback onLoad;
-  const _AnalysisCard({this.analysis, required this.loading, required this.onLoad});
+  final bool running;
+  final bool hasScores;
+  final VoidCallback onRun;
+  final VoidCallback onRerun;
+
+  const _SmartAnalysisSection({
+    this.analysis,
+    required this.loading,
+    required this.running,
+    required this.hasScores,
+    required this.onRun,
+    required this.onRerun,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -409,121 +466,153 @@ class _AnalysisCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
       ),
-      padding: const EdgeInsets.all(14),
-      child: loading
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(color: Colors.white),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🧠', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('Smart Analysis',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
               ),
-            )
-          : analysis == null
-              ? Column(
+              if (analysis != null && analysis!.generatedAt.isNotEmpty)
+                Text(_fmtDate(analysis!.generatedAt),
+                    style: const TextStyle(fontSize: 10, color: Colors.white38)),
+            ],
+          ),
+
+          if (loading || running) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const SizedBox(width: 2, height: 2),
+                const SizedBox(width: 14, height: 14,
+                    child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+                const SizedBox(width: 10),
+                Text(running ? 'Generating analysis…' : 'Loading…',
+                    style: const TextStyle(fontSize: 12, color: Colors.white60)),
+              ],
+            ),
+          ] else if (analysis == null) ...[
+            const SizedBox(height: 10),
+            Text(
+              hasScores
+                  ? 'Run a one-time AI analysis of class performance, concern areas, and individual student plans.'
+                  : 'Enter marks first to enable smart analysis.',
+              style: const TextStyle(fontSize: 12, color: Colors.white60, height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: hasScores ? onRun : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.sun,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.white12,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.auto_awesome, size: 16),
+                label: const Text('Run Smart Analysis', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            // Summary
+            Text(analysis!.summary,
+                style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500, height: 1.5)),
+
+            // Concern areas
+            if (analysis!.concernAreas.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              const Text('⚠ Concern Areas',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFFBBF24))),
+              const SizedBox(height: 4),
+              ...analysis!.concernAreas.map((a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text('• $a',
+                        style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.4)),
+                  )),
+            ],
+
+            // Recommended action
+            if (analysis!.recommendedAction.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.teal.withOpacity(0.3)),
+                ),
+                child: Row(
                   children: [
-                    const Row(
-                      children: [
-                        Text('🧠', style: TextStyle(fontSize: 22)),
-                        SizedBox(width: 8),
-                        Text(
-                          'AI Analysis',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                    const Text('💡', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(analysis!.recommendedAction,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500, height: 1.4)),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'No analysis available. Generate one in Assessment Studio on the web.',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white60,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Text('🧠', style: TextStyle(fontSize: 22)),
-                        SizedBox(width: 8),
-                        Text(
-                          'AI Analysis',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      analysis!.summary,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
-                      ),
-                    ),
-                    if (analysis!.concernAreas.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      const Text(
-                        '⚠ Concern Areas',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFFFBBF24)),
-                      ),
-                      const SizedBox(height: 4),
-                      ...analysis!.concernAreas.map(
-                        (a) => Padding(
-                          padding: const EdgeInsets.only(bottom: 3),
-                          child: Text(
-                            '• $a',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.white70, height: 1.4),
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (analysis!.recommendedAction.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.teal.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: AppColors.teal.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Text('💡', style: TextStyle(fontSize: 14)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                analysis!.recommendedAction,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
+              ),
+            ],
+
+            // Suggested followup
+            if (analysis!.suggestedFollowup != null && analysis!.suggestedFollowup!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Text('📋', style: TextStyle(fontSize: 13)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Follow-up: ${analysis!.suggestedFollowup}',
+                          style: const TextStyle(fontSize: 11, color: Colors.white60, height: 1.4)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Re-run button
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: onRerun,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white54,
+                  side: const BorderSide(color: Colors.white24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const Text('Re-run Analysis',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
+  }
+
+  String _fmtDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${m[d.month - 1]}';
+    } catch (_) { return ''; }
   }
 }
 

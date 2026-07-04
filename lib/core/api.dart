@@ -389,6 +389,67 @@ class AnalysisInsight {
       );
 }
 
+// ── Test analysis result (richer model for mobile Run Analysis) ──────────────
+
+class TestAnalysisResult {
+  final String generatedAt;
+  final int studentCount;
+  final String summary;
+  final List<String> concernAreas;
+  final String recommendedAction;
+  final List<Map<String, dynamic>> studentPlans;
+  final String? suggestedFollowup;
+  final bool isUpToDate; // true when hash matched and cached result returned
+
+  const TestAnalysisResult({
+    required this.generatedAt,
+    required this.studentCount,
+    required this.summary,
+    required this.concernAreas,
+    required this.recommendedAction,
+    required this.studentPlans,
+    this.suggestedFollowup,
+    this.isUpToDate = false,
+  });
+
+  factory TestAnalysisResult.fromJson(Map<String, dynamic> j) {
+    final ci = (j['analysis'] as Map<String, dynamic>?)?['class_insight'] as Map<String, dynamic>? ?? {};
+    final plans = (j['analysis'] as Map<String, dynamic>?)?['student_plans'] as List<dynamic>? ?? [];
+    return TestAnalysisResult(
+      generatedAt: j['generated_at'] as String? ?? '',
+      studentCount: j['student_count'] as int? ?? 0,
+      summary: ci['summary'] as String? ?? '',
+      concernAreas: (ci['concern_areas'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      recommendedAction: ci['recommended_action'] as String? ?? '',
+      studentPlans: plans.map((e) => e as Map<String, dynamic>).toList(),
+      suggestedFollowup: (j['analysis'] as Map<String, dynamic>?)?['suggested_followup_test'] as String?,
+      isUpToDate: j['up_to_date'] as bool? ?? false,
+    );
+  }
+}
+
+// ── Teacher global search result ──────────────────────────────────────────────
+
+class TeacherSearchResult {
+  final List<Map<String, dynamic>> students;
+  final List<Map<String, dynamic>> tests;
+  final List<Map<String, dynamic>> announcements;
+
+  const TeacherSearchResult({
+    required this.students,
+    required this.tests,
+    required this.announcements,
+  });
+
+  bool get isEmpty => students.isEmpty && tests.isEmpty && announcements.isEmpty;
+
+  factory TeacherSearchResult.fromJson(Map<String, dynamic> j) => TeacherSearchResult(
+        students: (j['students'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+        tests: (j['tests'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+        announcements: (j['announcements'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      );
+}
+
 // ── New Models ────────────────────────────────────────────────────────────────
 
 class AnnouncementImage {
@@ -1540,9 +1601,41 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
-  static Future<Map<String, dynamic>> generateLongitudinalAnalysis(String studentId) async {
-    return (await _post('/api/v1/teacher/students/$studentId/longitudinal-analysis', {}))
-        as Map<String, dynamic>;
+  static Future<Map<String, dynamic>> generateLongitudinalAnalysis(
+    String studentId, {
+    String? teacherNotes,
+  }) async {
+    return (await _post('/api/v1/teacher/students/$studentId/longitudinal-analysis',
+        {'teacher_notes': teacherNotes})) as Map<String, dynamic>;
+  }
+
+  // ── Test-level smart analysis ─────────────────────────────────────────────
+
+  static Future<TestAnalysisResult> runTestAnalysis(String testId, {bool isRefresh = false}) async {
+    final data = await _post(
+      '/api/v1/tests/$testId/analysis?triggered_by=${isRefresh ? 'refresh' : 'initial'}',
+      {},
+    );
+    return TestAnalysisResult.fromJson(data as Map<String, dynamic>);
+  }
+
+  // ── Global search ─────────────────────────────────────────────────────────
+
+  static Future<TeacherSearchResult> teacherSearch(String q, {int limit = 5}) async {
+    final base = await getBaseUrl();
+    final token = await getToken();
+    final uri = Uri.parse('$base/api/v1/teacher/search')
+        .replace(queryParameters: {'q': q, 'limit': '$limit'});
+    final res = await http.get(uri, headers: {
+      if (token != null) 'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    }).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 401) {
+      await onUnauthorized?.call();
+      throw ApiError('Session expired', 401);
+    }
+    if (res.statusCode >= 400) throw ApiError(_errorDetail(res), res.statusCode);
+    return TeacherSearchResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   static Future<Map<String, dynamic>> getStudentFullReport(String studentId) async {

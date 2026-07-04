@@ -1336,20 +1336,35 @@ class ApiClient {
   }
 
   static Future<void> adminUpdateFeeStatus(String structureId, String status) async {
-    await _post('/api/v1/admin/fees/structures/$structureId/status', {'status': status});
+    await _put('/api/v1/admin/fees/structures/$structureId/status', {'status': status});
   }
 
   static Future<List<Map<String, dynamic>>> adminListFeePayments({String? structureId}) async {
     final path = structureId != null
-        ? '/api/v1/admin/fees/structures/$structureId/payments'
+        ? '/api/v1/admin/fees/payments?fee_structure_id=$structureId'
         : '/api/v1/admin/fees/payments';
     final data = await _get(path);
     return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> adminRecordPayment({required String structureId, required double amount, String method = 'cash', String? reference}) async {
-    await _post('/api/v1/admin/fees/structures/$structureId/payments',
-        {'amount': amount, 'payment_method': method, if (reference != null) 'reference_number': reference});
+  static Future<void> adminRecordPayment({
+    required String structureId,
+    required String studentId,
+    required double amount,
+    String method = 'cash',
+    String? reference,
+  }) async {
+    final receipt = 'RCP-${DateTime.now().millisecondsSinceEpoch}';
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    await _post('/api/v1/admin/fees/payments', {
+      'fee_structure_id': structureId,
+      'student_id': studentId,
+      'receipt_number': reference?.isNotEmpty == true ? reference! : receipt,
+      'amount': amount,
+      'payment_date': today,
+      'payment_method': method,
+      if (reference?.isNotEmpty == true) 'notes': 'Ref: $reference',
+    });
   }
 
   // ── Admin: Leave Config ───────────────────────────────────────────────────

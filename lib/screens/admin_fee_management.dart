@@ -411,6 +411,7 @@ class _StructuresTabState extends State<_StructuresTab> {
                           try {
                             await ApiClient.adminRecordPayment(
                               structureId: structure['id'].toString(),
+                              studentId: structure['student_id'].toString(),
                               amount: amount,
                               method: method,
                               reference: refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),

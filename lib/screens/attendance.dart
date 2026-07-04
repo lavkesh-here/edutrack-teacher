@@ -188,7 +188,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final unmarked = _students?.where((s) => s.status.isEmpty).length ?? 0;
     final canSubmit = !_saving && _students != null && unmarked == 0 && _students!.isNotEmpty;
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_swipeMode,
+      onPopInvoked: (didPop) {
+        if (!didPop && _swipeMode) _exitSwipeMode();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
@@ -439,7 +444,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ],
         ),
       ),
-    );
+    ), // Scaffold
+    ); // PopScope
   }
 
   Widget _buildSwipeView() {

@@ -345,8 +345,8 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
             const Text('NOTIFICATION TYPE', style: _labelStyle),
             const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: _typeIcons.entries.map((entry) {
                 final selected = _notifType == entry.key;
                 return GestureDetector(
@@ -359,7 +359,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                        horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: selected ? AppColors.sun : Colors.white,
                       borderRadius: BorderRadius.circular(40),

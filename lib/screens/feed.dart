@@ -100,20 +100,17 @@ class _FeedScreenState extends State<FeedScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (_, i) => _AnnouncementCard(
                           a: _announcements![i],
-                          onCommentTap: () => _showCommentsSheet(_announcements![i]),
+                          onCommentTap: () => _openComments(_announcements![i]),
                         ),
                       ),
       ),
     );
   }
 
-  void _showCommentsSheet(Announcement a) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _CommentsSheet(announcement: a),
+  void _openComments(Announcement a) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => _CommentsScreen(announcement: a)),
     );
   }
 
@@ -208,8 +205,6 @@ class _FeedScreenState extends State<FeedScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Image picker
                   const Text('Images (max 10, 5MB each)',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
                   const SizedBox(height: 6),
@@ -260,7 +255,6 @@ class _FeedScreenState extends State<FeedScreen> {
                       label: Text('Add Images (${pickedImages.length}/10)'),
                     ),
                   ],
-
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
@@ -279,32 +273,24 @@ class _FeedScreenState extends State<FeedScreen> {
                                   isPinned: isPinned,
                                   allowComments: allowComments,
                                 );
-
-                                // Upload images
                                 for (int i = 0; i < pickedImages.length; i++) {
                                   final img = pickedImages[i];
                                   final bytes = await img.readAsBytes();
                                   final ext = img.name.split('.').last.toLowerCase();
                                   final ct = ext == 'png' ? 'image/png' : 'image/jpeg';
-
-                                  final urlData = await ApiClient.getAnnouncementUploadUrl(
-                                      img.name, ct, bytes.length);
-                                  final uploadUrl = urlData['upload_url'] as String;
-                                  final gcsUrl = urlData['gcs_url'] as String;
-
-                                  await http.put(Uri.parse(uploadUrl),
+                                  final urlData = await ApiClient.getAnnouncementUploadUrl(img.name, ct, bytes.length);
+                                  await http.put(Uri.parse(urlData['upload_url'] as String),
                                       headers: {'Content-Type': ct}, body: bytes);
                                   await ApiClient.attachAnnouncementImage(
-                                      annId, gcsUrl, img.name, bytes.length, i);
+                                      annId, urlData['gcs_url'] as String, img.name, bytes.length, i);
                                 }
-
                                 if (mounted) Navigator.pop(ctx2);
                                 _load();
                                 if (mounted) showSnack(context, 'Announcement posted ✓');
                               } on ApiError catch (e) {
                                 setSheet(() => saving = false);
                                 if (mounted) showSnack(context, e.message, error: true);
-                              } catch (e) {
+                              } catch (_) {
                                 setSheet(() => saving = false);
                                 if (mounted) showSnack(context, 'Could not post announcement', error: true);
                               }
@@ -324,6 +310,8 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
+// ── Post card ─────────────────────────────────────────────────────────────────
+
 class _AnnouncementCard extends StatefulWidget {
   final Announcement a;
   final VoidCallback? onCommentTap;
@@ -336,6 +324,7 @@ class _AnnouncementCard extends StatefulWidget {
 class _AnnouncementCardState extends State<_AnnouncementCard> {
   late bool _liked;
   late int _likeCount;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -346,10 +335,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
 
   Future<void> _toggleLike() async {
     final wasLiked = _liked;
-    setState(() {
-      _liked = !_liked;
-      _likeCount += _liked ? 1 : -1;
-    });
+    setState(() { _liked = !_liked; _likeCount += _liked ? 1 : -1; });
     try {
       await ApiClient.toggleAnnouncementLike(widget.a.id);
     } catch (_) {
@@ -360,6 +346,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
   @override
   Widget build(BuildContext context) {
     final a = widget.a;
+    final preview = a.previewComment;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -373,48 +360,96 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: avatar + author + audience chip
           Row(
             children: [
-              if (a.isPinned) ...[
-                const Text('📌', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 4),
-              ],
-              Expanded(
-                child: Text(
-                  a.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text),
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.sunLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    (a.authorName ?? 'T').substring(0, 1).toUpperCase(),
+                    style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.sun, fontSize: 16),
+                  ),
                 ),
               ),
-              _AudienceChip(a.audience),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (a.isPinned) ...[
+                          const Text('📌', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 4),
+                        ],
+                        Expanded(
+                          child: Text(
+                            a.authorName ?? 'Teacher',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        _AudienceChip(a.audience),
+                      ],
+                    ),
+                    Text(fmtDate(a.createdAt),
+                        style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                  ],
+                ),
+              ),
             ],
           ),
+
+          const SizedBox(height: 10),
+
+          // Title
+          if (a.title.isNotEmpty) ...[
+            Text(a.title,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text)),
+            const SizedBox(height: 4),
+          ],
+
+          // Body with Read More
           if (a.body.isNotEmpty) ...[
-            const SizedBox(height: 6),
             Text(
               a.body,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: AppColors.text2, height: 1.5),
+              maxLines: _expanded ? null : 3,
+              overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: AppColors.text2, height: 1.5),
             ),
+            if (!_expanded && a.body.length > 120)
+              GestureDetector(
+                onTap: () => setState(() => _expanded = true),
+                child: const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Text('Read more',
+                      style: TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600)),
+                ),
+              ),
           ],
 
           // Images strip
           if (a.images.isNotEmpty) ...[
             const SizedBox(height: 10),
             SizedBox(
-              height: 80,
+              height: 90,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: a.images.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   child: Image.network(
                     a.images[i].gcsUrl,
-                    width: 80, height: 80,
+                    width: 90, height: 90,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
-                      width: 80, height: 80,
+                      width: 90, height: 90,
                       color: AppColors.bg,
                       child: const Icon(Icons.broken_image_outlined, color: AppColors.muted),
                     ),
@@ -424,83 +459,137 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
             ),
           ],
 
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 8),
+
+          // Action bar
           Row(
             children: [
-              Text(fmtDate(a.createdAt),
-                  style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-              if (a.authorName != null) ...[
-                const Text(' · ', style: TextStyle(fontSize: 10, color: AppColors.muted)),
-                Text(a.authorName!, style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-              ],
-              const Spacer(),
               GestureDetector(
                 onTap: _toggleLike,
                 child: Row(
                   children: [
                     Icon(
                       _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      size: 15,
+                      size: 18,
                       color: _liked ? AppColors.coral : AppColors.muted,
                     ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '$_likeCount',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: _liked ? AppColors.coral : AppColors.muted,
-                          fontWeight: FontWeight.w600),
-                    ),
+                    const SizedBox(width: 4),
+                    Text('$_likeCount',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: _liked ? AppColors.coral : AppColors.muted,
+                            fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
               if (a.allowComments) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 GestureDetector(
                   onTap: widget.onCommentTap,
                   child: Row(
                     children: [
-                      const Icon(Icons.mode_comment_outlined, size: 14, color: AppColors.muted),
+                      const Icon(Icons.mode_comment_outlined, size: 17, color: AppColors.muted),
                       const SizedBox(width: 4),
-                      Text(
-                        '${a.commentCount}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w600),
-                      ),
+                      Text('${a.commentCount}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
               ],
+              const Spacer(),
+              if (a.allowComments && widget.onCommentTap != null)
+                GestureDetector(
+                  onTap: widget.onCommentTap,
+                  child: Row(
+                    children: [
+                      Text(
+                        a.commentCount > 0 ? 'View ${a.commentCount} comment${a.commentCount == 1 ? '' : 's'}' : 'Add comment',
+                        style: const TextStyle(fontSize: 11, color: AppColors.sun, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.sun),
+                    ],
+                  ),
+                ),
             ],
           ),
+
+          // Preview comment
+          if (preview != null && a.allowComments) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: widget.onCommentTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.bg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: RichText(
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 12, color: AppColors.text2),
+                          children: [
+                            TextSpan(
+                              text: '${preview['author'] ?? ''} ',
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text),
+                            ),
+                            TextSpan(text: preview['body'] as String? ?? ''),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _CommentsSheet extends StatefulWidget {
+// ── Full-screen comments ──────────────────────────────────────────────────────
+
+class _CommentsScreen extends StatefulWidget {
   final Announcement announcement;
-  const _CommentsSheet({required this.announcement});
+  const _CommentsScreen({required this.announcement});
 
   @override
-  State<_CommentsSheet> createState() => _CommentsSheetState();
+  State<_CommentsScreen> createState() => _CommentsScreenState();
 }
 
-class _CommentsSheetState extends State<_CommentsSheet> {
+class _CommentsScreenState extends State<_CommentsScreen> {
   List<AnnouncementComment> _comments = [];
   bool _loading = true;
   final _ctrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   bool _posting = false;
+  String? _replyToId;
+  String? _replyToAuthor;
+  bool _showBackToTop = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _scrollCtrl.addListener(() {
+      final show = _scrollCtrl.offset > 400;
+      if (show != _showBackToTop) setState(() => _showBackToTop = show);
+    });
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -519,9 +608,16 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     if (text.isEmpty || _posting) return;
     setState(() => _posting = true);
     try {
-      await ApiClient.createComment(widget.announcement.id, text);
+      await ApiClient.createComment(widget.announcement.id, text, parentId: _replyToId);
       _ctrl.clear();
+      setState(() { _replyToId = null; _replyToAuthor = null; });
       await _load();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollCtrl.hasClients) {
+          _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        }
+      });
     } on ApiError catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
     } finally {
@@ -531,68 +627,108 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (_, ctrl) => Column(
+    final topLevel = _comments.where((c) => c.parentId == null).toList();
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: Text(widget.announcement.title.isNotEmpty
+            ? widget.announcement.title
+            : 'Comments'),
+        centerTitle: false,
+      ),
+      body: Column(
         children: [
-          const SizedBox(height: 8),
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                const Text('Comments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
-                const Spacer(),
-                Text('${_comments.length}', style: const TextStyle(fontSize: 13, color: AppColors.muted)),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
-                : _comments.isEmpty
-                    ? const Center(child: Text('No comments yet.\nBe the first!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.muted, fontSize: 13)))
-                    : ListView.separated(
-                        controller: ctrl,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _comments.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (_, i) {
-                          final c = _comments[i];
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.bg,
-                              borderRadius: BorderRadius.circular(12),
+                : Stack(
+                    children: [
+                      _comments.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('💬', style: TextStyle(fontSize: 40)),
+                                  SizedBox(height: 10),
+                                  Text('No comments yet.\nBe the first!',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                                ],
+                              ),
+                            )
+                          : RefreshIndicator(
+                              color: AppColors.sun,
+                              onRefresh: _load,
+                              child: ListView.builder(
+                                controller: _scrollCtrl,
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                                itemCount: topLevel.length,
+                                itemBuilder: (_, i) {
+                                  final c = topLevel[i];
+                                  final replies = _comments.where((r) => r.parentId == c.id).toList();
+                                  return _CommentBlock(
+                                    comment: c,
+                                    replies: replies,
+                                    onReply: (id, author) => setState(() {
+                                      _replyToId = id;
+                                      _replyToAuthor = author;
+                                      FocusScope.of(context).requestFocus(FocusNode());
+                                    }),
+                                  );
+                                },
+                              ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(c.authorName ?? 'Teacher',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text)),
-                                    const Spacer(),
-                                    Text(fmtDate(c.createdAt),
-                                        style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-                                  ],
+                      if (_showBackToTop)
+                        Positioned(
+                          bottom: 12, left: 0, right: 0,
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: () => _scrollCtrl.animateTo(0,
+                                  duration: const Duration(milliseconds: 350), curve: Curves.easeOut),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.text.withOpacity(0.75),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(c.body, style: const TextStyle(fontSize: 13, color: AppColors.text2)),
-                              ],
+                                child: const Text('Back to top',
+                                    style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
+                              ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+
+          // Reply banner
+          if (_replyToAuthor != null)
+            Container(
+              color: AppColors.sunLight,
+              padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.reply_rounded, size: 14, color: AppColors.sun),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Replying to $_replyToAuthor',
+                      style: const TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() { _replyToId = null; _replyToAuthor = null; }),
+                    child: const Icon(Icons.close, size: 16, color: AppColors.sun),
+                  ),
+                ],
+              ),
+            ),
+
+          // Input bar
+          Container(
+            color: Colors.white,
+            padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 12),
             child: Row(
               children: [
                 Expanded(
@@ -600,7 +736,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     key: const Key('comment_field'),
                     controller: _ctrl,
                     decoration: InputDecoration(
-                      hintText: 'Write a comment...',
+                      hintText: _replyToAuthor != null ? 'Reply to $_replyToAuthor…' : 'Say something…',
                       filled: true,
                       fillColor: AppColors.bg,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -632,6 +768,166 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     );
   }
 }
+
+// ── Comment block (top-level + nested replies) ────────────────────────────────
+
+class _CommentBlock extends StatelessWidget {
+  final AnnouncementComment comment;
+  final List<AnnouncementComment> replies;
+  final void Function(String id, String author) onReply;
+
+  const _CommentBlock({required this.comment, required this.replies, required this.onReply});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CommentTile(comment: comment, onReply: onReply),
+        ...replies.map((r) => Padding(
+          padding: const EdgeInsets.only(left: 32),
+          child: _CommentTile(comment: r, onReply: onReply, isReply: true),
+        )),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+}
+
+class _CommentTile extends StatefulWidget {
+  final AnnouncementComment comment;
+  final void Function(String id, String author) onReply;
+  final bool isReply;
+
+  const _CommentTile({required this.comment, required this.onReply, this.isReply = false});
+
+  @override
+  State<_CommentTile> createState() => _CommentTileState();
+}
+
+class _CommentTileState extends State<_CommentTile> {
+  late bool _liked;
+  late int _likeCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _liked = widget.comment.likedByMe;
+    _likeCount = widget.comment.likeCount;
+  }
+
+  Future<void> _toggleLike() async {
+    final was = _liked;
+    setState(() { _liked = !_liked; _likeCount += _liked ? 1 : -1; });
+    try {
+      await ApiClient.toggleCommentLike(widget.comment.id);
+    } catch (_) {
+      if (mounted) setState(() { _liked = was; _likeCount += was ? 1 : -1; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.comment;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: widget.isReply ? 28 : 32,
+            height: widget.isReply ? 28 : 32,
+            decoration: BoxDecoration(
+              color: widget.isReply ? AppColors.tealLight : AppColors.skyLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                (c.authorName ?? 'T').substring(0, 1).toUpperCase(),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: widget.isReply ? AppColors.teal : AppColors.sky,
+                  fontSize: widget.isReply ? 12 : 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          c.authorName ?? 'Teacher',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text),
+                        ),
+                      ),
+                      Text(fmtDate(c.createdAt),
+                          style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(c.body, style: const TextStyle(fontSize: 13, color: AppColors.text2, height: 1.4)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: _toggleLike,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              size: 14,
+                              color: _liked ? AppColors.coral : AppColors.muted,
+                            ),
+                            const SizedBox(width: 3),
+                            Text('$_likeCount',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: _liked ? AppColors.coral : AppColors.muted,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      if (!widget.isReply) ...[
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () => onReply(c.id, c.authorName ?? 'Teacher'),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.reply_rounded, size: 14, color: AppColors.muted),
+                              SizedBox(width: 3),
+                              Text('Reply',
+                                  style: TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void onReply(String id, String author) => widget.onReply(id, author);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 class _AudienceChip extends StatelessWidget {
   final String audience;

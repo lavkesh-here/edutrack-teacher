@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../core/auth.dart';
@@ -10,7 +12,6 @@ import 'attendance.dart';
 import 'timetable.dart';
 import 'leave.dart';
 import 'tests.dart';
-import 'profile.dart';
 import 'feed.dart';
 import 'calendar_screen.dart';
 import 'worklog.dart';
@@ -518,6 +519,11 @@ class _HomeTabState extends State<_HomeTab> {
                       label: '📊 Post Results',
                       color: AppColors.amber,
                       onTap: () => _openScreen(context, const TestsScreen(), recentId: 'results'),
+                    ),
+                    _QuickPill(
+                      label: '🕐 Sign In',
+                      color: AppColors.sky,
+                      onTap: () => _openScreen(context, const MyAttendanceScreen()),
                     ),
                   ],
                 ),
@@ -1142,6 +1148,7 @@ class _MoreTab extends StatefulWidget {
 
 class _MoreTabState extends State<_MoreTab> {
   bool _bioEnabled = false;
+  bool _uploadingPhoto = false;
   String _appVersion = '';
 
   @override
@@ -1181,6 +1188,175 @@ class _MoreTabState extends State<_MoreTab> {
   Future<void> _push(BuildContext context, Widget screen, {String? recentId}) async {
     if (recentId != null) await RecentsManager.record(recentId);
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  Future<void> _pickAndUploadPhoto(BuildContext context) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+      if (mounted) showSnack(context, 'Image must be under 5MB', error: true);
+      return;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+    setState(() => _uploadingPhoto = true);
+    try {
+      final resp = await ApiClient.getPhotoUploadUrl(file.name, contentType, bytes.lengthInBytes);
+      final uploadUrl = resp['upload_url'] as String;
+      final photoUrl = resp['photo_url'] as String;
+      final putRes = await http.put(Uri.parse(uploadUrl), headers: {'Content-Type': contentType}, body: bytes);
+      if (putRes.statusCode >= 400) throw Exception('Could not upload to storage (${putRes.statusCode}). Try again.');
+      await ApiClient.savePhotoUrl(photoUrl);
+      if (mounted) await context.read<AuthProvider>().updatePhotoUrl(photoUrl);
+      if (mounted) showSnack(context, 'Photo updated');
+    } catch (e) {
+      if (mounted) {
+        final msg = e is ApiError ? e.message : e.toString().replaceFirst('Exception: ', '');
+        showSnack(context, msg, error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  void _showPersonalDetailsSheet(BuildContext context, AuthUser user) {
+    final nameCtrl = TextEditingController(text: user.teacherName);
+    final phoneCtrl = TextEditingController(text: user.phone ?? '');
+    final emailCtrl = TextEditingController(text: user.email ?? '');
+    bool saving = false;
+    bool fetchDone = false;
+    String? nameError;
+    String? phoneError;
+
+    void fetchFresh(StateSetter setSheet) {
+      if (fetchDone) return;
+      fetchDone = true;
+      ApiClient.getMyProfile().then((data) {
+        setSheet(() {
+          nameCtrl.text = data['name'] as String? ?? nameCtrl.text;
+          phoneCtrl.text = data['phone'] as String? ?? phoneCtrl.text;
+          emailCtrl.text = data['email'] as String? ?? emailCtrl.text;
+        });
+      }).catchError((_) {});
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          fetchFresh(setSheet);
+          return Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36, height: 4,
+                    decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Personal Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: nameCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  maxLength: 30,
+                  inputFormatters: [LengthLimitingTextInputFormatter(30)],
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    errorText: nameError,
+                    counterText: '',
+                  ),
+                  onChanged: (_) { if (nameError != null) setSheet(() => nameError = null); },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Phone',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    errorText: phoneError,
+                    counterText: '',
+                  ),
+                  onChanged: (_) { if (phoneError != null) setSheet(() => phoneError = null); },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: saving ? null : () async {
+                      final name = nameCtrl.text.trim();
+                      final phone = phoneCtrl.text.trim();
+                      String? nErr;
+                      String? pErr;
+                      if (name.isEmpty) nErr = 'Name is required';
+                      else if (name.length > 30) nErr = 'Max 30 characters';
+                      if (phone.isNotEmpty && phone.length != 10) pErr = 'Must be exactly 10 digits';
+                      if (nErr != null || pErr != null) {
+                        setSheet(() { nameError = nErr; phoneError = pErr; });
+                        return;
+                      }
+                      setSheet(() => saving = true);
+                      try {
+                        final email = emailCtrl.text.trim();
+                        await ApiClient.updateMyProfile(
+                          name: name.isNotEmpty ? name : null,
+                          phone: phone.isNotEmpty ? phone : null,
+                          email: email.isNotEmpty ? email : null,
+                        );
+                        if (ctx.mounted) {
+                          await ctx.read<AuthProvider>().updateProfile(
+                            name: name.isNotEmpty ? name : null,
+                            phone: phone.isNotEmpty ? phone : null,
+                            email: email.isNotEmpty ? email : null,
+                          );
+                          Navigator.pop(ctx);
+                          if (mounted) showSnack(context, 'Profile updated');
+                        }
+                      } catch (e) {
+                        setSheet(() => saving = false);
+                        if (ctx.mounted) {
+                          final msg = e is ApiError ? e.message : 'Could not update profile. Try again.';
+                          showSnack(ctx, msg, error: true);
+                        }
+                      }
+                    },
+                    child: saving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                        : const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _confirmSignOut(BuildContext context) {
@@ -1225,49 +1401,63 @@ class _MoreTabState extends State<_MoreTab> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Profile card (tap to edit photo)
-              GestureDetector(
-                onTap: () => _push(context, const ProfileScreen()),
-                child: Container(
-                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [AppColors.sun, AppColors.coral],
+              // Profile card — tap avatar to change photo
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.sun, AppColors.coral],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _pickAndUploadPhoto(context),
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 50, height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.25),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
+                            ),
+                            child: ClipOval(
+                              child: _uploadingPhoto
+                                  ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : user.photoUrl != null
+                                      ? Image.network(user.photoUrl!, width: 50, height: 50, fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Center(child: Text(auth.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white))))
+                                      : Center(child: Text(auth.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white))),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0, right: 0,
+                            child: Container(
+                              width: 18, height: 18,
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                              child: const Icon(Icons.camera_alt, size: 10, color: AppColors.sun),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 50, height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
-                        ),
-                        child: Center(
-                          child: user.photoUrl != null
-                              ? ClipOval(child: Image.network(user.photoUrl!, width: 50, height: 50, fit: BoxFit.cover))
-                              : Text(auth.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user.teacherName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
+                          const SizedBox(height: 2),
+                          Text(user.schoolName, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(user.teacherName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
-                            const SizedBox(height: 2),
-                            Text(user.schoolName, style: const TextStyle(fontSize: 11, color: Colors.white70)),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -1282,7 +1472,7 @@ class _MoreTabState extends State<_MoreTab> {
                     const Text('MY INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
                     _FeatureRow(icon: '👤', iconBg: AppColors.sunLight, title: 'Personal Details', sub: 'Name, email, contact info',
-                        onTap: () => _push(context, const ProfileScreen())),
+                        onTap: () => _showPersonalDetailsSheet(context, user)),
                     _FeatureRow(icon: '🗓️', iconBg: AppColors.coralLight, title: 'My Leaves', sub: 'Balance, history & apply',
                         onTap: () => _push(context, const LeaveScreen(), recentId: 'leaves')),
                     _FeatureRow(icon: '📋', iconBg: AppColors.tealLight, title: 'My Attendance', sub: 'Your attendance record',

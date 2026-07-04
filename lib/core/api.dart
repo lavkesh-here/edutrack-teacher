@@ -390,12 +390,26 @@ class AnnouncementComment {
   final String body;
   final String? authorName;
   final String createdAt;
-  const AnnouncementComment({required this.id, required this.body, this.authorName, required this.createdAt});
+  final String? parentId;
+  final int likeCount;
+  final bool likedByMe;
+  const AnnouncementComment({
+    required this.id,
+    required this.body,
+    this.authorName,
+    required this.createdAt,
+    this.parentId,
+    this.likeCount = 0,
+    this.likedByMe = false,
+  });
   factory AnnouncementComment.fromJson(Map<String, dynamic> j) => AnnouncementComment(
         id: j['id'].toString(),
         body: j['body'] as String? ?? '',
         authorName: j['author_name'] as String?,
         createdAt: j['created_at'] as String? ?? '',
+        parentId: j['parent_id']?.toString(),
+        likeCount: j['like_count'] as int? ?? 0,
+        likedByMe: j['liked_by_me'] as bool? ?? false,
       );
 }
 
@@ -412,6 +426,7 @@ class Announcement {
   final int commentCount;
   final int likeCount;
   final bool likedByMe;
+  final Map<String, dynamic>? previewComment;
 
   const Announcement({
     required this.id,
@@ -426,6 +441,7 @@ class Announcement {
     this.commentCount = 0,
     this.likeCount = 0,
     this.likedByMe = false,
+    this.previewComment,
   });
 
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
@@ -437,6 +453,7 @@ class Announcement {
         allowComments: j['allow_comments'] as bool? ?? false,
         createdAt: j['created_at'] as String? ?? '',
         authorName: j['author_name'] as String?,
+        previewComment: j['preview_comment'] as Map<String, dynamic>?,
         images: (j['images'] as List<dynamic>? ?? [])
             .map((e) => AnnouncementImage.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -973,8 +990,16 @@ class ApiClient {
         .toList();
   }
 
-  static Future<void> createComment(String announcementId, String body) async {
-    await _post('/api/v1/admin/announcements/$announcementId/comments', {'body': body});
+  static Future<void> createComment(String announcementId, String body, {String? parentId}) async {
+    await _post('/api/v1/admin/announcements/$announcementId/comments', {
+      'body': body,
+      if (parentId != null) 'parent_id': parentId,
+    });
+  }
+
+  static Future<bool> toggleCommentLike(String commentId) async {
+    final data = await _post('/api/v1/admin/announcements/comments/$commentId/like', {});
+    return (data as Map<String, dynamic>)['liked'] as bool? ?? false;
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────

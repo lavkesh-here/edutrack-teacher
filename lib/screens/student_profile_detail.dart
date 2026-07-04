@@ -215,19 +215,20 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           actions: [
-            IconButton(
-              tooltip: 'WhatsApp Report',
-              icon: const Text('💬', style: TextStyle(fontSize: 20)),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => WhatsAppReportScreen(
-                    studentId: widget.studentId,
-                    studentName: widget.studentName,
+            if (context.read<AuthProvider>().features.aiAnalysis)
+              IconButton(
+                tooltip: 'WhatsApp Report',
+                icon: const Text('💬', style: TextStyle(fontSize: 20)),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => WhatsAppReportScreen(
+                      studentId: widget.studentId,
+                      studentName: widget.studentName,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
           flexibleSpace: FlexibleSpaceBar(
             collapseMode: CollapseMode.pin,

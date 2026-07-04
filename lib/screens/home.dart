@@ -320,18 +320,6 @@ class _HomeTabState extends State<_HomeTab> {
                         const SizedBox(width: 8),
                       ],
                       GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherSearchScreen())),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.search, color: Colors.white, size: 22),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
                         onTap: () => _openScreen(context, const NotificationsScreen()),
                         child: Container(
                           padding: const EdgeInsets.all(8),
@@ -353,6 +341,41 @@ class _HomeTabState extends State<_HomeTab> {
                       _HeroChip('🏫 ${user.schoolName}'),
                       _HeroChip(_roleLabel(user.role)),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Gmail-style persistent search bar
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherSearchScreen())),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, color: AppColors.muted, size: 20),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Search students, tests, announcements…',
+                              style: TextStyle(fontSize: 13, color: AppColors.muted),
+                            ),
+                          ),
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              color: AppColors.sunLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.person_outline, size: 16, color: AppColors.sun),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1741,17 +1764,6 @@ class _MoreTabState extends State<_MoreTab> {
                           const SizedBox(height: 2),
                           Text(user.schoolName, style: const TextStyle(fontSize: 11, color: Colors.white70)),
                         ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherSearchScreen())),
-                      child: Container(
-                        width: 38, height: 38,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.18),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.search, color: Colors.white, size: 20),
                       ),
                     ),
                   ],

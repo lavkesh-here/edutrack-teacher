@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'whatsapp_report.dart';
@@ -1130,6 +1132,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
     if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
     if (_error != null) return _EmptyState(icon: '⚠️', label: 'Could not load report');
     final report = _report!;
+    final canUseAi = context.read<AuthProvider>().features.aiAnalysis;
 
     final history = (report['test_history'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final heatmap = (report['chapter_heatmap'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -1181,7 +1184,10 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
           ],
 
           // ── AI Analysis ──
-          if (analysis != null) ...[
+          if (!canUseAi) ...[
+            _PlanUpgradeCard(feature: 'AI Analysis', requiredPlan: 'Premium'),
+            const SizedBox(height: 12),
+          ] else if (analysis != null) ...[
             _SectionCard(title: 'AI Analysis${generatedAt != null ? ' · ${_fmtDate(generatedAt)}' : ''}', children: [
               _AnalysisCard(analysis: analysis),
               const SizedBox(height: 16),
@@ -1633,6 +1639,38 @@ class _EmptyState extends StatelessWidget {
       );
 }
 
+// ── Plan upgrade prompt ───────────────────────────────────────────────────────
+
+class _PlanUpgradeCard extends StatelessWidget {
+  final String feature;
+  final String requiredPlan;
+  const _PlanUpgradeCard({required this.feature, required this.requiredPlan});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('🔒', style: TextStyle(fontSize: 36)),
+        const SizedBox(height: 10),
+        Text(feature, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text)),
+        const SizedBox(height: 4),
+        Text(
+          'This feature requires the $requiredPlan plan. Contact your school administrator to upgrade.',
+          style: const TextStyle(fontSize: 12, color: AppColors.muted, height: 1.5),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+}
+
 // ── Full Report Card Tab ──────────────────────────────────────────────────────
 
 class _FullReportCardTab extends StatefulWidget {
@@ -1698,6 +1736,18 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
   Widget build(BuildContext context) {
     super.build(context);
     if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
+
+    // Plan gate — show upgrade prompt before anything else
+    final canUseAi = context.read<AuthProvider>().features.aiAnalysis;
+    if (!canUseAi) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: _PlanUpgradeCard(feature: 'Holistic Report Card', requiredPlan: 'Premium'),
+        ),
+      );
+    }
+
     if (_error != null) return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),

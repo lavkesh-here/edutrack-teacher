@@ -320,6 +320,18 @@ class _HomeTabState extends State<_HomeTab> {
                         const SizedBox(width: 8),
                       ],
                       GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherSearchScreen())),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.search, color: Colors.white, size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
                         onTap: () => _openScreen(context, const NotificationsScreen()),
                         child: Container(
                           padding: const EdgeInsets.all(8),

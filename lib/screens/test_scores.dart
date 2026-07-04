@@ -149,6 +149,16 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             expandedHeight: 120,
             pinned: true,
             centerTitle: false,
+            title: Text(
+              widget.test.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             actions: [
               IconButton(
                 key: const Key('preview_test_button'),
@@ -158,17 +168,6 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
-              title: Text(
-                widget.test.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
               background: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(

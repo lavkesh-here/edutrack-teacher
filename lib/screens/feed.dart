@@ -326,6 +326,43 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
   late int _likeCount;
   bool _expanded = false;
 
+  void _openImageFullscreen(List<AnnouncementImage> images, int startIndex) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        final ctrl = PageController(initialPage: startIndex);
+        return Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: ctrl,
+                itemCount: images.length,
+                itemBuilder: (_, i) => InteractiveViewer(
+                  child: Center(
+                    child: Image.network(images[i].gcsUrl, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 40, right: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(dialogCtx),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                    child: const Icon(Icons.close, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -442,16 +479,19 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                 scrollDirection: Axis.horizontal,
                 itemCount: a.images.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    a.images[i].gcsUrl,
-                    width: 90, height: 90,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => _openImageFullscreen(a.images, i),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      a.images[i].gcsUrl,
                       width: 90, height: 90,
-                      color: AppColors.bg,
-                      child: const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 90, height: 90,
+                        color: AppColors.bg,
+                        child: const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+                      ),
                     ),
                   ),
                 ),

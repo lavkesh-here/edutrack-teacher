@@ -1194,6 +1194,73 @@ class _MoreTabState extends State<_MoreTab> {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  void _openPhotoFullscreen(BuildContext context, String photoUrl) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(photoUrl, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+              ),
+            ),
+            Positioned(
+              top: 40, right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(dialogCtx),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPhotoOptions(BuildContext context, String? currentPhotoUrl) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+            ),
+            if (currentPhotoUrl != null && currentPhotoUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.visibility_rounded, color: AppColors.sun),
+                title: const Text('View Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _openPhotoFullscreen(context, currentPhotoUrl);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.sun),
+              title: const Text('Change Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _pickAndUploadPhoto(context);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickAndUploadPhoto(BuildContext context) async {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
@@ -1420,7 +1487,7 @@ class _MoreTabState extends State<_MoreTab> {
                 child: Row(
                   children: [
                     GestureDetector(
-                      onTap: () => _pickAndUploadPhoto(context),
+                      onTap: () => _showPhotoOptions(context, user.photoUrl),
                       child: Stack(
                         children: [
                           Container(

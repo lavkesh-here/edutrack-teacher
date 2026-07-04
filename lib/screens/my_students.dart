@@ -194,16 +194,19 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                           itemBuilder: (_, i) => _StudentRow(
                             student: _filtered[i],
                             sectionLabel: _selectedSection?.label ?? '',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => StudentProfileDetail(
-                                  studentId: _filtered[i].id,
-                                  studentName: _filtered[i].name,
-                                  sectionLabel: _selectedSection?.label ?? '',
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StudentProfileDetail(
+                                    studentId: _filtered[i].id,
+                                    studentName: _filtered[i].name,
+                                    sectionLabel: _selectedSection?.label ?? '',
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                              _loadStudents();
+                            },
                           ),
                         ),
                       ),
@@ -253,15 +256,27 @@ class _StudentRow extends StatelessWidget {
                   color: AppColors.sunLight,
                   shape: BoxShape.circle,
                 ),
-                child: Center(
-                  child: Text(
-                    _initials(student.name),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.sun,
-                    ),
-                  ),
+                child: ClipOval(
+                  child: (student.photoUrl != null && student.photoUrl!.isNotEmpty)
+                      ? Image.network(
+                          student.photoUrl!,
+                          width: 44, height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(_initials(student.name),
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.sun)),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            _initials(student.name),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.sun,
+                            ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 12),

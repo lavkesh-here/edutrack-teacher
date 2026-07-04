@@ -65,12 +65,80 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
     return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : '?';
   }
 
-  Future<void> _onAvatarTap() async {
+  void _openPhotoFullscreen(String photoUrl) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(photoUrl, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+              ),
+            ),
+            Positioned(
+              top: 40, right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(dialogCtx),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPhotoOptions() {
+    final photoUrl = _profile?['photo_url'] as String?;
     final photoUploadedBy = _profile?['photo_uploaded_by'] as String?;
-    if (photoUploadedBy == 'teacher') {
-      showSnack(context, 'Photo already uploaded — only a parent can change it', error: true);
-      return;
-    }
+    final canChange = photoUploadedBy != 'teacher';
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+    if (!hasPhoto && !canChange) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+            if (hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.visibility_rounded, color: AppColors.sun),
+                title: const Text('View Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _openPhotoFullscreen(photoUrl!);
+                },
+              ),
+            if (canChange)
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.sun),
+                title: const Text('Change Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _doUpload();
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _doUpload() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
     if (file == null || !mounted) return;
@@ -175,20 +243,20 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
                   children: [
                     const SizedBox(height: 40),
                     // Tappable avatar with camera badge
-                    Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        _HeroAvatar(
-                          initials: _initials(name),
-                          photoUrl: photoUrl,
-                          gender: gender,
-                          size: 72,
-                          uploading: _uploading,
-                        ),
-                        if (canUpload)
-                          GestureDetector(
-                            onTap: _uploading ? null : _onAvatarTap,
-                            child: Container(
+                    GestureDetector(
+                      onTap: _uploading ? null : _showPhotoOptions,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          _HeroAvatar(
+                            initials: _initials(name),
+                            photoUrl: photoUrl,
+                            gender: gender,
+                            size: 72,
+                            uploading: _uploading,
+                          ),
+                          if (canUpload)
+                            Container(
                               width: 26, height: 26,
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -197,8 +265,8 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
                               ),
                               child: const Icon(Icons.camera_alt, size: 14, color: AppColors.sun),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),

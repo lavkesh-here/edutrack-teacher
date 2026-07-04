@@ -170,6 +170,24 @@ class TestSummary {
       );
 }
 
+class TestQuestion {
+  final int order;
+  final double marks;
+  final String questionText;
+
+  const TestQuestion({required this.order, required this.marks, required this.questionText});
+
+  factory TestQuestion.fromJson(Map<String, dynamic> j) {
+    final custom = j['custom_question_text'] as String?;
+    final diksha = (j['question'] as Map<String, dynamic>?)?['question_text'] as String?;
+    return TestQuestion(
+      order: j['order'] as int? ?? 0,
+      marks: (j['marks'] as num?)?.toDouble() ?? 0,
+      questionText: (custom?.isNotEmpty == true ? custom : diksha) ?? '',
+    );
+  }
+}
+
 class StudentScore {
   final String rollNo;
   final String name;
@@ -829,6 +847,13 @@ class ApiClient {
     final data = await _get('/api/v1/tests/$testId/roster');
     final map = data as Map<String, dynamic>;
     return (map['students'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  static Future<List<TestQuestion>> getTestQuestions(String testId) async {
+    final data = await _get('/api/v1/tests/$testId');
+    final map = data as Map<String, dynamic>;
+    final list = (map['questions'] as List<dynamic>?) ?? [];
+    return list.map((e) => TestQuestion.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   static Future<void> submitTestScores(

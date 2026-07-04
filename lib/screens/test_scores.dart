@@ -17,6 +17,7 @@ class TestScoresScreen extends StatefulWidget {
 class _TestScoresScreenState extends State<TestScoresScreen> {
   TestScoresResponse? _scores;
   AnalysisInsight? _analysis;
+  List<TestQuestion> _questions = [];
   bool _loadingScores = true;
   bool _loadingAnalysis = false;
 
@@ -24,6 +25,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
   void initState() {
     super.initState();
     _loadScores();
+    _loadQuestions();
   }
 
   Future<void> _loadScores() async {
@@ -31,11 +33,17 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     try {
       final scores = await ApiClient.getTestScores(widget.test.id);
       setState(() { _scores = scores; _loadingScores = false; });
-      // Try loading saved analysis
       _loadAnalysis();
     } catch (_) {
       setState(() => _loadingScores = false);
     }
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      final qs = await ApiClient.getTestQuestions(widget.test.id);
+      if (mounted) setState(() => _questions = qs);
+    } catch (_) {}
   }
 
   Future<void> _loadAnalysis() async {
@@ -70,10 +78,29 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     }
   }
 
+  Future<void> _openMarkEntry() async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => _MarkEntryScreen(test: widget.test)),
+    );
+    if (saved == true) _loadScores();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDraft = widget.test.status == 'draft';
     return Scaffold(
       backgroundColor: AppColors.bg,
+      floatingActionButton: isDraft
+          ? FloatingActionButton.extended(
+              key: const Key('enter_marks_fab'),
+              onPressed: _openMarkEntry,
+              backgroundColor: AppColors.violet,
+              icon: const Icon(Icons.edit_outlined, color: Colors.white),
+              label: const Text('Enter Marks',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            )
+          : null,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -82,21 +109,6 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             expandedHeight: 120,
             pinned: true,
             actions: [
-              if (widget.test.status == 'draft')
-                IconButton(
-                  key: const Key('enter_marks_button'),
-                  icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                  tooltip: 'Enter Marks',
-                  onPressed: () async {
-                    final saved = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => _MarkEntryScreen(test: widget.test),
-                      ),
-                    );
-                    if (saved == true) _loadScores();
-                  },
-                ),
               IconButton(
                 key: const Key('preview_test_button'),
                 icon: const Icon(Icons.preview_outlined, color: Colors.white),
@@ -188,6 +200,63 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
               ),
             ),
 
+          // Questions section
+          if (_questions.isNotEmpty) ...[
+            const SliverToBoxAdapter(child: SectionHeader(title: 'Questions')),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                child: AppCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: _questions.asMap().entries.map((e) {
+                      final q = e.value;
+                      final isLast = e.key == _questions.length - 1;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: isLast
+                              ? null
+                              : const Border(bottom: BorderSide(color: AppColors.border)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColors.violetLight,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text('${q.order}',
+                                    style: const TextStyle(
+                                        fontSize: 12, fontWeight: FontWeight.w900,
+                                        color: AppColors.violet)),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                q.questionText.isNotEmpty ? q.questionText : '(No question text)',
+                                style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.4),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('${q.marks.toInt()}m',
+                                style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700,
+                                    color: AppColors.muted)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+
           // AI Analysis section — hidden if SA has disabled ai_analysis for this school/teacher
           if (context.read<AuthProvider>().features.aiAnalysis)
             SliverToBoxAdapter(
@@ -214,10 +283,10 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
               ),
             )
           else if (_scores == null || _scores!.scores.isEmpty)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, isDraft ? 88 : 20),
+                child: const Center(
                   child: Text(
                     'No scores entered yet',
                     style: TextStyle(color: AppColors.muted),
@@ -228,7 +297,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
           else
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, isDraft ? 88 : 24),
                 child: AppCard(
                   padding: EdgeInsets.zero,
                   child: Builder(builder: (_) {

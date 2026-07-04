@@ -825,6 +825,17 @@ class ApiClient {
     return TestScoresResponse.fromJson(data as Map<String, dynamic>);
   }
 
+  static Future<List<Map<String, dynamic>>> getTestRoster(String testId) async {
+    final data = await _get('/api/v1/tests/$testId/roster');
+    final map = data as Map<String, dynamic>;
+    return (map['students'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> submitTestScores(
+      String testId, List<Map<String, dynamic>> scores) async {
+    await _post('/api/v1/tests/$testId/scores', {'scores': scores});
+  }
+
   static Future<AnalysisInsight?> getAnalysis(String testId) async {
     try {
       final data = await _get('/api/v1/tests/$testId/analysis/saved');

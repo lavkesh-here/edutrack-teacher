@@ -82,6 +82,21 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             expandedHeight: 120,
             pinned: true,
             actions: [
+              if (widget.test.status == 'draft')
+                IconButton(
+                  key: const Key('enter_marks_button'),
+                  icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                  tooltip: 'Enter Marks',
+                  onPressed: () async {
+                    final saved = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => _MarkEntryScreen(test: widget.test),
+                      ),
+                    );
+                    if (saved == true) _loadScores();
+                  },
+                ),
               IconButton(
                 key: const Key('preview_test_button'),
                 icon: const Icon(Icons.preview_outlined, color: Colors.white),
@@ -585,4 +600,224 @@ class _PreviewScreenState extends State<_PreviewScreen> {
         ),
         body: WebViewWidget(controller: _controller),
       );
+}
+
+// ── Mark Entry Screen ─────────────────────────────────────────────────────────
+
+class _MarkEntryScreen extends StatefulWidget {
+  final TestSummary test;
+  const _MarkEntryScreen({required this.test});
+
+  @override
+  State<_MarkEntryScreen> createState() => _MarkEntryScreenState();
+}
+
+class _MarkEntryScreenState extends State<_MarkEntryScreen> {
+  List<Map<String, dynamic>> _roster = [];
+  final Map<int, TextEditingController> _controllers = {};
+  final Map<int, bool> _absent = {};
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final roster = await ApiClient.getTestRoster(widget.test.id);
+      if (!mounted) return;
+      setState(() {
+        _roster = roster;
+        _loading = false;
+        for (int i = 0; i < roster.length; i++) {
+          _controllers[i] = TextEditingController();
+          _absent[i] = false;
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  Future<void> _save() async {
+    // Validate: each non-absent student needs a score
+    for (int i = 0; i < _roster.length; i++) {
+      if (!(_absent[i] ?? false)) {
+        final text = _controllers[i]?.text.trim() ?? '';
+        if (text.isEmpty) {
+          showSnack(context, 'Enter score or mark absent for every student', error: true);
+          return;
+        }
+        final v = double.tryParse(text);
+        if (v == null || v < 0 || v > widget.test.totalMarks) {
+          showSnack(context,
+              'Score must be 0–${widget.test.totalMarks.toInt()}', error: true);
+          return;
+        }
+      }
+    }
+
+    setState(() => _saving = true);
+    try {
+      final scores = <Map<String, dynamic>>[];
+      for (int i = 0; i < _roster.length; i++) {
+        final s = _roster[i];
+        final isAbsent = _absent[i] ?? false;
+        scores.add({
+          'student_id': s['student_id'],
+          'student_name': s['student_name'] as String,
+          'roll_no': s['roll_no'] as String?,
+          'score': isAbsent ? 0.0 : double.parse(_controllers[i]!.text.trim()),
+          'is_absent': isAbsent,
+        });
+      }
+      await ApiClient.submitTestScores(widget.test.id, scores);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, 'Failed to save: $e', error: true);
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: Text(widget.test.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        backgroundColor: AppColors.violet,
+        foregroundColor: Colors.white,
+        actions: [
+          if (!_loading && _roster.isNotEmpty)
+            TextButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.violet))
+          : _error != null
+              ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.muted)))
+              : _roster.isEmpty
+                  ? const Center(child: Text('No students found', style: TextStyle(color: AppColors.muted)))
+                  : Column(
+                      children: [
+                        Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: Row(children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(color: AppColors.violetLight, borderRadius: BorderRadius.circular(20)),
+                              child: Text('Max ${widget.test.totalMarks.toInt()} marks',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.violet)),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('${_roster.length} students',
+                                style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                          ]),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _roster.length,
+                            itemBuilder: (_, i) {
+                              final s = _roster[i];
+                              final isAbsent = _absent[i] ?? false;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 36, height: 36,
+                                      decoration: BoxDecoration(
+                                        color: isAbsent ? AppColors.coralLight : AppColors.sunLight,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          (s['student_name'] as String? ?? '?')[0].toUpperCase(),
+                                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,
+                                              color: isAbsent ? AppColors.coral : AppColors.sun),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text(s['student_name'] as String? ?? '',
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                                        if ((s['roll_no'] as String?)?.isNotEmpty == true)
+                                          Text('Roll ${s['roll_no']}',
+                                              style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                                      ]),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (isAbsent)
+                                      GestureDetector(
+                                        onTap: () => setState(() => _absent[i] = false),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(color: AppColors.coralLight, borderRadius: BorderRadius.circular(8)),
+                                          child: const Text('ABSENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.coral)),
+                                        ),
+                                      )
+                                    else ...[
+                                      SizedBox(
+                                        width: 64,
+                                        child: TextField(
+                                          controller: _controllers[i],
+                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                                          decoration: InputDecoration(
+                                            hintText: '—',
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                            isDense: true,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          _controllers[i]?.clear();
+                                          setState(() => _absent[i] = true);
+                                        },
+                                        child: const Icon(Icons.person_off_outlined, color: AppColors.muted, size: 20),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+    );
+  }
 }

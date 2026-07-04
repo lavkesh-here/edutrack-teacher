@@ -218,8 +218,15 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _isLocked = false;
-    await ApiClient.setToken(null);
     final prefs = await SharedPreferences.getInstance();
+    try {
+      final deviceId = prefs.getString('push_device_id');
+      if (deviceId != null) {
+        await ApiClient.deregisterPushToken(deviceId);
+        await prefs.remove('push_device_id');
+      }
+    } catch (_) {}
+    await ApiClient.setToken(null);
     await prefs.remove('teacher_name');
     await prefs.remove('school_name');
     await prefs.remove('role');

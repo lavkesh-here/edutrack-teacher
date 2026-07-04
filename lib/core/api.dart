@@ -1441,6 +1441,16 @@ class ApiClient {
     await _post('/api/v1/teacher/push-token', {'fcm_token': fcmToken, 'device_id': deviceId});
   }
 
+  static Future<void> deregisterPushToken(String deviceId) async {
+    try {
+      final base = await getBaseUrl();
+      final req = http.Request('DELETE', Uri.parse('$base/api/v1/teacher/push-token'));
+      req.headers.addAll(await _headers());
+      req.body = jsonEncode({'device_id': deviceId});
+      await req.send();
+    } catch (_) {}
+  }
+
   // ── Teacher notifications ──────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getTeacherNotifications() async {

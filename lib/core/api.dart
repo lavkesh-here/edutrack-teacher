@@ -1510,12 +1510,12 @@ class ApiClient {
   }
 
   static Future<Map<String, dynamic>> getStudentFullReport(String studentId) async {
-    return (await _get('/api/v1/admin/students/$studentId/full-report'))
+    return (await _get('/api/v1/teacher/students/$studentId/full-report'))
         as Map<String, dynamic>;
   }
 
   static Future<Map<String, dynamic>> generateStudentFullReport(String studentId) async {
-    return (await _post('/api/v1/admin/students/$studentId/full-report', {}))
+    return (await _post('/api/v1/teacher/students/$studentId/full-report', {}))
         as Map<String, dynamic>;
   }
 

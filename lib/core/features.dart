@@ -62,3 +62,44 @@ class FeatureFlags {
     await CacheService.remove(_cacheKey);
   }
 }
+
+/// Rich feature config for admin/director role — includes lock state and plan info.
+/// Loaded separately from FeatureFlags (calls GET /admin/feature-config).
+class AdminFeatureConfig {
+  final String plan;
+  final Map<String, Map<String, dynamic>> _teacher;
+  final Map<String, Map<String, dynamic>> _parent;
+
+  AdminFeatureConfig({
+    required this.plan,
+    required Map<String, dynamic> teacher,
+    required Map<String, dynamic> parent,
+  })  : _teacher = Map<String, Map<String, dynamic>>.from(
+              teacher.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)))),
+        _parent = Map<String, Map<String, dynamic>>.from(
+              parent.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map))));
+
+  factory AdminFeatureConfig.fromJson(Map<String, dynamic> j) {
+    return AdminFeatureConfig(
+      plan: j['plan'] as String? ?? 'basic',
+      teacher: (j['teacher'] as Map<String, dynamic>? ?? {}),
+      parent: (j['parent'] as Map<String, dynamic>? ?? {}),
+    );
+  }
+
+  bool isLocked(String key) {
+    final entry = _teacher[key] ?? _parent[key];
+    return (entry?['locked'] as bool?) ?? false;
+  }
+
+  bool isEnabled(String key) {
+    final entry = _teacher[key] ?? _parent[key];
+    return (entry?['enabled'] as bool?) ?? true;
+  }
+
+  String? planRequired(String key) {
+    if (!isLocked(key)) return null;
+    final entry = _teacher[key] ?? _parent[key];
+    return entry?['plan_required'] as String?;
+  }
+}

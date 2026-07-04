@@ -35,6 +35,7 @@ import 'notification_prefs.dart';
 import 'faq_screen.dart';
 import 'support_chat_screen.dart';
 import '../core/recents.dart';
+import '../core/features.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,11 +49,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static final _attendanceKey = GlobalKey<AttendanceScreenState>();
 
-  static final _screens = [
+  List<Widget> _buildScreens(bool announcementsEnabled) => [
     _HomeTab(),
     AttendanceScreen(key: _attendanceKey),
     MyStudentsScreen(),
-    FeedScreen(),
+    announcementsEnabled
+        ? FeedScreen()
+        : const _FeatureUnavailableTab(
+            icon: '📢',
+            title: 'Forum',
+            message: 'The Forum feature is not enabled for your school.',
+          ),
     _MoreTab(),
   ];
 
@@ -60,6 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final flags = context.watch<AuthProvider>().features;
+    final screens = _buildScreens(flags.announcements);
     return PopScope(
       canPop: false,
       onPopInvoked: (_) {
@@ -84,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Scaffold(
-      body: IndexedStack(index: _idx, children: _screens),
+      body: IndexedStack(index: _idx, children: screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -193,6 +202,7 @@ class _HomeTabState extends State<_HomeTab> {
   List<RecentScreen> _recents = [];
   List<SpacedRepChapter> _spacedRep = [];
   bool _loadingTimetable = true;
+  AdminFeatureConfig? _adminConfig;
 
   @override
   void initState() {
@@ -233,6 +243,13 @@ class _HomeTabState extends State<_HomeTab> {
     try {
       final sr = await ApiClient.getSpacedRepetition();
       if (mounted) setState(() => _spacedRep = sr);
+    } catch (_) {}
+    try {
+      final user = context.read<AuthProvider>().user;
+      if (user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director')) {
+        final cfg = await ApiClient.getAdminFeatureConfig();
+        if (mounted) setState(() => _adminConfig = AdminFeatureConfig.fromJson(cfg));
+      }
     } catch (_) {}
   }
 
@@ -504,11 +521,12 @@ class _HomeTabState extends State<_HomeTab> {
                       color: AppColors.sun,
                       onTap: () => _navigateTab(context, 1, recentId: 'attendance'),
                     ),
-                    _QuickPill(
-                      label: '📚 Add Homework',
-                      color: AppColors.coral,
-                      onTap: () => _openScreen(context, const WorkLogScreen(), recentId: 'worklog'),
-                    ),
+                    if (auth.features.workLogs)
+                      _QuickPill(
+                        label: '📚 Add Homework',
+                        color: AppColors.coral,
+                        onTap: () => _openScreen(context, const WorkLogScreen(), recentId: 'worklog'),
+                      ),
                     _QuickPill(
                       label: '📝 Apply Leave',
                       color: AppColors.violet,
@@ -590,8 +608,8 @@ class _HomeTabState extends State<_HomeTab> {
 
             // Admin features section (admin/principal/director only)
             if (user.role == 'admin' || user.role == 'principal' || user.role == 'director') Builder(builder: (ctx) {
-              final flags = ctx.read<AuthProvider>().features;
               final isAdminRole = user.role == 'admin';
+              final config = _adminConfig;
               return SliverList(delegate: SliverChildListDelegate([
                 const SectionHeader(title: '⚙️ Admin'),
                 Padding(
@@ -603,20 +621,32 @@ class _HomeTabState extends State<_HomeTab> {
                             onTap: () => _openScreen(context, const DirectorDashboardScreen(), recentId: 'director_analytics')),
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
                           onTap: () => _openScreen(context, const AdminParentsScreen(), recentId: 'parents')),
-                      if (flags.transport)
+                      // Transport — always shown for admin; locked if plan doesn't include it
+                      if (config != null && config.isLocked('feature.transport'))
+                        _LockedFeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments', planRequired: config.planRequired('feature.transport'))
+                      else
                         _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
                             onTap: () => _openScreen(context, const AdminTransportScreen(), recentId: 'transport')),
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
                           onTap: () => _openScreen(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
-                      if (flags.workLogs)
+                      // Work Log Overview — always shown for admin; locked if plan doesn't include it
+                      if (config != null && config.isLocked('feature.work_logs'))
+                        _LockedFeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats', planRequired: config.planRequired('feature.work_logs'))
+                      else
                         _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
                             onTap: () => _openScreen(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
                       _FeatureRow(icon: '👤', iconBg: AppColors.coralLight, title: 'Attenders', sub: 'Authorized pickup persons',
                           onTap: () => _openScreen(context, const AdminAttendersScreen(), recentId: 'attenders')),
-                      if (flags.fees)
+                      // Fee Management — always shown for admin; locked if plan doesn't include it
+                      if (config != null && config.isLocked('feature.parent_fees'))
+                        _LockedFeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status', planRequired: config.planRequired('feature.parent_fees'))
+                      else
                         _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
                             onTap: () => _openScreen(context, const AdminFeeManagementScreen(), recentId: 'fees')),
-                      if (flags.payroll)
+                      // Payroll — always shown for admin; locked if plan doesn't include it
+                      if (config != null && config.isLocked('feature.payroll'))
+                        _LockedFeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation', planRequired: config.planRequired('feature.payroll'))
+                      else
                         _FeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation',
                             onTap: () => _openScreen(context, const PayslipScreen(), recentId: 'payroll')),
                       // Leave Config: admin only
@@ -1002,6 +1032,178 @@ class _FeatureRow extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _LockedFeatureRow extends StatelessWidget {
+  final String icon;
+  final Color iconBg;
+  final String title;
+  final String sub;
+  final String? planRequired;
+
+  const _LockedFeatureRow({
+    required this.icon,
+    required this.iconBg,
+    required this.title,
+    required this.sub,
+    this.planRequired,
+  });
+
+  void _callUpgrade(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _UpgradePlanSheet(featureName: title, planRequired: planRequired),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.6,
+      child: GestureDetector(
+        onTap: () => _callUpgrade(context),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)),
+                child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.text)),
+                        const SizedBox(width: 6),
+                        if (planRequired != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.violetLight,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              planRequired!.toUpperCase(),
+                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.violet),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.lock_outline, size: 18, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpgradePlanSheet extends StatelessWidget {
+  final String featureName;
+  final String? planRequired;
+
+  const _UpgradePlanSheet({required this.featureName, this.planRequired});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Text('🔒', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          Text(
+            '$featureName is not included in your current plan',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          if (planRequired != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Available from the ${planRequired![0].toUpperCase()}${planRequired!.substring(1)} plan',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.muted),
+            ),
+          ],
+          const SizedBox(height: 24),
+          const Text(
+            'To upgrade your plan, please contact EduTrack support:',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.muted),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Call +91 98765 43210 to upgrade your plan')),
+                );
+              },
+              icon: const Icon(Icons.phone, size: 18),
+              label: const Text('Call Support to Upgrade'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.teal,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureUnavailableTab extends StatelessWidget {
+  final String icon;
+  final String title;
+  final String message;
+
+  const _FeatureUnavailableTab({required this.icon, required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 48)),
+              const SizedBox(height: 16),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 14)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PeriodRow extends StatelessWidget {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../core/api.dart';
+import '../core/features.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -25,6 +26,8 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
   double? _latitude;
   double? _longitude;
   bool _gettingLocation = false;
+  AdminFeatureConfig? _featureConfig;
+  bool _togglingFeature = false;
 
   @override
   void initState() {
@@ -74,6 +77,10 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
       if (mounted) showSnack(context, e.message, error: true);
       setState(() => _loading = false);
     }
+    try {
+      final cfg = await ApiClient.getAdminFeatureConfig();
+      if (mounted) setState(() => _featureConfig = AdminFeatureConfig.fromJson(cfg));
+    } catch (_) {}
   }
 
   Future<void> _useMyLocation() async {
@@ -113,6 +120,23 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
       if (mounted) showSnack(context, 'Could not get location. Try again.', error: true);
     } finally {
       if (mounted) setState(() => _gettingLocation = false);
+    }
+  }
+
+  Future<void> _toggleFeature(String role, String key, bool newValue) async {
+    if (_togglingFeature) return;
+    setState(() => _togglingFeature = true);
+    try {
+      await ApiClient.adminSetFeatureConfig(role, key, newValue);
+      final cfg = await ApiClient.getAdminFeatureConfig();
+      if (mounted) {
+        setState(() => _featureConfig = AdminFeatureConfig.fromJson(cfg));
+        showSnack(context, 'Feature updated');
+      }
+    } on ApiError catch (e) {
+      if (mounted) showSnack(context, e.message, error: true);
+    } finally {
+      if (mounted) setState(() => _togglingFeature = false);
     }
   }
 
@@ -350,6 +374,16 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                   ),
                   const SizedBox(height: 28),
 
+                  // Features & Plan section
+                  if (_featureConfig != null) ...[
+                    _FeaturesPlanSection(
+                      config: _featureConfig!,
+                      toggling: _togglingFeature,
+                      onToggle: _toggleFeature,
+                    ),
+                    const SizedBox(height: 28),
+                  ],
+
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -368,6 +402,214 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+// ── Features & Plan Section ───────────────────────────────────────────────────
+
+class _FeaturesPlanSection extends StatelessWidget {
+  final AdminFeatureConfig config;
+  final bool toggling;
+  final Future<void> Function(String role, String key, bool enabled) onToggle;
+
+  const _FeaturesPlanSection({
+    required this.config,
+    required this.toggling,
+    required this.onToggle,
+  });
+
+  static const _teacherFeatures = [
+    ('feature.work_logs',   '📋', 'Work Logs',      'Homework & daily work tracking'),
+    ('feature.announcements','📢', 'Announcements',  'Forum & school-wide posts'),
+    ('feature.circulars',   '📄', 'Circulars',      'Circular distribution to parents'),
+    ('feature.ai_analysis', '🤖', 'AI Analysis',    'AI-powered student performance insights'),
+    ('feature.transport',   '🚌', 'Transport',      'Bus routes & stop management'),
+    ('feature.parent_fees', '💰', 'Fee Management', 'Fee components & payment tracking'),
+    ('feature.payroll',     '💳', 'Payroll',        'Teacher salary & auto-calculation'),
+    ('feature.diksha',      '📚', 'DIKSHA',         'NCERT digital content library'),
+  ];
+
+  static const _parentFeatures = [
+    ('feature.work_logs',   '📚', 'Work Log (Parent)',  'Parents see homework in parent app'),
+    ('feature.circulars',   '📄', 'Circulars (Parent)', 'Circulars visible in parent app'),
+    ('feature.parent_fees', '💰', 'Fees (Parent)',      'Fee status visible in parent app'),
+    ('feature.transport',   '🚌', 'Transport (Parent)', 'Bus tracking in parent app'),
+    ('feature.announcements','💬', 'Forum (Parent)',    'School forum access for parents'),
+  ];
+
+  Color _planColor(String plan) {
+    return switch (plan) {
+      'premium'  => AppColors.violet,
+      'standard' => AppColors.teal,
+      _          => AppColors.muted,
+    };
+  }
+
+  Color _planBg(String plan) {
+    return switch (plan) {
+      'premium'  => AppColors.violetLight,
+      'standard' => AppColors.tealLight,
+      _          => AppColors.bg,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final planLabel = config.plan[0].toUpperCase() + config.plan.substring(1);
+    final planColor = _planColor(config.plan);
+    final planBg = _planBg(config.plan);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'FEATURES & PLAN',
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.8),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border, width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Plan badge
+              Row(
+                children: [
+                  const Text('Your plan:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text2)),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: planBg, borderRadius: BorderRadius.circular(8)),
+                    child: Text(
+                      planLabel.toUpperCase(),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: planColor),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppColors.border),
+              const SizedBox(height: 12),
+              // Teacher features
+              const Text('TEACHER APP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.6)),
+              const SizedBox(height: 8),
+              ..._teacherFeatures.map((f) {
+                final (key, icon, title, sub) = f;
+                final locked = config.isLocked(key);
+                final enabled = config.isEnabled(key);
+                final planReq = config.planRequired(key);
+                return _FeatureToggleRow(
+                  icon: icon,
+                  title: title,
+                  sub: sub,
+                  enabled: enabled,
+                  locked: locked,
+                  planRequired: planReq,
+                  toggling: toggling,
+                  onToggle: locked ? null : (v) => onToggle('teacher', key, v),
+                );
+              }),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: AppColors.border),
+              const SizedBox(height: 12),
+              // Parent features
+              const Text('PARENT APP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.6)),
+              const SizedBox(height: 8),
+              ..._parentFeatures.map((f) {
+                final (key, icon, title, sub) = f;
+                final locked = config.isLocked(key);
+                final enabled = config.isEnabled(key);
+                final planReq = config.planRequired(key);
+                return _FeatureToggleRow(
+                  icon: icon,
+                  title: title,
+                  sub: sub,
+                  enabled: enabled,
+                  locked: locked,
+                  planRequired: planReq,
+                  toggling: toggling,
+                  onToggle: locked ? null : (v) => onToggle('parent', key, v),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureToggleRow extends StatelessWidget {
+  final String icon;
+  final String title;
+  final String sub;
+  final bool enabled;
+  final bool locked;
+  final String? planRequired;
+  final bool toggling;
+  final void Function(bool)? onToggle;
+
+  const _FeatureToggleRow({
+    required this.icon,
+    required this.title,
+    required this.sub,
+    required this.enabled,
+    required this.locked,
+    required this.toggling,
+    this.planRequired,
+    this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: locked ? 0.55 : 1.0,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+                      if (planRequired != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(color: AppColors.violetLight, borderRadius: BorderRadius.circular(5)),
+                          child: Text(
+                            planRequired!.toUpperCase(),
+                            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: AppColors.violet),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                ],
+              ),
+            ),
+            locked
+                ? const Icon(Icons.lock_outline, size: 18, color: AppColors.muted)
+                : Switch(
+                    value: enabled,
+                    onChanged: toggling ? null : onToggle,
+                    activeColor: AppColors.teal,
+                  ),
+          ],
+        ),
+      ),
     );
   }
 }

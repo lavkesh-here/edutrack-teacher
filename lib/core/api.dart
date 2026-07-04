@@ -1534,6 +1534,15 @@ class ApiClient {
     return (data as Map<String, dynamic>?) ?? {};
   }
 
+  static Future<Map<String, dynamic>> getAdminFeatureConfig() async {
+    final data = await _get('/api/v1/admin/feature-config');
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  static Future<void> adminSetFeatureConfig(String role, String key, bool enabled) async {
+    await _put('/api/v1/admin/feature-config/$role/$key', {'is_enabled': enabled});
+  }
+
   // ── Teacher self-attendance ────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getSelfAttendance({int? month, int? year}) async {

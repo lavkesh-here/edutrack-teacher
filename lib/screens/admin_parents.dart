@@ -60,13 +60,20 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
     });
   }
 
-  void _showParentDetail(Map<String, dynamic> parent) {
+  Future<void> _showParentDetail(Map<String, dynamic> parent) async {
+    Map<String, dynamic> detail;
+    try {
+      detail = await ApiClient.adminGetParent(parent['id'].toString());
+    } catch (_) {
+      detail = parent; // fallback to list data if detail fetch fails
+    }
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ParentDetailSheet(
-        parent: parent,
+        parent: detail,
         onResetPassword: () => _resetPassword(parent['id'].toString()),
       ),
     );
@@ -243,7 +250,8 @@ class _ParentRow extends StatelessWidget {
     final name = parent['name'] as String? ?? '';
     final phone = parent['phone'] as String? ?? '';
     final email = parent['email'] as String?;
-    final children = parent['children'] as List<dynamic>? ?? [];
+    final childrenCount = (parent['children_count'] as int?) ??
+        (parent['children'] as List?)?.length ?? 0;
     final initials = name.isNotEmpty
         ? name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
         : '?';
@@ -306,7 +314,7 @@ class _ParentRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${children.length} child${children.length == 1 ? '' : 'ren'}',
+                    '$childrenCount child${childrenCount == 1 ? '' : 'ren'}',
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,

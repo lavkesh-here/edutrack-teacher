@@ -241,10 +241,12 @@ class _HomeTabState extends State<_HomeTab> {
       final r = await RecentsManager.load();
       if (mounted) setState(() => _recents = r);
     } catch (_) {}
-    try {
-      final sr = await ApiClient.getSpacedRepetition();
-      if (mounted) setState(() => _spacedRep = sr);
-    } catch (_) {}
+    if (context.read<AuthProvider>().features.spacedRepetition) {
+      try {
+        final sr = await ApiClient.getSpacedRepetition();
+        if (mounted) setState(() => _spacedRep = sr);
+      } catch (_) {}
+    }
     try {
       final user = context.read<AuthProvider>().user;
       if (user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director')) {
@@ -573,11 +575,12 @@ class _HomeTabState extends State<_HomeTab> {
                       color: AppColors.teal,
                       onTap: () => _openScreen(context, const NotifyParentsScreen(), recentId: 'notify'),
                     ),
-                    _QuickPill(
-                      label: '📊 Post Results',
-                      color: AppColors.amber,
-                      onTap: () => _openScreen(context, const TestsScreen(), recentId: 'results'),
-                    ),
+                    if (auth.features.tests)
+                      _QuickPill(
+                        label: '📊 Post Results',
+                        color: AppColors.amber,
+                        onTap: () => _openScreen(context, const TestsScreen(), recentId: 'results'),
+                      ),
                     _QuickPill(
                       label: '🕐 Sign In',
                       color: AppColors.sky,
@@ -589,7 +592,7 @@ class _HomeTabState extends State<_HomeTab> {
             ),
 
             // D3 — Revision reminders (spaced repetition)
-            if (_spacedRep.isNotEmpty) ...[
+            if (_spacedRep.isNotEmpty && auth.features.spacedRepetition) ...[
               SliverToBoxAdapter(
                 child: SectionHeader(
                   title: '🔁 Revision Reminders',
@@ -1799,10 +1802,12 @@ class _MoreTabState extends State<_MoreTab> {
                     const SizedBox(height: 8),
                     _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: 'Weekly timetable',
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
-                    _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
-                        onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
-                    _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
-                        onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
+                    if (flags.syllabus)
+                      _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
+                          onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
+                    if (flags.todo)
+                      _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
+                          onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
                     _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'Browse common questions',
                         onTap: () => _push(context, const FaqScreen())),
 

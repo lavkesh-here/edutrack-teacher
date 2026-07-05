@@ -16,28 +16,34 @@ class FeatureFlags {
         ),
       );
 
-  // ── School-admin flags ANDed with SA platform flags ───────────────────────
-  // Disabling either layer hides the feature. Enabling both is required to show it.
+  // ── Basic tier ────────────────────────────────────────────────────────────
+  bool get transport     => (_flags['feature.transport']       ?? true) && (_flags['sa.transport_module']       ?? true);
+  bool get syllabus      =>  _flags['feature.syllabus']        ?? true;
+  bool get announcements =>  _flags['feature.announcements']   ?? true;
+  bool get circulars     =>  _flags['feature.circulars']       ?? true;
+  bool get workLogs      =>  _flags['feature.work_logs']       ?? true;
+  bool get visitorLog    =>  _flags['feature.visitor_log']     ?? true;
+  bool get todo          =>  _flags['feature.todo']            ?? true;
 
-  bool get aiGenerate  => (_flags['feature.ai_generate']   ?? true) && (_flags['sa.ai_question_generation'] ?? true);
-  bool get aiAnalysis  => (_flags['feature.ai_analysis']   ?? true) && (_flags['sa.ai_analysis']            ?? true);
-  bool get pdfExport   =>  _flags['feature.pdf_export']    ?? true;
-  bool get diksha      => (_flags['feature.diksha']         ?? true) && (_flags['sa.diksha_resources']       ?? true);
-  bool get payroll     =>  _flags['feature.payroll']        ?? true;
-  bool get visitorLog  =>  _flags['feature.visitor_log']   ?? true;
-  bool get announcements => _flags['feature.announcements'] ?? true;
-  bool get circulars   =>  _flags['feature.circulars']      ?? true;
-  bool get fees        => (_flags['feature.parent_fees']    ?? true) && (_flags['sa.fees_module']            ?? true);
-  bool get transport   => (_flags['feature.transport']      ?? true) && (_flags['sa.transport_module']       ?? true);
-  bool get workLogs    =>  _flags['feature.work_logs']      ?? true;
+  // ── Standard tier ─────────────────────────────────────────────────────────
+  bool get tests               =>  _flags['feature.tests']               ?? true;
+  bool get payroll             =>  _flags['feature.payroll']             ?? true;
+  bool get fees                => (_flags['feature.parent_fees']         ?? true) && (_flags['sa.fees_module'] ?? true);
+  bool get aiGenerate          => (_flags['feature.ai_generate']         ?? true) && (_flags['sa.ai_question_generation'] ?? true);
+  bool get attendanceAnalytics =>  _flags['feature.attendance_analytics'] ?? true;
+  bool get operationalDashboard =>  _flags['feature.operational_dashboard'] ?? true;
+  bool get pdfExport           =>  _flags['feature.pdf_export']          ?? true;
 
-  // ── SA-only flags (no school-admin counterpart) ───────────────────────────
+  // ── Premium tier ──────────────────────────────────────────────────────────
+  bool get aiAnalysis         => (_flags['feature.ai_analysis']        ?? true) && (_flags['sa.ai_analysis']   ?? true);
+  bool get analyticsDashboard =>  _flags['feature.analytics_dashboard'] ?? true;
+  bool get onlineFees         =>  _flags['feature.online_fees']        ?? true;
+  bool get spacedRepetition   =>  _flags['feature.spaced_repetition']  ?? true;
+  bool get diksha             => (_flags['feature.diksha']             ?? true) && (_flags['sa.diksha_resources'] ?? true);
 
-  /// Whether the in-app AI support chat is available for this school/teacher.
+  // ── SA-only flags ─────────────────────────────────────────────────────────
   bool get aiSupportChat => _flags['sa.ai_support_chat'] ?? true;
-
-  /// Whether the parent app is enabled for this school (controls parent-related admin items).
-  bool get parentApp => _flags['sa.parent_app'] ?? true;
+  bool get parentApp     => _flags['sa.parent_app']      ?? true;
 
   bool operator [](String key) => _flags[key] ?? true;
 

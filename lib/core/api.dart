@@ -1860,14 +1860,15 @@ class ApiClient {
   }
 
   static Future<List<Map<String, dynamic>>> getStudentCertificates(String studentId) async {
-    final resp = await _dio.get('/api/v1/teacher/students/$studentId/certificates');
-    return (resp.data as List).cast<Map<String, dynamic>>();
+    final data = await _get('/api/v1/teacher/students/$studentId/certificates');
+    return (data as List).cast<Map<String, dynamic>>();
   }
 
   static Future<String> getCertificatePdfUrl(String certId) async {
-    final resp = await _dio.post('/api/v1/teacher/certificates/$certId/export-token');
-    final token = resp.data['token'] as String;
-    return '${_dio.options.baseUrl}/api/v1/teacher/certificates/$certId/pdf?token=$token';
+    final data = await _post('/api/v1/teacher/certificates/$certId/export-token', {});
+    final token = data['token'] as String;
+    final base = await getBaseUrl();
+    return '$base/api/v1/teacher/certificates/$certId/pdf?token=$token';
   }
 }
 

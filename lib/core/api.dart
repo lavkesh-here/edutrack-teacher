@@ -1668,6 +1668,37 @@ class ApiClient {
     return (data as Map<String, dynamic>?) ?? {};
   }
 
+  static Future<Map<String, dynamic>> getBranding() async {
+    final data = await _get('/api/v1/teacher/branding');
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  // ── Health incidents ──────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getPickupPersons(String studentId) async {
+    final data = await _get('/api/v1/teacher/students/$studentId/pickup-persons');
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  static Future<Map<String, dynamic>> logHealthIncident(Map<String, dynamic> payload) async {
+    final data = await _post('/api/v1/teacher/health-incidents', payload);
+    return (data as Map<String, dynamic>?) ?? {};
+  }
+
+  static Future<List<Map<String, dynamic>>> listHealthIncidents({
+    String? studentId,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
+    final params = <String>[];
+    if (studentId != null) params.add('student_id=$studentId');
+    if (dateFrom != null) params.add('date_from=$dateFrom');
+    if (dateTo != null) params.add('date_to=$dateTo');
+    final path = '/api/v1/teacher/health-incidents${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path) as List<dynamic>;
+    return data.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   static Future<void> adminSetFeatureConfig(String role, String key, bool enabled) async {
     await _put('/api/v1/admin/feature-config/$role/$key', {'is_enabled': enabled});
   }
@@ -1826,6 +1857,17 @@ class ApiClient {
     final fresh = await fetch();
     CacheService.set(cacheKey, toCache(fresh)).ignore();
     return fresh;
+  }
+
+  static Future<List<Map<String, dynamic>>> getStudentCertificates(String studentId) async {
+    final resp = await _dio.get('/api/v1/teacher/students/$studentId/certificates');
+    return (resp.data as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<String> getCertificatePdfUrl(String certId) async {
+    final resp = await _dio.post('/api/v1/teacher/certificates/$certId/export-token');
+    final token = resp.data['token'] as String;
+    return '${_dio.options.baseUrl}/api/v1/teacher/certificates/$certId/pdf?token=$token';
   }
 }
 

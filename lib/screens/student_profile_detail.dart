@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/theme.dart';
@@ -37,7 +38,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    _tabs = TabController(length: 7, vsync: this);
     _load();
   }
 
@@ -308,6 +309,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           _StudentWorkLogsTab(studentId: widget.studentId),
           _ReportTab(studentId: widget.studentId),
           _FullReportCardTab(studentId: widget.studentId),
+          _CertificatesTab(studentId: widget.studentId),
         ],
       ),
     );
@@ -343,6 +345,7 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
           Tab(text: 'Work Logs'),
           Tab(text: 'Report'),
           Tab(text: 'Report Card'),
+          Tab(text: 'Certificates'),
         ],
       ),
     );
@@ -1991,6 +1994,199 @@ class _RcChip extends StatelessWidget {
     decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
     child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: fg)),
   );
+}
+
+// ── Certificates tab ─────────────────────────────────────────────────────────
+
+const _certTypeColors = {
+  'academic':      Color(0xFFFEF3C7),
+  'sports':        Color(0xFFDBEAFE),
+  'participation': Color(0xFFCCFBF1),
+  'cultural':      Color(0xFFFEE2E2),
+  'attendance':    Color(0xFFDCFCE7),
+  'custom':        Color(0xFFEDE9FE),
+};
+const _certTypeFg = {
+  'academic':      Color(0xFF92400E),
+  'sports':        Color(0xFF1E3A8A),
+  'participation': Color(0xFF134E4A),
+  'cultural':      Color(0xFF7F1D1D),
+  'attendance':    Color(0xFF14532D),
+  'custom':        Color(0xFF4C1D95),
+};
+const _certTypeEmoji = {
+  'academic': '🎓', 'sports': '🏆', 'participation': '🎗️',
+  'cultural': '🎭', 'attendance': '📅', 'custom': '📜',
+};
+
+class _CertificatesTab extends StatefulWidget {
+  final String studentId;
+  const _CertificatesTab({required this.studentId});
+  @override
+  State<_CertificatesTab> createState() => _CertificatesTabState();
+}
+
+class _CertificatesTabState extends State<_CertificatesTab> with AutomaticKeepAliveClientMixin {
+  List<Map<String, dynamic>> _certs = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await ApiClient.getStudentCertificates(widget.studentId);
+      if (mounted) setState(() { _certs = data; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
+    if (_certs.isEmpty) {
+      return const Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('🎓', style: TextStyle(fontSize: 40)),
+          SizedBox(height: 12),
+          Text('No certificates issued yet', style: TextStyle(fontSize: 14, color: AppColors.muted)),
+        ]),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        itemCount: _certs.length,
+        itemBuilder: (_, i) => _CertCard(cert: _certs[i]),
+      ),
+    );
+  }
+}
+
+class _CertCard extends StatefulWidget {
+  final Map<String, dynamic> cert;
+  const _CertCard({required this.cert});
+  @override
+  State<_CertCard> createState() => _CertCardState();
+}
+
+class _CertCardState extends State<_CertCard> {
+  bool _downloading = false;
+
+  Future<void> _downloadPdf() async {
+    setState(() => _downloading = true);
+    try {
+      final url = await ApiClient.getCertificatePdfUrl(widget.cert['id'] as String);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to open certificate PDF')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  String _fmtDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${m[d.month-1]} ${d.year}';
+    } catch (_) { return iso; }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cert = widget.cert;
+    final type = cert['cert_type'] as String? ?? 'custom';
+    final bg = _certTypeColors[type] ?? const Color(0xFFEDE9FE);
+    final fg = _certTypeFg[type] ?? const Color(0xFF4C1D95);
+    final emoji = _certTypeEmoji[type] ?? '📜';
+    final fields = (cert['field_values'] as Map?)?.cast<String, dynamic>() ?? {};
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+              child: Text('$emoji ${cert['title_text'] ?? 'Certificate'}',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+            ),
+            const Spacer(),
+            Text(_fmtDate(cert['issued_at'] as String?),
+              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+          ]),
+          const SizedBox(height: 8),
+          Text(cert['template_name'] as String? ?? '',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+          if (cert['academic_year'] != null) ...[
+            const SizedBox(height: 2),
+            Text('Academic Year: ${cert['academic_year']}',
+              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          ],
+          if (fields.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 4, children: fields.entries.map((e) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.border)),
+              child: Text('${e.value}', style: const TextStyle(fontSize: 11, color: AppColors.text2)),
+            )).toList()),
+          ],
+          const SizedBox(height: 8),
+          Row(children: [
+            Text('Cert No: ${cert['cert_number'] ?? ''}',
+              style: const TextStyle(fontSize: 11, color: AppColors.muted, fontFamily: 'monospace')),
+            const Spacer(),
+            Text('Issued by ${cert['issued_by_name'] ?? ''}',
+              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+          ]),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _downloading ? null : _downloadPdf,
+              icon: _downloading
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_outlined, size: 16),
+              label: Text(_downloading ? 'Opening…' : 'Download PDF'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.violet,
+                side: BorderSide(color: AppColors.violet.withOpacity(0.4)),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 class _ErrorView extends StatelessWidget {

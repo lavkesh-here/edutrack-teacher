@@ -15,6 +15,7 @@ import 'tests.dart';
 import 'feed.dart';
 import 'calendar_screen.dart';
 import 'worklog.dart';
+import 'health_incidents.dart';
 import 'notify_parents.dart';
 import 'payslip.dart';
 import 'my_students.dart';
@@ -569,6 +570,11 @@ class _HomeTabState extends State<_HomeTab> {
                       label: '📝 Apply Leave',
                       color: AppColors.violet,
                       onTap: () => _openScreen(context, const LeaveScreen(), recentId: 'leaves'),
+                    ),
+                    _QuickPill(
+                      label: '🏥 Health Incident',
+                      color: AppColors.rose,
+                      onTap: () => _openScreen(context, const HealthIncidentsScreen(), recentId: 'health'),
                     ),
                     _QuickPill(
                       label: '🔔 Notify Parents',

@@ -9,6 +9,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/auth.dart';
 import 'core/api.dart';
+import 'core/branding.dart';
 import 'core/theme.dart';
 import 'screens/login.dart';
 import 'screens/home.dart';
@@ -38,8 +39,11 @@ Future<void> main() async {
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => BrandingProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
       child: const EduTrackApp(),
     ),
   );
@@ -50,9 +54,10 @@ class EduTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final branding = context.watch<BrandingProvider>();
     return MaterialApp(
       title: 'EduTrack Teacher',
-      theme: buildTheme(),
+      theme: buildTheme(branding.primaryColor),
       debugShowCheckedModeBanner: false,
       // Clamp system font scale to 1.2× max — prevents layout overflow on large
       // accessibility font settings while still allowing mild scaling.
@@ -88,6 +93,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
   DateTime? _pausedAt;
   Timer? _inactivityTimer;
   AuthProvider? _authRef;
+  bool _wasLoggedIn = false;
   static const _inactivityDuration = Duration(minutes: 5);
 
   @override
@@ -113,7 +119,14 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
 
   void _handleAuthChange() {
     if (!mounted || _authRef == null) return;
-    if (_authRef!.isLoggedIn && !_authRef!.isLocked) {
+    final isLoggedIn = _authRef!.isLoggedIn;
+    if (isLoggedIn && !_wasLoggedIn) {
+      context.read<BrandingProvider>().load();
+    } else if (!isLoggedIn && _wasLoggedIn) {
+      context.read<BrandingProvider>().reset();
+    }
+    _wasLoggedIn = isLoggedIn;
+    if (isLoggedIn && !_authRef!.isLocked) {
       _resetInactivityTimer();
     } else {
       _inactivityTimer?.cancel();
@@ -199,7 +212,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
           ],
         ),
         duration: const Duration(seconds: 4),
-        backgroundColor: AppColors.sun,
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -226,15 +239,15 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     if (auth.loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFFFF8F3),
+      return Scaffold(
+        backgroundColor: const Color(0xFFFFF8F3),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('🎓', style: TextStyle(fontSize: 48)),
-              SizedBox(height: 16),
-              CircularProgressIndicator(color: Color(0xFFF97316)),
+              const Text('🎓', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 16),
+              CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
             ],
           ),
         ),
@@ -375,15 +388,18 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFFF97316), Color(0xFFEA580C)],
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0xFFF97316),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -468,7 +484,7 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
                     child: ElevatedButton(
                       onPressed: _passLoading ? null : _submitPassword,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF97316),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
@@ -530,7 +546,7 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
                           : const Icon(Icons.fingerprint_rounded, size: 22),
                       label: Text(_bioLoading ? 'Verifying…' : 'Unlock'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF97316),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),

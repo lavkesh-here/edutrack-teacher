@@ -1188,6 +1188,7 @@ class ApiClient {
     required String description,
     String? dueDate,
     List<String>? imageUrls,
+    String? chapterId,
   }) async {
     await _post('/api/v1/teacher/work-log', {
       'class_section_id': classSectionId,
@@ -1197,6 +1198,7 @@ class ApiClient {
       'description': description,
       if (dueDate != null) 'due_date': dueDate,
       if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
+      if (chapterId != null) 'chapter_id': chapterId,
     });
   }
 

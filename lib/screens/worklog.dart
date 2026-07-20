@@ -610,9 +610,29 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     List<Map<String, String>> subjects = [];
     String? selectedSubjectId;
     String? selectedSubjectName;
+    List<Map<String, dynamic>> chapterOptions = [];
+    String? selectedChapterId;
+    String? selectedChapterName;
+    bool loadingChapters = false;
     ApiClient.getMySubjects().then((s) {
       subjects = s;
     });
+
+    Future<void> loadChapters(String sectionId, String subjectId, void Function(void Function()) setSheetFn) async {
+      setSheetFn(() { loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null; });
+      try {
+        final syllabus = await ApiClient.getSyllabus(sectionId);
+        final match = syllabus.firstWhere(
+          (s) => s['subject_id']?.toString() == subjectId,
+          orElse: () => <String, dynamic>{},
+        );
+        final chapters = (match['chapters'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+        setSheetFn(() { chapterOptions = chapters; loadingChapters = false; });
+      } catch (_) {
+        setSheetFn(() { loadingChapters = false; });
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -735,6 +755,9 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             onTap: () => setSheet(() {
                               selectedSubjectId = null;
                               selectedSubjectName = null;
+                              chapterOptions = [];
+                              selectedChapterId = null;
+                              selectedChapterName = null;
                             }),
                           );
                         }
@@ -743,14 +766,81 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         return _SectionChip(
                           label: sub['name']!,
                           active: active,
-                          onTap: () => setSheet(() {
-                            selectedSubjectId = sub['id'];
-                            selectedSubjectName = sub['name'];
-                          }),
+                          onTap: () {
+                            setSheet(() {
+                              selectedSubjectId = sub['id'];
+                              selectedSubjectName = sub['name'];
+                            });
+                            if (selectedSectionIds.isNotEmpty) {
+                              loadChapters(selectedSectionIds.first, sub['id']!, setSheet);
+                            }
+                          },
                         );
                       },
                     ),
                   ),
+                // Chapter picker — shown when a subject is selected
+                if (selectedSubjectId != null) ...[
+                  const SizedBox(height: 10),
+                  const Text('Chapter (optional)',
+                      style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  if (loadingChapters)
+                    const SizedBox(
+                      height: 34,
+                      child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+                    )
+                  else if (chapterOptions.isEmpty)
+                    const SizedBox(
+                      height: 28,
+                      child: Center(
+                        child: Text('No chapters configured for this subject',
+                            style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      height: 34,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: chapterOptions.length + 1,
+                        separatorBuilder: (_, __) => const SizedBox(width: 6),
+                        itemBuilder: (_, i) {
+                          if (i == 0) {
+                            return _SectionChip(
+                              label: 'None',
+                              active: selectedChapterId == null,
+                              onTap: () => setSheet(() {
+                                selectedChapterId = null;
+                                selectedChapterName = null;
+                              }),
+                            );
+                          }
+                          final ch = chapterOptions[i - 1];
+                          final chId = ch['id'] as String? ?? '';
+                          final chName = ch['name'] as String? ?? '';
+                          final chNum = ch['number'] as int? ?? i;
+                          final status = ch['status'] as String? ?? 'not_started';
+                          final active = selectedChapterId == chId;
+                          final statusColor = status == 'completed'
+                              ? AppColors.green
+                              : status == 'in_progress'
+                                  ? AppColors.amber
+                                  : AppColors.muted;
+                          return _ChapterChip(
+                            number: chNum,
+                            name: chName,
+                            active: active,
+                            statusColor: statusColor,
+                            onTap: () => setSheet(() {
+                              selectedChapterId = chId;
+                              selectedChapterName = chName;
+                            }),
+                          );
+                        },
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 10),
                 // Optional: specific student
                 const Text('For Student (optional)',
@@ -991,6 +1081,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             dueDate: dueDateStr,
                             imageUrls: gcsUrls.isNotEmpty ? gcsUrls : null,
                             subjectId: selectedSubjectId,
+                            chapterId: selectedChapterId,
                           );
                         }
                         descCtrl.clear();
@@ -1122,6 +1213,59 @@ class _SectionChip extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: active ? Colors.white : AppColors.muted,
             ),
+          ),
+        ),
+      );
+}
+
+class _ChapterChip extends StatelessWidget {
+  final int number;
+  final String name;
+  final bool active;
+  final Color statusColor;
+  final VoidCallback onTap;
+
+  const _ChapterChip({
+    required this.number,
+    required this.name,
+    required this.active,
+    required this.statusColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: active ? AppColors.sky : AppColors.bg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: active ? AppColors.sky : AppColors.border, width: 1.5),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: active ? Colors.white.withOpacity(0.8) : statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'Ch $number · $name',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : AppColors.text2,
+                ),
+              ),
+            ],
           ),
         ),
       );

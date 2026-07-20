@@ -93,7 +93,7 @@ class _WhatsAppReportScreenState extends State<WhatsAppReportScreen> {
                 children: [
                   CircularProgressIndicator(color: AppColors.teal),
                   SizedBox(height: 16),
-                  Text('Generating AI report…', style: TextStyle(color: AppColors.muted)),
+                  Text('Generating report…', style: TextStyle(color: AppColors.muted)),
                 ],
               ),
             )

@@ -436,7 +436,7 @@ class _EmptyState extends StatelessWidget {
 
   static const _suggestions = [
     'How do I mark attendance?',
-    'How do I get AI analysis for a test?',
+    'How do I get smart analysis for a test?',
     'How do I apply for leave?',
   ];
 }

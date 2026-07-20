@@ -1981,7 +1981,7 @@ class _MoreTabState extends State<_MoreTab> {
                         onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
                     _FeatureRow(icon: '🔄', iconBg: AppColors.tealLight, title: 'Substitutions', sub: 'Self-assign & view coverage history',
                         onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
-                    _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by AI rules',
+                    _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by smart rules',
                         onTap: () => _push(context, const AlertsScreen(), recentId: 'alerts')),
                     if (!isAdminOrAbove && (user.hasTag('attender')))
                       _FeatureRow(icon: '🏠', iconBg: AppColors.skyLight, title: 'Visitor Log', sub: 'Log and manage school visitors',

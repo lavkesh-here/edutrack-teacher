@@ -267,23 +267,23 @@ const _faqSections = <_FaqSection>[
         'How do I upload scores for a test?',
         'Tap the Tests tab, find the test, and tap Enter Scores. '
             'Enter each student\'s marks and tap Save. '
-            'You can also add optional remarks which improve the AI analysis.',
+            'You can also add optional remarks which improve the analysis.',
       ),
       _FaqItem(
-        'What is the Smart AI Analysis?',
+        'What is the Smart Analysis?',
         'After scores are uploaded, tap Get Smart Analysis on the test scores page. '
-            'The AI reviews class performance, identifies weak chapters, spots at-risk students, '
+            'It reviews class performance, identifies weak chapters, spots at-risk students, '
             'and gives actionable suggestions — all in a few seconds.',
       ),
       _FaqItem(
-        'Can I re-run the AI analysis after adding more scores?',
+        'Can I re-run the analysis after adding more scores?',
         'Yes. Tap Refresh Analysis on the scores page. '
             'The system detects when scores have changed and runs a fresh analysis.',
       ),
       _FaqItem(
         'How do I view a student\'s report and score history?',
         'Tap a student\'s name anywhere in the app to open their profile. '
-            'The Report tab shows their score trend over time, chapter heatmap, and AI remarks.',
+            'The Report tab shows their score trend over time, chapter heatmap, and smart remarks.',
       ),
     ],
   ),
@@ -316,7 +316,7 @@ const _faqSections = <_FaqSection>[
       _FaqItem(
         'How do I view a student\'s full profile?',
         'Tap any student\'s name from the attendance list or test scores screen. '
-            'Their profile shows personal info, attendance history, test scores, documents, and AI report.',
+            'Their profile shows personal info, attendance history, test scores, documents, and smart report.',
       ),
       _FaqItem(
         'How do parents see their child\'s progress?',

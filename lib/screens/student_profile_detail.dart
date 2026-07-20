@@ -1139,7 +1139,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
           // Previous notes become the notes from before this regeneration
           _previousTeacherNotes = _report?['teacher_notes'] as String?;
         });
-        showSnack(context, 'AI report generated');
+        showSnack(context, 'Smart report generated');
       }
     } catch (e) {
       if (mounted) showSnack(context, 'Generation failed: $e', error: true);
@@ -1207,10 +1207,10 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
 
           // ── AI Analysis ──
           if (!canUseAi) ...[
-            _PlanUpgradeCard(feature: 'AI Analysis', requiredPlan: 'Premium'),
+            _PlanUpgradeCard(feature: 'Smart Analysis', requiredPlan: 'Premium'),
             const SizedBox(height: 12),
           ] else if (analysis != null) ...[
-            _SectionCard(title: 'AI Analysis${generatedAt != null ? ' · ${_fmtDate(generatedAt)}' : ''}', children: [
+            _SectionCard(title: 'Smart Analysis${generatedAt != null ? ' · ${_fmtDate(generatedAt)}' : ''}', children: [
               _AnalysisCard(analysis: analysis),
               const SizedBox(height: 16),
               // Teacher notes — shown pre-filled when regenerating
@@ -1268,7 +1268,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                   ),
                   child: _generating
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Refresh AI Analysis', style: TextStyle(fontWeight: FontWeight.w700)),
+                      : const Text('Refresh Analysis', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
             ]),
@@ -1283,9 +1283,9 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
               child: Column(children: [
                 const Text('🤖', style: TextStyle(fontSize: 36)),
                 const SizedBox(height: 10),
-                const Text('No AI analysis yet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+                const Text('No analysis yet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
                 const SizedBox(height: 4),
-                const Text('Add your observations to personalise the AI report.', style: TextStyle(fontSize: 12, color: AppColors.muted), textAlign: TextAlign.center),
+                const Text('Add your observations to personalise the report.', style: TextStyle(fontSize: 12, color: AppColors.muted), textAlign: TextAlign.center),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _notesController,
@@ -1320,7 +1320,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                     ),
                     child: _generating
                         ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Generate AI Report', style: TextStyle(fontWeight: FontWeight.w700)),
+                        : const Text('Generate Report', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
                 if (total == 0) ...[

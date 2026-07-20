@@ -499,7 +499,7 @@ class _SmartAnalysisSection extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               hasScores
-                  ? 'Run a one-time AI analysis of class performance, concern areas, and individual student plans.'
+                  ? 'Run a smart analysis of class performance, concern areas, and individual student plans.'
                   : 'Enter marks first to enable smart analysis.',
               style: const TextStyle(fontSize: 12, color: Colors.white60, height: 1.5),
             ),

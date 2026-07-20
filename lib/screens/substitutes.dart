@@ -84,10 +84,10 @@ class _SubstitutesScreenState extends State<SubstitutesScreen>
         actions: [
           TextButton.icon(
             onPressed: _showSelfAssignSheet,
-            icon: const Icon(Icons.add, size: 18, color: AppColors.sun),
-            label: const Text('Self-Assign',
+            icon: Icon(Icons.add, size: 18, color: context.primary),
+            label: Text('Self-Assign',
                 style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.sun)),
+                    fontSize: 13, fontWeight: FontWeight.w700, color: context.primary)),
           ),
         ],
         bottom: PreferredSize(
@@ -580,9 +580,9 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
                     color: AppColors.muted)),
             const SizedBox(height: 6),
             _loadingSections
-                ? const Center(
+                ? Center(
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.sun))
+                        strokeWidth: 2, color: context.primary))
                 : _sections.isEmpty
                     ? const Text('No sections available',
                         style: TextStyle(
@@ -602,12 +602,12 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
                                   horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
                                 color: selected
-                                    ? AppColors.sun
+                                    ? context.primary
                                     : AppColors.bg,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: selected
-                                      ? AppColors.sun
+                                      ? context.primary
                                       : AppColors.border,
                                 ),
                               ),
@@ -646,10 +646,10 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: selected ? AppColors.sun : AppColors.bg,
+                      color: selected ? context.primary : AppColors.bg,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: selected ? AppColors.sun : AppColors.border,
+                        color: selected ? context.primary : AppColors.border,
                       ),
                     ),
                     child: Center(
@@ -699,7 +699,7 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: AppColors.sun, width: 2),
+                      BorderSide(color: context.primary, width: 2),
                 ),
                 contentPadding: const EdgeInsets.all(12),
               ),

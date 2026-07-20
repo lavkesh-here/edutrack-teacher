@@ -58,7 +58,7 @@ class _FeedScreenState extends State<FeedScreen> {
         label: const Text('New', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: RefreshIndicator(
-        color: AppColors.sun,
+        color: context.primary,
         onRefresh: _load,
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -188,7 +188,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     children: [
                       Switch(
                         value: isPinned,
-                        activeColor: AppColors.sun,
+                        activeColor: ctx2.primary,
                         onChanged: (v) => setSheet(() => isPinned = v),
                       ),
                       const Text('Pin this announcement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -395,7 +395,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: a.isPinned ? AppColors.sun.withOpacity(0.4) : AppColors.border,
+          color: a.isPinned ? context.primary.withOpacity(0.4) : AppColors.border,
           width: a.isPinned ? 2 : 1.5,
         ),
       ),
@@ -409,13 +409,13 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
               Container(
                 width: 36, height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.sunLight,
+                  color: context.primaryLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(
                     (a.authorName ?? 'T').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.sun, fontSize: 16),
+                    style: TextStyle(fontWeight: FontWeight.w800, color: context.primary, fontSize: 16),
                   ),
                 ),
               ),
@@ -468,10 +468,10 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
             if (!_expanded && a.body.length > 120)
               GestureDetector(
                 onTap: () => setState(() => _expanded = true),
-                child: const Padding(
-                  padding: EdgeInsets.only(top: 2),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
                   child: Text('Read more',
-                      style: TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600)),
+                      style: TextStyle(fontSize: 12, color: context.primary, fontWeight: FontWeight.w600)),
                 ),
               ),
           ],
@@ -732,7 +732,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                               ),
                             )
                           : RefreshIndicator(
-                              color: AppColors.sun,
+                              color: context.primary,
                               onRefresh: _load,
                               child: ListView.builder(
                                 controller: _scrollCtrl,
@@ -780,7 +780,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
           // Reply banner with quote
           if (_replyToAuthor != null)
             Container(
-              color: AppColors.sunLight,
+              color: context.primaryLight,
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -789,7 +789,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                     width: 3,
                     height: _replyToText != null ? 40 : 20,
                     margin: const EdgeInsets.only(right: 8, top: 2),
-                    decoration: BoxDecoration(color: AppColors.sun, borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(color: context.primary, borderRadius: BorderRadius.circular(2)),
                   ),
                   Expanded(
                     child: Column(
@@ -797,7 +797,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                       children: [
                         Text(
                           _replyToAuthor!,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.sun),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.primary),
                         ),
                         if (_replyToText != null) ...[
                           const SizedBox(height: 2),
@@ -813,7 +813,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                   ),
                   GestureDetector(
                     onTap: () => setState(() { _replyToId = null; _replyToAuthor = null; _replyToText = null; }),
-                    child: const Icon(Icons.close, size: 16, color: AppColors.sun),
+                    child: Icon(Icons.close, size: 16, color: context.primary),
                   ),
                 ],
               ),

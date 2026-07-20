@@ -377,7 +377,7 @@ class _PerTeacherTabState extends State<_PerTeacherTab> {
       );
     }
     return RefreshIndicator(
-      color: AppColors.sun,
+      color: context.primary,
       onRefresh: _load,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -398,7 +398,7 @@ class _PerTeacherTabState extends State<_PerTeacherTab> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: override != null ? AppColors.sun.withOpacity(0.5) : AppColors.border,
+                  color: override != null ? context.primary.withOpacity(0.5) : AppColors.border,
                   width: override != null ? 1.5 : 1,
                 ),
               ),
@@ -444,7 +444,7 @@ class _PerTeacherTabState extends State<_PerTeacherTab> {
                   ),
                   Icon(
                     override != null ? Icons.tune_rounded : Icons.add_rounded,
-                    color: override != null ? AppColors.sun : AppColors.muted,
+                    color: override != null ? context.primary : AppColors.muted,
                     size: 20,
                   ),
                 ],
@@ -458,19 +458,22 @@ class _PerTeacherTabState extends State<_PerTeacherTab> {
 }
 
 class _OverrideChip extends StatelessWidget {
-  const _OverrideChip(this.label, {this.color = AppColors.sun});
+  const _OverrideChip(this.label, {this.color});
   final String label;
-  final Color color;
+  final Color? color;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final c = color ?? context.primary;
+    return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: c.withOpacity(0.12),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+        child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: c)),
       );
+  }
 }
 
 class _ProbationChip extends StatelessWidget {

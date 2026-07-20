@@ -181,7 +181,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     final count = records.length;
 
     return RefreshIndicator(
-      color: AppColors.sun,
+      color: context.primary,
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
@@ -370,15 +370,15 @@ class _TodayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.sun, Color(0xFFEA580C)],
+          colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.15)!],
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: AppColors.sun.withOpacity(0.3),
+            color: context.primary.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -435,16 +435,16 @@ class _TodayCard extends StatelessWidget {
                 onPressed: marking ? null : onMark,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.sun,
+                  foregroundColor: context.primary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 13),
                 ),
                 icon: marking
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(color: AppColors.sun, strokeWidth: 2.5),
+                        child: CircularProgressIndicator(color: context.primary, strokeWidth: 2.5),
                       )
                     : const Icon(Icons.location_on, size: 18),
                 label: Text(

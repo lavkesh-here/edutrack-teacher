@@ -35,6 +35,7 @@ import 'syllabus.dart';
 import 'notification_prefs.dart';
 import 'faq_screen.dart';
 import 'support_chat_screen.dart';
+import 'vidya_screen.dart';
 import 'teacher_search.dart';
 import 'ptm.dart';
 import 'substitutes.dart';
@@ -316,6 +317,19 @@ class _HomeTabState extends State<_HomeTab> {
                           ],
                         ),
                       ),
+                      // Vidya copilot button
+                      GestureDetector(
+                        onTap: () => _openScreen(context, const VidyaScreen()),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text('✨', style: TextStyle(fontSize: 18)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       if (auth.features.aiSupportChat) ...[
                         GestureDetector(
                           onTap: () => _openScreen(context, const SupportChatScreen()),
@@ -904,6 +918,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'director_analytics':   _openScreen(context, const DirectorDashboardScreen(), recentId: id);
       case 'staff_roles':     _openScreen(context, const AdminTeacherRolesScreen(), recentId: id);
       case 'visitor_log':     _openScreen(context, const VisitorLogScreen(), recentId: id);
+      case 'vidya':           _openScreen(context, const VidyaScreen(), recentId: id);
       case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
       case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
@@ -1974,6 +1989,8 @@ class _MoreTabState extends State<_MoreTab> {
                     if (flags.todo)
                       _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                           onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
+                    _FeatureRow(icon: '✨', iconBg: AppColors.tealLight, title: 'Ask Vidya', sub: 'School copilot — ask anything about your data',
+                        onTap: () => _push(context, const VidyaScreen(), recentId: 'vidya')),
                     _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'Browse common questions',
                         onTap: () => _push(context, const FaqScreen())),
 

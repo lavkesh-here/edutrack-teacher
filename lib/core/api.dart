@@ -1607,6 +1607,19 @@ class ApiClient {
     return data['reply'] as String;
   }
 
+  // ── Vidya copilot ──────────────────────────────────────────────────────────
+
+  static Future<String> askVidya({
+    required String question,
+    required List<Map<String, String>> history,
+  }) async {
+    final data = await _post('/api/v1/teacher/copilot/ask', {
+      'question': question,
+      'history': history,
+    });
+    return data['reply'] as String;
+  }
+
   // ── WhatsApp parent report ─────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> generateWhatsAppReport(String studentId) async {

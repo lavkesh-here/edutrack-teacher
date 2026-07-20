@@ -117,8 +117,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (unreadCount > 0)
             TextButton(
               onPressed: _markAllRead,
-              child: const Text('Mark all read',
-                  style: TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w700)),
+              child: Text('Mark all read',
+                  style: TextStyle(fontSize: 12, color: context.primary, fontWeight: FontWeight.w700)),
             ),
         ],
       ),
@@ -156,7 +156,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                         )
                       : RefreshIndicator(
-                          color: AppColors.sun,
+                          color: context.primary,
                           onRefresh: _load,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -166,7 +166,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               if (i == _filtered.length) {
                                 return TextButton(
                                   onPressed: () => setState(() { _showAll = true; _applyFilter(); }),
-                                  child: const Text('Load older notifications', style: TextStyle(color: AppColors.sun)),
+                                  child: Text('Load older notifications', style: TextStyle(color: context.primary)),
                                 );
                               }
                               final n = _filtered[i];
@@ -182,10 +182,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: isRead ? Colors.white : AppColors.sunLight,
+                                    color: isRead ? Colors.white : context.primaryLight,
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                        color: isRead ? AppColors.border : AppColors.sun.withOpacity(0.3)),
+                                        color: isRead ? AppColors.border : context.primary.withOpacity(0.3)),
                                   ),
                                   child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,14 +227,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                                   const SizedBox(width: 8),
                                                   Container(
                                                     width: 6, height: 6,
-                                                    decoration: const BoxDecoration(
-                                                        color: AppColors.sun,
+                                                    decoration: BoxDecoration(
+                                                        color: context.primary,
                                                         shape: BoxShape.circle),
                                                   ),
                                                   const SizedBox(width: 4),
-                                                  const Text('Tap to mark read',
+                                                  Text('Tap to mark read',
                                                       style: TextStyle(
-                                                          fontSize: 9, color: AppColors.sun)),
+                                                          fontSize: 9, color: context.primary)),
                                                 ],
                                               ],
                                             ),
@@ -261,9 +261,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: selected ? AppColors.sun : Colors.white,
+        color: selected ? context.primary : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: selected ? AppColors.sun : AppColors.border, width: 1.5),
+        border: Border.all(color: selected ? context.primary : AppColors.border, width: 1.5),
       ),
       child: Text(
         label,

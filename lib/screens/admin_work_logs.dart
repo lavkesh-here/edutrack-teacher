@@ -90,11 +90,11 @@ class _AdminWorkLogsScreenState extends State<AdminWorkLogsScreen> {
             child: DropdownButton<String>(
               value: _range,
               underline: const SizedBox(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Outfit',
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.sun,
+                color: context.primary,
               ),
               items: _ranges.map((r) {
                 return DropdownMenuItem(value: r.$1, child: Text(r.$2));
@@ -130,7 +130,7 @@ class _AdminWorkLogsScreenState extends State<AdminWorkLogsScreen> {
                   ),
                 )
               : RefreshIndicator(
-                  color: AppColors.sun,
+                  color: context.primary,
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.only(bottom: 24),

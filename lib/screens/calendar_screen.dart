@@ -87,7 +87,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         label: const Text('Event', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: RefreshIndicator(
-        color: AppColors.sun,
+        color: context.primary,
         onRefresh: _loadEvents,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -225,9 +225,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppColors.sun
+                  ? context.primary
                   : isToday
-                      ? AppColors.sunLight
+                      ? context.primaryLight
                       : null,
               borderRadius: BorderRadius.circular(8),
             ),
@@ -242,7 +242,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     color: isSelected
                         ? Colors.white
                         : isToday
-                            ? AppColors.sun
+                            ? context.primary
                             : AppColors.text,
                   ),
                 ),

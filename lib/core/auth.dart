@@ -17,6 +17,7 @@ class AuthUser {
   final String? email;
   final String? phone;
   final String? photoUrl;
+  final List<String> tags;
 
   const AuthUser({
     required this.teacherName,
@@ -26,7 +27,10 @@ class AuthUser {
     this.email,
     this.phone,
     this.photoUrl,
+    this.tags = const [],
   });
+
+  bool hasTag(String tag) => tags.contains(tag);
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -124,6 +128,8 @@ class AuthProvider extends ChangeNotifier {
       final role = prefs.getString('role') ?? 'teacher';
       final id = prefs.getString('teacher_id') ?? '';
       if (name.isNotEmpty) {
+        final tagsStr = prefs.getString('teacher_tags') ?? '';
+        final tags = tagsStr.isEmpty ? <String>[] : tagsStr.split(',');
         _user = AuthUser(
           teacherName: name,
           schoolName: school,
@@ -132,6 +138,7 @@ class AuthProvider extends ChangeNotifier {
           email: prefs.getString('teacher_email'),
           phone: prefs.getString('teacher_phone'),
           photoUrl: prefs.getString('teacher_photo_url'),
+          tags: tags,
         );
       }
     }
@@ -156,11 +163,14 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('role', res.role);
     await prefs.setString('teacher_id', res.teacherId);
     await prefs.setString('teacher_email', email);
+    final tags = res.functionalTags;
+    await prefs.setString('teacher_tags', tags.join(','));
     _user = AuthUser(
       teacherName: res.teacherName,
       schoolName: res.schoolName,
       role: res.role,
       teacherId: res.teacherId,
+      tags: tags,
     );
     // Load feature flags after login (non-blocking)
     _loadFeatureFlags();
@@ -196,6 +206,7 @@ class AuthProvider extends ChangeNotifier {
       email: email ?? _user!.email,
       phone: phone ?? _user!.phone,
       photoUrl: _user!.photoUrl,
+      tags: _user!.tags,
     );
     notifyListeners();
   }
@@ -212,6 +223,7 @@ class AuthProvider extends ChangeNotifier {
       email: _user!.email,
       phone: _user!.phone,
       photoUrl: url,
+      tags: _user!.tags,
     );
     notifyListeners();
   }
@@ -234,6 +246,7 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('teacher_email');
     await prefs.remove('teacher_phone');
     await prefs.remove('teacher_photo_url');
+    await prefs.remove('teacher_tags');
     _user = null;
     _features = FeatureFlags.defaults();
     await CacheService.clearAll();

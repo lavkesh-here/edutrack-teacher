@@ -31,6 +31,7 @@ class AuthResponse {
   final String role;
   final String teacherId;
   final bool mustChangePassword;
+  final List<String> functionalTags;
 
   const AuthResponse({
     required this.token,
@@ -39,6 +40,7 @@ class AuthResponse {
     required this.role,
     required this.teacherId,
     this.mustChangePassword = false,
+    this.functionalTags = const [],
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> j) => AuthResponse(
@@ -48,6 +50,10 @@ class AuthResponse {
         role: j['role'] as String,
         teacherId: j['teacher_id'].toString(),
         mustChangePassword: j['must_change_password'] as bool? ?? false,
+        functionalTags: (j['functional_tags'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
       );
 }
 
@@ -2065,6 +2071,51 @@ class ApiClient {
     final q = unacknowledgedOnly ? '?unacknowledged_only=true' : '';
     final data = await _get('/api/v1/teacher/alerts$q');
     return (data['alerts'] as List).cast<Map<String, dynamic>>();
+  }
+
+  // ── Admin: PTM ─────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> adminListPTMEvents() async {
+    return (await _get('/api/v1/admin/ptm/events')) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> adminGetPTMSummary(String eventId) async {
+    return (await _get('/api/v1/admin/ptm/events/$eventId/summary')) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> adminGetPTMParentAttendance(String eventId) async {
+    return (await _get('/api/v1/admin/ptm/events/$eventId/parent-attendance')) as Map<String, dynamic>;
+  }
+
+  // ── Admin: Visitors ────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> listVisitors({String? dateFrom}) async {
+    final q = dateFrom != null ? '?date_from=$dateFrom' : '';
+    return (await _get('/api/v1/admin/visitors$q')) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> logVisitor(Map<String, dynamic> body) async {
+    return (await _post('/api/v1/admin/visitors', body)) as Map<String, dynamic>;
+  }
+
+  static Future<void> checkoutVisitor(String visitorId) async {
+    await _patch('/api/v1/admin/visitors/$visitorId/checkout', {});
+  }
+
+  // ── Admin: Teacher Functional Tags ─────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminListTeachers({String? search, int page = 0, int pageSize = 100}) async {
+    final params = <String>[];
+    if (search != null && search.isNotEmpty) params.add('search=${Uri.encodeComponent(search)}');
+    params.add('page=$page');
+    params.add('page_size=$pageSize');
+    final path = '/api/v1/admin/teachers?${params.join('&')}';
+    final data = await _get(path);
+    return ((data as Map<String, dynamic>)['teachers'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> updateTeacherFunctionalTags(String teacherId, List<String> tags) async {
+    await _patch('/api/v1/admin/teachers/$teacherId/functional-tags', {'tags': tags});
   }
 }
 

@@ -460,10 +460,10 @@ class _AnnouncementTile extends StatelessWidget {
     leading: Container(
       width: 40, height: 40,
       decoration: BoxDecoration(
-        color: AppColors.sunLight,
+        color: context.primaryLight,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Icon(Icons.campaign_outlined, color: AppColors.sun, size: 20),
+      child: Icon(Icons.campaign_outlined, color: context.primary, size: 20),
     ),
     title: Text(ann['title'] as String? ?? '',
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),

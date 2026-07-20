@@ -128,9 +128,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.sunLight,
+              color: context.primaryLight,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.sun.withOpacity(0.4)),
+              border: Border.all(color: context.primary.withOpacity(0.4)),
             ),
             child: const Row(
               children: [
@@ -199,7 +199,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: _loading ? AppColors.muted : AppColors.sun,
+                        color: _loading ? AppColors.muted : context.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: _loading
@@ -250,7 +250,7 @@ class _MessageBubble extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: AppColors.sunLight,
+                color: context.primaryLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Center(child: Text('🎓', style: TextStyle(fontSize: 14))),
@@ -262,7 +262,7 @@ class _MessageBubble extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isUser
-                    ? AppColors.sun
+                    ? context.primary
                     : msg.isError
                         ? const Color(0xFFFFF1F2)
                         : Colors.white,
@@ -315,7 +315,7 @@ class _TypingBubble extends StatelessWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: AppColors.sunLight,
+              color: context.primaryLight,
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Center(child: Text('🎓', style: TextStyle(fontSize: 14))),
@@ -410,7 +410,7 @@ class _EmptyState extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppColors.sunLight,
+                color: context.primaryLight,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Center(child: Text('🎓', style: TextStyle(fontSize: 32))),

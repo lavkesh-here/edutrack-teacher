@@ -63,7 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             if (currentPhotoUrl != null && currentPhotoUrl.isNotEmpty)
               ListTile(
-                leading: const Icon(Icons.visibility_rounded, color: AppColors.sun),
+                leading: Icon(Icons.visibility_rounded, color: sheetCtx.primary),
                 title: const Text('View Photo', style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -71,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.sun),
+              leading: Icon(Icons.camera_alt_rounded, color: sheetCtx.primary),
               title: const Text('Change Photo', style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(sheetCtx);
@@ -284,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 120,
                         height: 120,
                         decoration: BoxDecoration(
-                          color: AppColors.sun.withOpacity(0.25),
+                          color: context.primary.withOpacity(0.25),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -300,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 height: 70,
                                 decoration: BoxDecoration(
                                   gradient: user.photoUrl == null
-                                      ? const LinearGradient(colors: [AppColors.sun, AppColors.amber])
+                                      ? LinearGradient(colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.15)!])
                                       : null,
                                   shape: BoxShape.circle,
                                   border: Border.all(color: Colors.white.withOpacity(0.25), width: 3),
@@ -317,7 +317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 bottom: 0, right: 0,
                                 child: Container(
                                   width: 22, height: 22,
-                                  decoration: const BoxDecoration(color: AppColors.sun, shape: BoxShape.circle),
+                                  decoration: BoxDecoration(color: context.primary, shape: BoxShape.circle),
                                   child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
                                 ),
                               ),
@@ -363,7 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _ProfileRow(
                   icon: '👤',
-                  iconColor: AppColors.sunLight,
+                  iconColor: context.primaryLight,
                   label: 'Edit Details',
                   sub: 'Name, email, contact info',
                   onTap: () => _showEditSheet(context, user),

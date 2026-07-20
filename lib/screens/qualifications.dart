@@ -638,7 +638,7 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
               Checkbox(
                 value: _isCurrent,
                 onChanged: (v) => setState(() => _isCurrent = v ?? false),
-                activeColor: AppColors.sun,
+                activeColor: context.primary,
               ),
               const Text('I currently work here',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),

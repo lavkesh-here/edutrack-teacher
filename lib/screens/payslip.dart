@@ -265,11 +265,11 @@ class _PayslipScreenState extends State<PayslipScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.sun : Colors.white,
+                        color: isSelected ? context.primary : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color:
-                              isSelected ? AppColors.sun : AppColors.border,
+                              isSelected ? context.primary : AppColors.border,
                           width: 1.5,
                         ),
                       ),
@@ -338,9 +338,9 @@ class _PayslipCard extends StatelessWidget {
         children: [
           // Header
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.sun, Color(0xFFEA580C)],
+                colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.15)!],
               ),
             ),
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
@@ -450,10 +450,10 @@ class _PayslipCard extends StatelessWidget {
                     ),
                     Text(
                       '₹ ${record.netPay.toStringAsFixed(0)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.sun,
+                        color: context.primary,
                       ),
                     ),
                   ],

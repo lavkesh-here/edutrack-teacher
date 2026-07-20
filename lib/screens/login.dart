@@ -131,15 +131,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [AppColors.sun, Color(0xFFEA580C)],
+                      colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.15)!],
                     ),
                     borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.sun.withOpacity(0.35),
+                        color: context.primary.withOpacity(0.35),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -206,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: Border.all(color: AppColors.border, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.sun.withOpacity(0.06),
+                      color: context.primary.withOpacity(0.06),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -400,8 +400,8 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.sun, Color(0xFFEA580C)],
+                        gradient: LinearGradient(
+                          colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.15)!],
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -449,7 +449,7 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
                   border: Border.all(color: AppColors.border, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.sun.withOpacity(0.06),
+                      color: context.primary.withOpacity(0.06),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),

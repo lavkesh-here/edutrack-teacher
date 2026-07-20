@@ -143,7 +143,7 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Done', style: TextStyle(color: AppColors.sun, fontWeight: FontWeight.w700)),
+            child: Text('Done', style: TextStyle(color: context.primary, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -221,7 +221,7 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
                         ),
                       )
                     : RefreshIndicator(
-                        color: AppColors.sun,
+                        color: context.primary,
                         onRefresh: _load,
                         child: ListView.builder(
                           padding: const EdgeInsets.only(bottom: 100),

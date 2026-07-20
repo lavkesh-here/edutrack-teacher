@@ -77,7 +77,7 @@ class _FaqScreenState extends State<FaqScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.sun, width: 1.5),
+                  borderSide: BorderSide(color: context.primary, width: 1.5),
                 ),
               ),
             ),
@@ -147,7 +147,7 @@ class _FaqScreenState extends State<FaqScreen> {
                                               16, 0, 16, 14),
                                           expandedCrossAxisAlignment:
                                               CrossAxisAlignment.start,
-                                          iconColor: AppColors.sun,
+                                          iconColor: context.primary,
                                           collapsedIconColor: AppColors.muted,
                                           title: Text(
                                             item.q,

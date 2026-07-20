@@ -25,6 +25,13 @@ class AppColors {
   static const border = Color(0xFFF0D9C8);
 }
 
+/// Use `context.primary` anywhere you need the school's brand color.
+/// Never hardcode AppColors.sun for interactive chrome — it won't follow theme changes.
+extension BuildContextTheme on BuildContext {
+  Color get primary => Theme.of(this).colorScheme.primary;
+  Color get primaryLight => Theme.of(this).colorScheme.primary.withOpacity(0.12);
+}
+
 ThemeData buildTheme([Color primary = AppColors.sun]) => ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: primary, surface: AppColors.bg),

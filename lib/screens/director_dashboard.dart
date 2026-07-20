@@ -21,7 +21,7 @@ class _DirectorDashboardScreenState extends State<DirectorDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _load();
   }
 
@@ -71,6 +71,7 @@ class _DirectorDashboardScreenState extends State<DirectorDashboardScreen>
             Tab(text: 'Overview'),
             Tab(text: 'Classes'),
             Tab(text: 'Teachers'),
+            Tab(text: 'PTM'),
           ],
         ),
       ),
@@ -84,6 +85,7 @@ class _DirectorDashboardScreenState extends State<DirectorDashboardScreen>
                     _OverviewTab(dash: _dash!),
                     _ClassesTab(dash: _dash!, classData: _classData!),
                     _TeachersTab(dash: _dash!),
+                    const _PTMTab(),
                   ],
                 ),
     );
@@ -312,7 +314,7 @@ class _ClassCard extends StatelessWidget {
                           Text('${e.key + 1}. ', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
                           Expanded(child: Text(s['student_name'] as String? ?? '—', style: const TextStyle(fontSize: 12))),
                           Text('${(s['avg_pct'] as num?)?.toStringAsFixed(1) ?? '—'}%',
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.sun)),
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: context.primary)),
                         ],
                       ),
                     );
@@ -784,6 +786,351 @@ class _ErrorView extends StatelessWidget {
             ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── PTM Tab ───────────────────────────────────────────────────────────────────
+
+class _PTMTab extends StatefulWidget {
+  const _PTMTab();
+
+  @override
+  State<_PTMTab> createState() => _PTMTabState();
+}
+
+class _PTMTabState extends State<_PTMTab> {
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _events = [];
+  final Set<String> _expanded = {};
+  final Map<String, Map<String, dynamic>> _summaries = {};
+  final Set<String> _loadingSummary = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await ApiClient.adminListPTMEvents();
+      if (mounted) {
+        setState(() {
+          _events = (data['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+          _loading = false;
+        });
+      }
+    } on ApiError catch (e) {
+      if (mounted) setState(() { _error = e.message; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _loadSummary(String eventId) async {
+    if (_summaries.containsKey(eventId) || _loadingSummary.contains(eventId)) return;
+    setState(() => _loadingSummary.add(eventId));
+    try {
+      final data = await ApiClient.adminGetPTMSummary(eventId);
+      if (mounted) {
+        setState(() {
+          _summaries[eventId] = data;
+          _loadingSummary.remove(eventId);
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingSummary.remove(eventId));
+    }
+  }
+
+  void _showParentAttendance(BuildContext context, String eventId, String eventName) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ParentAttendanceSheet(eventId: eventId, eventName: eventName),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('⚠️', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: _load, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_events.isEmpty) {
+      return const Center(child: Text('No PTM events found.', style: TextStyle(color: AppColors.muted)));
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _events.length,
+        itemBuilder: (context, i) {
+          final event = _events[i];
+          final eventId = event['id']?.toString() ?? '';
+          final eventName = event['name'] as String? ?? '—';
+          final eventDate = event['event_date'] as String? ?? '';
+          final isExpanded = _expanded.contains(eventId);
+          final summary = _summaries[eventId];
+          final isLoadingSummary = _loadingSummary.contains(eventId);
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expanded.remove(eventId);
+                      } else {
+                        _expanded.add(eventId);
+                        _loadSummary(eventId);
+                      }
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        const Text('🤝', style: TextStyle(fontSize: 22)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(eventName,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                              const SizedBox(height: 2),
+                              Text(fmtDate(eventDate),
+                                  style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        Icon(isExpanded ? Icons.expand_less : Icons.expand_more,
+                            color: AppColors.muted),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isExpanded) ...[
+                  const Divider(height: 1, color: AppColors.border),
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: isLoadingSummary
+                        ? const Center(child: CircularProgressIndicator())
+                        : summary == null
+                            ? const Text('Failed to load summary.',
+                                style: TextStyle(color: AppColors.muted, fontSize: 12))
+                            : _PTMSummaryBody(summary: summary),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showParentAttendance(context, eventId, eventName),
+                        icon: const Icon(Icons.people_outline, size: 16),
+                        label: const Text('Parent Attendance'),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PTMSummaryBody extends StatelessWidget {
+  const _PTMSummaryBody({required this.summary});
+  final Map<String, dynamic> summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final teachers = (summary['teachers'] as List<dynamic>? ?? []);
+    if (teachers.isEmpty) {
+      return const Text('No teacher data yet.', style: TextStyle(color: AppColors.muted, fontSize: 12));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Teacher Summary',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.text2)),
+        const SizedBox(height: 8),
+        ...teachers.map((t) {
+          final tMap = t as Map<String, dynamic>;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(tMap['teacher_name'] as String? ?? '—',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+                Text('${tMap['meeting_count'] ?? 0} meetings',
+                    style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _ParentAttendanceSheet extends StatefulWidget {
+  const _ParentAttendanceSheet({required this.eventId, required this.eventName});
+  final String eventId;
+  final String eventName;
+
+  @override
+  State<_ParentAttendanceSheet> createState() => _ParentAttendanceSheetState();
+}
+
+class _ParentAttendanceSheetState extends State<_ParentAttendanceSheet> {
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _records = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await ApiClient.adminGetPTMParentAttendance(widget.eventId);
+      if (mounted) {
+        setState(() {
+          _records = (data['records'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+          _loading = false;
+        });
+      }
+    } on ApiError catch (e) {
+      if (mounted) setState(() { _error = e.message; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (_, ctrl) => Column(
+        children: [
+          Container(
+            width: 36, height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(widget.eventName,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                ),
+                const Text('Parent Attendance', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.muted)))
+                    : _records.isEmpty
+                        ? const Center(child: Text('No attendance data.', style: TextStyle(color: AppColors.muted)))
+                        : ListView.builder(
+                            controller: ctrl,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _records.length,
+                            itemBuilder: (_, i) {
+                              final r = _records[i];
+                              final attended = r['parent_attended'] as bool? ?? false;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: attended ? AppColors.greenLight : AppColors.card,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: attended
+                                        ? AppColors.green.withOpacity(0.3)
+                                        : AppColors.border,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(attended ? '✅' : '❌',
+                                        style: const TextStyle(fontSize: 16)),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(r['student_name'] as String? ?? '—',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                                          Text(r['class_label'] as String? ?? '—',
+                                              style: const TextStyle(
+                                                  color: AppColors.muted, fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      attended ? 'Attended' : 'Absent',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: attended ? AppColors.green : AppColors.muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+          ),
+        ],
       ),
     );
   }

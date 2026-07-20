@@ -292,9 +292,9 @@ class _SectionPicker extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.sun : AppColors.bg,
+                    color: selected ? context.primary : AppColors.bg,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: selected ? AppColors.sun : AppColors.border),
+                    border: Border.all(color: selected ? context.primary : AppColors.border),
                   ),
                   child: Text(
                     label,
@@ -581,10 +581,10 @@ class _ChapterRow extends StatelessWidget {
                     else
                       GestureDetector(
                         onTap: onSetTarget,
-                        child: const Text('+ Set target date',
+                        child: Text('+ Set target date',
                             style: TextStyle(
                                 fontSize: 11,
-                                color: AppColors.sun,
+                                color: context.primary,
                                 fontWeight: FontWeight.w600)),
                       ),
                     if (onTrackColor != null && onTrackLabel != null) ...[
@@ -612,10 +612,10 @@ class _ChapterRow extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 30),
                 child: GestureDetector(
                   onTap: onSetTarget,
-                  child: const Text('+ Set target date',
+                  child: Text('+ Set target date',
                       style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.sun,
+                          color: context.primary,
                           fontWeight: FontWeight.w600)),
                 ),
               ),

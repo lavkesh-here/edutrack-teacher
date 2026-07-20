@@ -133,7 +133,7 @@ class _RoutesTabState extends State<_RoutesTab> {
                   ),
                 )
               : RefreshIndicator(
-                  color: AppColors.sun,
+                  color: context.primary,
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -395,7 +395,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
                         ),
                       )
                     : RefreshIndicator(
-                        color: AppColors.sun,
+                        color: context.primary,
                         onRefresh: _load,
                         child: ListView.builder(
                           padding: const EdgeInsets.only(bottom: 16),
@@ -784,7 +784,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                                 child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                               )
                             : IconButton(
-                                icon: const Icon(Icons.search, color: AppColors.sun),
+                                icon: Icon(Icons.search, color: context.primary),
                                 onPressed: () => _search(_searchCtrl.text),
                               ),
                       ),

@@ -105,7 +105,7 @@ class _AdminAttendersScreenState extends State<AdminAttendersScreen> {
                         ),
                       )
                     : RefreshIndicator(
-                        color: AppColors.sun,
+                        color: context.primary,
                         onRefresh: _load,
                         child: ListView.builder(
                           padding: const EdgeInsets.only(bottom: 24),

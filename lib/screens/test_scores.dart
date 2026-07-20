@@ -212,8 +212,8 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
                         value: _scores!.classAverage != null
                             ? '${_scores!.classAverage!.toStringAsFixed(1)}%'
                             : '—',
-                        color: AppColors.sun,
-                        lightColor: AppColors.sunLight,
+                        color: context.primary,
+                        lightColor: context.primaryLight,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -655,7 +655,7 @@ class _ScoreRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: score.isAbsent ? AppColors.coralLight : AppColors.sunLight,
+              color: score.isAbsent ? AppColors.coralLight : context.primaryLight,
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -666,7 +666,7 @@ class _ScoreRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
-                  color: score.isAbsent ? AppColors.coral : AppColors.sun,
+                  color: score.isAbsent ? AppColors.coral : context.primary,
                 ),
               ),
             ),
@@ -924,14 +924,14 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                                     Container(
                                       width: 36, height: 36,
                                       decoration: BoxDecoration(
-                                        color: isAbsent ? AppColors.coralLight : AppColors.sunLight,
+                                        color: isAbsent ? AppColors.coralLight : context.primaryLight,
                                         shape: BoxShape.circle,
                                       ),
                                       child: Center(
                                         child: Text(
                                           (s['student_name'] as String? ?? '?')[0].toUpperCase(),
                                           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,
-                                              color: isAbsent ? AppColors.coral : AppColors.sun),
+                                              color: isAbsent ? AppColors.coral : context.primary),
                                         ),
                                       ),
                                     ),

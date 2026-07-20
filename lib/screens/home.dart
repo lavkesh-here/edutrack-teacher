@@ -39,6 +39,8 @@ import 'teacher_search.dart';
 import 'ptm.dart';
 import 'substitutes.dart';
 import 'alerts.dart';
+import 'visitor_log.dart';
+import 'admin_teacher_roles.dart';
 import '../core/branding.dart';
 import '../core/recents.dart';
 import '../core/features.dart';
@@ -900,6 +902,8 @@ class _HomeTabState extends State<_HomeTab> {
       case 'fees':            _openScreen(context, const AdminFeeManagementScreen(), recentId: id);
       case 'leave_config':         _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
       case 'director_analytics':   _openScreen(context, const DirectorDashboardScreen(), recentId: id);
+      case 'staff_roles':     _openScreen(context, const AdminTeacherRolesScreen(), recentId: id);
+      case 'visitor_log':     _openScreen(context, const VisitorLogScreen(), recentId: id);
       case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
       case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
@@ -1936,7 +1940,7 @@ class _MoreTabState extends State<_MoreTab> {
                     // ── MY INFO ───────────────────────────────────────────────
                     const Text('MY INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
-                    _FeatureRow(icon: '👤', iconBg: AppColors.sunLight, title: 'Personal Details', sub: 'Name, email, contact info',
+                    _FeatureRow(icon: '👤', iconBg: context.primaryLight, title: 'Personal Details', sub: 'Name, email, contact info',
                         onTap: () => _showPersonalDetailsSheet(context, user)),
                     _FeatureRow(icon: '🗓️', iconBg: AppColors.coralLight, title: 'My Leaves', sub: 'Balance, history & apply',
                         onTap: () => _push(context, const LeaveScreen(), recentId: 'leaves')),
@@ -1953,7 +1957,7 @@ class _MoreTabState extends State<_MoreTab> {
                     // ── MORE ──────────────────────────────────────────────────
                     const Text('MORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
-                    _FeatureRow(icon: '🕐', iconBg: AppColors.sunLight, title: 'My Schedule', sub: 'Weekly timetable',
+                    _FeatureRow(icon: '🕐', iconBg: context.primaryLight, title: 'My Schedule', sub: 'Weekly timetable',
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
                     if (flags.syllabus)
                       _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
@@ -1964,6 +1968,9 @@ class _MoreTabState extends State<_MoreTab> {
                         onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
                     _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by AI rules',
                         onTap: () => _push(context, const AlertsScreen(), recentId: 'alerts')),
+                    if (!isAdminOrAbove && (user.hasTag('attender')))
+                      _FeatureRow(icon: '🏠', iconBg: AppColors.skyLight, title: 'Visitor Log', sub: 'Log and manage school visitors',
+                          onTap: () => _push(context, const VisitorLogScreen(), recentId: 'visitor_log')),
                     if (flags.todo)
                       _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                           onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
@@ -1993,6 +2000,10 @@ class _MoreTabState extends State<_MoreTab> {
                       if (isAdmin)
                         _FeatureRow(icon: '⚙️', iconBg: AppColors.skyLight, title: 'Leave Config', sub: 'Casual, sick & working day settings',
                             onTap: () => _push(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
+                      _FeatureRow(icon: '🏷️', iconBg: AppColors.tealLight, title: 'Staff Roles', sub: 'Assign functional tags to staff',
+                          onTap: () => _push(context, const AdminTeacherRolesScreen(), recentId: 'staff_roles')),
+                      _FeatureRow(icon: '🏠', iconBg: AppColors.skyLight, title: 'Visitor Log', sub: 'Log and manage school visitors',
+                          onTap: () => _push(context, const VisitorLogScreen(), recentId: 'visitor_log')),
                     ],
 
                     const SizedBox(height: 16),

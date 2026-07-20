@@ -222,10 +222,10 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
-                            color: active ? AppColors.sun : Colors.white,
+                            color: active ? context.primary : Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: active ? AppColors.sun : AppColors.border,
+                              color: active ? context.primary : AppColors.border,
                               width: 1.5,
                             ),
                           ),
@@ -316,8 +316,8 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                             children: [
                               Container(
                                 width: 32, height: 32,
-                                decoration: BoxDecoration(color: AppColors.sunLight, shape: BoxShape.circle),
-                                child: Center(child: Text(s.name[0], style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.sun, fontSize: 14))),
+                                decoration: BoxDecoration(color: context.primaryLight, shape: BoxShape.circle),
+                                child: Center(child: Text(s.name[0], style: TextStyle(fontWeight: FontWeight.w800, color: context.primary, fontSize: 14))),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -361,10 +361,10 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: selected ? AppColors.sun : Colors.white,
+                      color: selected ? context.primary : Colors.white,
                       borderRadius: BorderRadius.circular(40),
                       border: Border.all(
-                        color: selected ? AppColors.sun : AppColors.border,
+                        color: selected ? context.primary : AppColors.border,
                         width: 1.5,
                       ),
                     ),
@@ -426,9 +426,9 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.sunLight,
+                  color: context.primaryLight,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.sun.withOpacity(0.3)),
+                  border: Border.all(color: context.primary.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,7 +557,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                               ),
                             )
                           : RefreshIndicator(
-                              color: AppColors.sun,
+                              color: context.primary,
                               onRefresh: _loadHistory,
                               child: ListView.builder(
                                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -566,7 +566,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                                   if (i == _filteredHistory.length) {
                                     return TextButton(
                                       onPressed: () => setState(() { _historyShowAll = !_historyShowAll; _applyHistoryFilters(); }),
-                                      child: Text(_historyShowAll ? 'Show recent 7 days only' : 'Load full history', style: const TextStyle(color: AppColors.sun)),
+                                      child: Text(_historyShowAll ? 'Show recent 7 days only' : 'Load full history', style: TextStyle(color: context.primary)),
                                     );
                                   }
                                   return _HistoryItem(item: _filteredHistory[i]);
@@ -777,9 +777,9 @@ class _FilterChip extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: selected ? AppColors.sun : Colors.white,
+        color: selected ? context.primary : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: selected ? AppColors.sun : AppColors.border, width: 1.5),
+        border: Border.all(color: selected ? context.primary : AppColors.border, width: 1.5),
       ),
       child: Text(
         label,
@@ -808,7 +808,7 @@ class _ToggleOption extends StatelessWidget {
             duration: const Duration(milliseconds: 160),
             padding: const EdgeInsets.symmetric(vertical: 9),
             decoration: BoxDecoration(
-              color: selected ? AppColors.sun : Colors.transparent,
+              color: selected ? context.primary : Colors.transparent,
               borderRadius: BorderRadius.circular(40),
             ),
             child: Center(

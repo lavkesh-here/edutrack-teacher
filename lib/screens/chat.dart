@@ -196,8 +196,8 @@ class _ThreadTile extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.sun, AppColors.coral],
+                  gradient: LinearGradient(
+                    colors: [context.primary, AppColors.coral],
                   ),
                   shape: BoxShape.circle,
                 ),
@@ -234,7 +234,7 @@ class _ThreadTile extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             color: thread.unread > 0
-                                ? AppColors.sun
+                                ? context.primary
                                 : AppColors.muted,
                             fontWeight: thread.unread > 0
                                 ? FontWeight.w700
@@ -272,7 +272,7 @@ class _ThreadTile extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.sun,
+                              color: context.primary,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(

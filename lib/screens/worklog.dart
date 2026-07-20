@@ -128,20 +128,20 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                     margin: const EdgeInsets.only(right: 12),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.sunLight,
+                      color: context.primaryLight,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today_outlined,
-                            size: 13, color: AppColors.sun),
+                        Icon(Icons.calendar_today_outlined,
+                            size: 13, color: context.primary),
                         const SizedBox(width: 5),
                         Text(
                           _dateLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.sun,
+                            color: context.primary,
                           ),
                         ),
                       ],
@@ -169,7 +169,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
           // Scrollable list
           Expanded(
             child: RefreshIndicator(
-              color: AppColors.sun,
+              color: context.primary,
               onRefresh: _loadForTab,
               child: CustomScrollView(
                 slivers: _buildContent(),
@@ -207,10 +207,10 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 width: 40,
                 margin: const EdgeInsets.only(right: 6),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.sun : isSunday ? const Color(0xFFF3F4F6) : AppColors.bg,
+                  color: isSelected ? context.primary : isSunday ? const Color(0xFFF3F4F6) : AppColors.bg,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? AppColors.sun : AppColors.border,
+                    color: isSelected ? context.primary : AppColors.border,
                     width: 1.5,
                   ),
                 ),
@@ -275,7 +275,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                     duration: const Duration(milliseconds: 160),
                     padding: const EdgeInsets.symmetric(vertical: 7),
                     decoration: BoxDecoration(
-                      color: _tab == t ? AppColors.sun : Colors.transparent,
+                      color: _tab == t ? context.primary : Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -425,9 +425,9 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: active ? AppColors.sun : AppColors.bg,
+                  color: active ? context.primary : AppColors.bg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: active ? AppColors.sun : AppColors.border, width: 1.5),
+                  border: Border.all(color: active ? context.primary : AppColors.border, width: 1.5),
                 ),
                 child: Text(
                   label,
@@ -915,7 +915,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                                     Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
                                     const SizedBox(width: 6),
                                     if (s.rollNo != null)
-                                      Text('#${s.rollNo}', style: const TextStyle(fontSize: 11, color: AppColors.sun, fontWeight: FontWeight.w700)),
+                                      Text('#${s.rollNo}', style: TextStyle(fontSize: 11, color: context.primary, fontWeight: FontWeight.w700)),
                                     if (s.rollNo != null) const SizedBox(width: 4),
                                     Text(s.classLabel ?? '', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
                                   ],
@@ -1162,15 +1162,15 @@ class _DatePickerBtn extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: hasValue ? AppColors.sunLight : AppColors.bg,
+          color: hasValue ? context.primaryLight : AppColors.bg,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: hasValue ? AppColors.sun : AppColors.border, width: 1.5),
+              color: hasValue ? context.primary : AppColors.border, width: 1.5),
         ),
         child: Row(
           children: [
             Icon(Icons.calendar_today_outlined,
-                size: 13, color: hasValue ? AppColors.sun : AppColors.muted),
+                size: 13, color: hasValue ? context.primary : AppColors.muted),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -1178,7 +1178,7 @@ class _DatePickerBtn extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: hasValue ? AppColors.sun : AppColors.muted,
+                  color: hasValue ? context.primary : AppColors.muted,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1201,10 +1201,10 @@ class _SectionChip extends StatelessWidget {
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: active ? AppColors.sun : AppColors.bg,
+            color: active ? context.primary : AppColors.bg,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: active ? AppColors.sun : AppColors.border, width: 1.5),
+                color: active ? context.primary : AppColors.border, width: 1.5),
           ),
           child: Text(
             label,

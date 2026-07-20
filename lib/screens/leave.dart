@@ -210,7 +210,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                           ),
                         )
                       : RefreshIndicator(
-                          color: AppColors.sun,
+                          color: context.primary,
                           onRefresh: _load,
                           child: ListView(
                             padding: const EdgeInsets.only(bottom: 32),
@@ -658,10 +658,10 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                               margin: EdgeInsets.only(right: t.$1 == 'earned' ? 0 : 8),
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
-                                color: active ? AppColors.sunLight : Colors.white,
+                                color: active ? context.primaryLight : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: active ? AppColors.sun : AppColors.border,
+                                  color: active ? context.primary : AppColors.border,
                                   width: 2,
                                 ),
                               ),
@@ -674,7 +674,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: active ? AppColors.sun : AppColors.muted,
+                                      color: active ? context.primary : AppColors.muted,
                                     ),
                                   ),
                                 ],
@@ -713,15 +713,15 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppColors.sunLight,
+                          color: context.primaryLight,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           '$days day${days > 1 ? "s" : ""} selected',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.sun,
+                            color: context.primary,
                           ),
                         ),
                       ),
@@ -825,21 +825,21 @@ class _DateField extends StatelessWidget {
               color: AppColors.bg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: value == null ? AppColors.sun.withOpacity(0.5) : AppColors.border,
+                color: value == null ? context.primary.withOpacity(0.5) : AppColors.border,
                 width: value == null ? 2 : 1.5,
               ),
             ),
             child: Row(
               children: [
                 Icon(Icons.calendar_today_outlined,
-                    size: 14, color: value == null ? AppColors.sun : AppColors.muted),
+                    size: 14, color: value == null ? context.primary : AppColors.muted),
                 const SizedBox(width: 8),
                 Text(
                   value != null ? DateFormat('d MMM yy').format(value!) : 'Select date',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: value != null ? AppColors.text : AppColors.sun,
+                    color: value != null ? AppColors.text : context.primary,
                   ),
                 ),
               ],

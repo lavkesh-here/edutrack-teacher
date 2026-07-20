@@ -122,7 +122,7 @@ class _TestsScreenState extends State<TestsScreen> {
                           ? _tests!
                           : _tests!.where((t) => t.workType == _filterWorkType).toList();
                       return RefreshIndicator(
-                        color: AppColors.sun,
+                        color: ctx.primary,
                         onRefresh: _load,
                         child: ListView.builder(
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),

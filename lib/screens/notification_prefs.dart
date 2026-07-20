@@ -148,7 +148,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
                         Container(
                           width: 40, height: 40,
                           decoration: BoxDecoration(
-                            color: value ? AppColors.sunLight : AppColors.bg,
+                            color: value ? context.primaryLight : AppColors.bg,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
@@ -180,7 +180,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
                           key: Key('notif_pref_${m.key}'),
                           value: value,
                           onChanged: (v) => _toggle(m.key, v),
-                          activeColor: AppColors.sun,
+                          activeColor: context.primary,
                         ),
                       ],
                     ),

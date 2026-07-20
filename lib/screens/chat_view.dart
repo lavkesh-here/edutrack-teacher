@@ -120,8 +120,8 @@ class _ChatViewScreenState extends State<ChatViewScreen> {
             Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [AppColors.sun, AppColors.coral]),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [context.primary, AppColors.coral]),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -230,8 +230,8 @@ class _ChatViewScreenState extends State<ChatViewScreen> {
                     child: Container(
                       width: 44,
                       height: 44,
-                      decoration: const BoxDecoration(
-                        color: AppColors.sun,
+                      decoration: BoxDecoration(
+                        color: context.primary,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
@@ -282,7 +282,7 @@ class _Bubble extends StatelessWidget {
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: msg.isTeacher ? AppColors.sun : Colors.white,
+                    color: msg.isTeacher ? context.primary : Colors.white,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),

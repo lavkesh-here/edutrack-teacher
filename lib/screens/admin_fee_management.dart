@@ -213,7 +213,7 @@ class _ComponentsTabState extends State<_ComponentsTab> {
                   ),
                 )
               : RefreshIndicator(
-                  color: AppColors.sun,
+                  color: context.primary,
                   onRefresh: _load,
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -489,12 +489,12 @@ class _StructuresTabState extends State<_StructuresTab> {
                       setState(() => _statusFilter = entry.value);
                       _load();
                     },
-                    selectedColor: AppColors.sunLight,
-                    checkmarkColor: AppColors.sun,
+                    selectedColor: context.primaryLight,
+                    checkmarkColor: context.primary,
                     labelStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: _statusFilter == entry.value ? AppColors.sun : AppColors.muted,
+                      color: _statusFilter == entry.value ? context.primary : AppColors.muted,
                     ),
                   ),
                 ),
@@ -518,7 +518,7 @@ class _StructuresTabState extends State<_StructuresTab> {
                       ),
                     )
                   : RefreshIndicator(
-                      color: AppColors.sun,
+                      color: context.primary,
                       onRefresh: _load,
                       child: ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

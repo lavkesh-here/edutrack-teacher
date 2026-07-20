@@ -161,16 +161,16 @@ class _TimetableScreenState extends State<TimetableScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                               decoration: BoxDecoration(
                                 color: active
-                                    ? AppColors.sun
+                                    ? context.primary
                                     : isSun
                                         ? const Color(0xFFF3F4F6)
                                         : AppColors.bg,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: active
-                                      ? AppColors.sun
+                                      ? context.primary
                                       : isToday
-                                          ? AppColors.sun.withOpacity(0.5)
+                                          ? context.primary.withOpacity(0.5)
                                           : AppColors.border,
                                   width: 1.5,
                                 ),
@@ -188,7 +188,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                           : isSun
                                               ? AppColors.muted
                                               : isToday
-                                                  ? AppColors.sun
+                                                  ? context.primary
                                                   : AppColors.muted,
                                     ),
                                   ),
@@ -203,7 +203,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                           : isSun
                                               ? AppColors.muted
                                               : isToday
-                                                  ? AppColors.sun
+                                                  ? context.primary
                                                   : AppColors.text,
                                     ),
                                   ),
@@ -264,7 +264,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                               ),
                             )
                           : RefreshIndicator(
-                              color: AppColors.sun,
+                              color: context.primary,
                               onRefresh: _load,
                               child: ListView(
                                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),

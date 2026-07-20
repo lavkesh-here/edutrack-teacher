@@ -82,7 +82,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
               _unackOnly
                   ? Icons.filter_alt_rounded
                   : Icons.filter_alt_outlined,
-              color: _unackOnly ? AppColors.sun : AppColors.muted,
+              color: _unackOnly ? context.primary : AppColors.muted,
             ),
             tooltip: 'New only',
             onPressed: () {
@@ -100,7 +100,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              color: AppColors.sun,
+              color: context.primary,
               child: _alerts.isEmpty
                   ? ListView(
                       padding: const EdgeInsets.all(32),

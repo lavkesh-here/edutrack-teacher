@@ -111,13 +111,13 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                                     horizontal: 14, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: active
-                                      ? AppColors.sun
+                                      ? Theme.of(context).colorScheme.primary
                                       : AppColors.bg,
                                   borderRadius:
                                       BorderRadius.circular(20),
                                   border: Border.all(
                                     color: active
-                                        ? AppColors.sun
+                                        ? Theme.of(context).colorScheme.primary
                                         : AppColors.border,
                                     width: 1.5,
                                   ),
@@ -165,7 +165,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: AppColors.sun),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                 ),
               ),
             ),
@@ -184,7 +184,6 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                         ),
                       )
                     : RefreshIndicator(
-                        color: AppColors.sun,
                         onRefresh: _loadStudents,
                         child: ListView.separated(
                           padding: const EdgeInsets.all(16),
@@ -252,8 +251,8 @@ class _StudentRow extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
-                  color: AppColors.sunLight,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: ClipOval(
@@ -264,16 +263,16 @@ class _StudentRow extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Center(
                             child: Text(_initials(student.name),
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.sun)),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary)),
                           ),
                         )
                       : Center(
                           child: Text(
                             _initials(student.name),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.sun,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ),

@@ -372,11 +372,17 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
 
   Future<void> _toggleLike() async {
     final wasLiked = _liked;
+    final wasCount = _likeCount;
     setState(() { _liked = !_liked; _likeCount += _liked ? 1 : -1; });
     try {
-      await ApiClient.toggleAnnouncementLike(widget.a.id);
+      final result = await ApiClient.toggleAnnouncementLike(widget.a.id);
+      final nowLiked = result['liked'] as bool? ?? !wasLiked;
+      if (mounted) setState(() {
+        _liked = nowLiked;
+        _likeCount = wasCount + (nowLiked ? 1 : 0);
+      });
     } catch (_) {
-      if (mounted) setState(() { _liked = wasLiked; _likeCount += wasLiked ? 1 : -1; });
+      if (mounted) setState(() { _liked = wasLiked; _likeCount = wasCount; });
     }
   }
 
@@ -680,6 +686,33 @@ class _CommentsScreenState extends State<_CommentsScreen> {
       ),
       body: Column(
         children: [
+          // Post body preview card
+          if (widget.announcement.body.isNotEmpty)
+            Container(
+              width: double.infinity,
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.announcement.title.isNotEmpty) ...[
+                    Text(
+                      widget.announcement.title,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Text(
+                    widget.announcement.body,
+                    style: const TextStyle(fontSize: 13, color: AppColors.text2, height: 1.45),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          if (widget.announcement.body.isNotEmpty)
+            const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -796,6 +829,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                   child: TextField(
                     key: const Key('comment_field'),
                     controller: _ctrl,
+                    autofocus: false,
                     decoration: InputDecoration(
                       hintText: _replyToAuthor != null ? 'Write a reply…' : 'Say something…',
                       filled: true,

@@ -4,6 +4,7 @@ import '../core/api.dart';
 import '../core/theme.dart';
 import 'student_profile_detail.dart';
 import 'test_scores.dart';
+import 'feed.dart';
 
 class TeacherSearchScreen extends StatefulWidget {
   const TeacherSearchScreen({super.key});
@@ -216,10 +217,14 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
                 ? () => _openFullResults(q, category: 'announcements')
                 : null,
           ),
-          ..._results!.announcements.map((a) => _AnnouncementTile(ann: a)),
+          ..._results!.announcements.map((a) => _AnnouncementTile(ann: a, onTap: () => _openAnnouncement(a))),
         ],
       ],
     );
+  }
+
+  void _openAnnouncement(Map<String, dynamic> a) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedScreen()));
   }
 
   void _openFullResults(String q, {required String category}) {
@@ -229,6 +234,7 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
         category: category,
         onOpenStudent: _openStudent,
         onOpenTest: _openTest,
+        onOpenAnnouncement: _openAnnouncement,
       ),
     ));
   }
@@ -241,12 +247,14 @@ class _FullResultsScreen extends StatefulWidget {
   final String category;
   final void Function(Map<String, dynamic>) onOpenStudent;
   final void Function(Map<String, dynamic>) onOpenTest;
+  final void Function(Map<String, dynamic>) onOpenAnnouncement;
 
   const _FullResultsScreen({
     required this.query,
     required this.category,
     required this.onOpenStudent,
     required this.onOpenTest,
+    required this.onOpenAnnouncement,
   });
 
   @override
@@ -321,7 +329,7 @@ class _FullResultsScreenState extends State<_FullResultsScreen> {
         return switch (widget.category) {
           'students' => _StudentTile(student: item, onTap: () => widget.onOpenStudent(item)),
           'tests' => _TestTile(test: item, onTap: () => widget.onOpenTest(item)),
-          _ => _AnnouncementTile(ann: item),
+          _ => _AnnouncementTile(ann: item, onTap: () => widget.onOpenAnnouncement(item)),
         };
       },
     );
@@ -442,10 +450,12 @@ class _TestTile extends StatelessWidget {
 
 class _AnnouncementTile extends StatelessWidget {
   final Map<String, dynamic> ann;
-  const _AnnouncementTile({required this.ann});
+  final VoidCallback? onTap;
+  const _AnnouncementTile({required this.ann, this.onTap});
 
   @override
   Widget build(BuildContext context) => ListTile(
+    onTap: onTap,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
     leading: Container(
       width: 40, height: 40,

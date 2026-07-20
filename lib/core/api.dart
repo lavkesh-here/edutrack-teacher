@@ -1086,8 +1086,9 @@ class ApiClient {
     await _delete('/api/v1/admin/announcements/$announcementId/images/$imageId');
   }
 
-  static Future<void> toggleAnnouncementLike(String announcementId) async {
-    await _post('/api/v1/admin/announcements/$announcementId/like', {});
+  static Future<Map<String, dynamic>> toggleAnnouncementLike(String announcementId) async {
+    final result = await _post('/api/v1/admin/announcements/$announcementId/like', {});
+    return result as Map<String, dynamic>? ?? {};
   }
 
   static Future<List<AnnouncementComment>> getComments(String announcementId) async {

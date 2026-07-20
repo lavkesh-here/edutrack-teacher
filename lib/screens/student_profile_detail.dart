@@ -209,7 +209,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
         SliverAppBar(
           expandedHeight: 210,
           pinned: true,
-          backgroundColor: null,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
           title: Text(
             '$name · $classLabel',
@@ -233,12 +233,17 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           ],
           flexibleSpace: FlexibleSpaceBar(
             collapseMode: CollapseMode.pin,
-            background: Container(
-              decoration: const BoxDecoration(
+            background: Builder(
+              builder: (ctx) => Container(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.sun, Color(0xFFEA580C), AppColors.coral],
+                  colors: [
+                    Theme.of(ctx).colorScheme.primary,
+                    Theme.of(ctx).colorScheme.primary.withOpacity(0.82),
+                    AppColors.coral,
+                  ],
                 ),
               ),
               child: SafeArea(
@@ -282,6 +287,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
                   ],
                 ),
               ),
+            ),
             ),
           ),
         ),
@@ -2259,8 +2265,12 @@ class _EmergencyContactsTabState extends State<_EmergencyContactsTab> {
               TextFormField(
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone *'),
-                validator: (v) => (v == null || v.trim().length < 5) ? 'Enter valid phone' : null,
+                maxLength: 10,
+                decoration: const InputDecoration(labelText: 'Mobile Number *', counterText: ''),
+                validator: (v) {
+                  final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                  return digits.length == 10 ? null : 'Enter 10-digit mobile number';
+                },
               ),
               const SizedBox(height: 12),
               Row(children: [

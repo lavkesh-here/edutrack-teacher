@@ -255,21 +255,21 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                         // Swipe mode toggle
                         GestureDetector(
                           onTap: _enterSwipeMode,
-                          child: Container(
+                          child: Builder(builder: (ctx) => Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                             decoration: BoxDecoration(
-                              color: AppColors.sunLight,
+                              color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.sun.withOpacity(0.4)),
+                              border: Border.all(color: Theme.of(ctx).colorScheme.primary.withOpacity(0.4)),
                             ),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Icon(Icons.swipe, size: 14, color: AppColors.sun),
-                                SizedBox(width: 5),
-                                Text('Swipe', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.sun)),
+                                Icon(Icons.swipe, size: 14, color: Theme.of(ctx).colorScheme.primary),
+                                const SizedBox(width: 5),
+                                Text('Swipe', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Theme.of(ctx).colorScheme.primary)),
                               ],
                             ),
-                          ),
+                          )),
                         ),
                         const SizedBox(width: 8),
                         // Date picker
@@ -329,10 +329,10 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                                 duration: const Duration(milliseconds: 160),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: active ? AppColors.sun : AppColors.bg,
+                                  color: active ? Theme.of(context).colorScheme.primary : AppColors.bg,
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: active ? AppColors.sun : AppColors.border,
+                                    color: active ? Theme.of(context).colorScheme.primary : AppColors.border,
                                     width: 1.5,
                                   ),
                                 ),
@@ -436,18 +436,18 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                               style: TextStyle(fontSize: 13, color: AppColors.teal, fontWeight: FontWeight.w700),
                             ),
                           ),
-                          GestureDetector(
+                          Builder(builder: (ctx) => GestureDetector(
                             onTap: () => setState(() => _isSubmitted = false),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: AppColors.sunLight,
+                                color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Text('Edit',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.sun)),
+                              child: Text('Edit',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Theme.of(ctx).colorScheme.primary)),
                             ),
-                          ),
+                          )),
                         ],
                       )
                     : Column(
@@ -634,7 +634,8 @@ class AttendanceScreenState extends State<AttendanceScreen> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: 7,
-        itemBuilder: (_, i) {
+        itemBuilder: (ctx, i) {
+          final primary = Theme.of(ctx).colorScheme.primary;
           final day = monday.add(Duration(days: i));
           final isSunday = day.weekday == DateTime.sunday;
           final isSelected = day.year == _date.year && day.month == _date.month && day.day == _date.day;
@@ -651,18 +652,18 @@ class AttendanceScreenState extends State<AttendanceScreen> {
               margin: const EdgeInsets.only(right: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.sun
+                    ? primary
                     : isSunday
                         ? const Color(0xFFF3F4F6)
                         : isActualToday
-                            ? AppColors.sunLight
+                            ? primary.withOpacity(0.1)
                             : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isSelected
-                      ? AppColors.sun
+                      ? primary
                       : isActualToday
-                          ? AppColors.sun.withOpacity(0.5)
+                          ? primary.withOpacity(0.5)
                           : AppColors.border,
                   width: 1.5,
                 ),
@@ -1158,20 +1159,20 @@ class _StudentCard extends StatelessWidget {
                     ClipOval(
                       child: Image.network(
                         student.photoUrl!,
-                        width: 40, height: 40,
+                        width: 52, height: 52,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          width: 40, height: 40,
+                          width: 52, height: 52,
                           decoration: BoxDecoration(color: _avatarFg.withOpacity(0.15), shape: BoxShape.circle),
-                          child: Center(child: Text(_initials, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _avatarFg))),
+                          child: Center(child: Text(_initials, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _avatarFg))),
                         ),
                       ),
                     )
                   else
                     Container(
-                      width: 40, height: 40,
+                      width: 52, height: 52,
                       decoration: BoxDecoration(color: _avatarFg.withOpacity(0.15), shape: BoxShape.circle),
-                      child: Center(child: Text(_initials, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _avatarFg))),
+                      child: Center(child: Text(_initials, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _avatarFg))),
                     ),
                   const SizedBox(height: 6),
                   Padding(

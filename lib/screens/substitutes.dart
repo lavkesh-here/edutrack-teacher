@@ -97,9 +97,9 @@ class _SubstitutesScreenState extends State<SubstitutesScreen>
               Container(color: AppColors.border, height: 1),
               TabBar(
                 controller: _tabCtrl,
-                labelColor: AppColors.sun,
+                labelColor: null,
                 unselectedLabelColor: AppColors.muted,
-                indicatorColor: AppColors.sun,
+                indicatorColor: null,
                 labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                 tabs: const [
                   Tab(text: "Today's Coverage"),
@@ -456,7 +456,7 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
       lastDate: DateTime.now().add(const Duration(days: 30)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.sun),
+          colorScheme: null,
         ),
         child: child!,
       ),
@@ -711,7 +711,7 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
               child: ElevatedButton(
                 onPressed: _saving ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.sun,
+                  backgroundColor: null,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),

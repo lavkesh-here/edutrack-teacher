@@ -97,7 +97,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.sun)),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
     try {
       final html = await ApiClient.getPreviewHtml(widget.test.id);
@@ -332,7 +332,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator(color: AppColors.sun)),
+                child: Center(child: CircularProgressIndicator()),
               ),
             )
           else if (_scores == null || _scores!.scores.isEmpty)
@@ -509,7 +509,7 @@ class _SmartAnalysisSection extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: hasScores ? onRun : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.sun,
+                  backgroundColor: null,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.white12,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

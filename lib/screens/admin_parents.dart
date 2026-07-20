@@ -174,7 +174,7 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddParentSheet,
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Parent', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -196,7 +196,7 @@ class _AdminParentsScreenState extends State<AdminParentsScreen> {
           Container(height: 1, color: AppColors.border),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                ? const Center(child: CircularProgressIndicator())
                 : _filtered.isEmpty
                     ? Center(
                         child: Column(

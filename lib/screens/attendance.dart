@@ -103,7 +103,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(_, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
+            style: ElevatedButton.styleFrom(),
             child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -308,7 +308,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                     const SizedBox(height: 6),
                     // Section selector
                     if (_loadingSections)
-                      const LinearProgressIndicator(color: AppColors.sun)
+                      LinearProgressIndicator()
                     else if (_sections != null && _sections!.isNotEmpty)
                       SizedBox(
                         key: const Key('section_selector'),
@@ -397,7 +397,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
               child: _swipeMode
                   ? _buildSwipeView()
                   : _loadingStudents
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                      ? const Center(child: CircularProgressIndicator())
                       : _students == null || _students!.isEmpty
                           ? const Center(child: Text('No students enrolled', style: TextStyle(color: AppColors.muted)))
                           : GridView.builder(
@@ -709,7 +709,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 6)),
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
-        data: ThemeData(colorScheme: const ColorScheme.light(primary: AppColors.sun)),
+        data: Theme.of(context),
         child: child!,
       ),
     );

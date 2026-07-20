@@ -35,9 +35,9 @@ class _AdminTransportScreenState extends State<AdminTransportScreen>
         centerTitle: false,
         bottom: TabBar(
           controller: _tab,
-          labelColor: AppColors.sun,
+          labelColor: null,
           unselectedLabelColor: AppColors.muted,
-          indicatorColor: AppColors.sun,
+          indicatorColor: null,
           labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           tabs: const [
             Tab(text: 'Routes'),
@@ -112,7 +112,7 @@ class _RoutesTabState extends State<_RoutesTab> {
         label: const Text('Add Route', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _routes.isEmpty
               ? Center(
                   child: Column(
@@ -375,7 +375,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
         children: [
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                ? const Center(child: CircularProgressIndicator())
                 : _assignments.isEmpty
                     ? const Center(
                         child: Column(
@@ -781,7 +781,7 @@ class _AssignStudentSheetState extends State<_AssignStudentSheet> {
                         suffixIcon: _searching
                             ? const Padding(
                                 padding: EdgeInsets.all(12),
-                                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun)),
+                                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                               )
                             : IconButton(
                                 icon: const Icon(Icons.search, color: AppColors.sun),

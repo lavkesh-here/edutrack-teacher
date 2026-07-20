@@ -123,7 +123,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 // Type filter row

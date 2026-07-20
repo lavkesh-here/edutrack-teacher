@@ -85,7 +85,7 @@ class _AdminAttendersScreenState extends State<AdminAttendersScreen> {
           Container(height: 1, color: AppColors.border),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                ? const Center(child: CircularProgressIndicator())
                 : _filtered.isEmpty
                     ? Center(
                         child: Column(

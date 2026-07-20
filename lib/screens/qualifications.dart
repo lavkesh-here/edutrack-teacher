@@ -110,7 +110,7 @@ class _QualificationsScreenState extends State<QualificationsScreen>
         elevation: 0,
         bottom: TabBar(
           controller: _tabs,
-          indicatorColor: AppColors.sun,
+          indicatorColor: null,
           indicatorWeight: 3,
           labelColor: AppColors.text,
           unselectedLabelColor: AppColors.muted,
@@ -129,12 +129,12 @@ class _QualificationsScreenState extends State<QualificationsScreen>
             _showAddExperience();
           }
         },
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _load)
               : TabBarView(

@@ -167,7 +167,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _load)
               : _body(),

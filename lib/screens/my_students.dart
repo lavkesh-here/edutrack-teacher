@@ -85,7 +85,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: _loadingSections
-                ? const LinearProgressIndicator(color: AppColors.sun)
+                ? LinearProgressIndicator()
                 : _sections == null || _sections!.isEmpty
                     ? const Text('No sections assigned',
                         style: TextStyle(color: AppColors.muted))
@@ -175,7 +175,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
           Expanded(
             child: _loadingStudents
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.sun))
+                    child: CircularProgressIndicator())
                 : _filtered.isEmpty
                     ? const Center(
                         child: Text(

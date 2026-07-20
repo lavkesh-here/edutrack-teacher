@@ -968,6 +968,14 @@ class ApiClient {
     return list.map((e) => SectionInfo.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  static Future<List<Map<String, String>>> getMySubjects() async {
+    final data = await _get('/api/v1/teacher/my-subjects') as List<dynamic>;
+    return data.map((e) => {
+      'id': (e as Map<String, dynamic>)['id'] as String,
+      'name': e['name'] as String,
+    }).toList();
+  }
+
   static Future<List<AttendanceStudent>> getAttendance(
       String sectionId, String date) async {
     final data = await _get(
@@ -1880,11 +1888,48 @@ class ApiClient {
     return (data['contacts'] as List).cast<Map<String, dynamic>>();
   }
 
+  static Future<void> addEmergencyContact({
+    required String studentId,
+    required String name,
+    required String relation,
+    required String phone,
+    int priority = 1,
+  }) async {
+    await _post('/api/v1/admin/emergency-contacts', {
+      'student_id': studentId,
+      'name': name,
+      'relation': relation,
+      'phone': phone,
+      'priority': priority,
+    });
+  }
+
+  static Future<void> deleteEmergencyContact(String contactId) async {
+    await _delete('/api/v1/admin/emergency-contacts/$contactId');
+  }
+
   // ── Medical Profile ─────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>?> getStudentMedicalProfile(String studentId) async {
     final data = await _get('/api/v1/teacher/students/$studentId/medical');
     return data['profile'] as Map<String, dynamic>?;
+  }
+
+  static Future<void> upsertStudentMedicalProfile(
+    String studentId, {
+    String? bloodGroup,
+    List<String> allergies = const [],
+    List<String> ongoingMedicines = const [],
+    String? medicalHistory,
+    String? emergencyNotes,
+  }) async {
+    await _put('/api/v1/admin/students/$studentId/medical', {
+      if (bloodGroup != null) 'blood_group': bloodGroup,
+      'allergies': allergies,
+      'ongoing_medicines': ongoingMedicines,
+      if (medicalHistory != null) 'medical_history': medicalHistory,
+      if (emergencyNotes != null) 'emergency_notes': emergencyNotes,
+    });
   }
 
   // ── Emergency SOS ───────────────────────────────────────────────────────────
@@ -1902,6 +1947,18 @@ class ApiClient {
   static Future<List<Map<String, dynamic>>> getPTMEvents() async {
     final data = await _get('/api/v1/teacher/ptm/events');
     return (data['events'] as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> createPTMEvent({
+    required String name,
+    required String eventDate,
+    String? description,
+  }) async {
+    await _post('/api/v1/admin/ptm/events', {
+      'name': name,
+      'event_date': eventDate,
+      if (description != null && description.isNotEmpty) 'description': description,
+    });
   }
 
   static Future<List<Map<String, dynamic>>> getPTMMeetings(String eventId) async {

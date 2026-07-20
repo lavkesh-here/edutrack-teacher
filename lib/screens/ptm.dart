@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -28,8 +30,94 @@ class _PTMScreenState extends State<PTMScreen> {
     }
   }
 
+  void _showCreateDialog() {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setDlg) => AlertDialog(
+          title: const Text('Create PTM Event', style: TextStyle(fontWeight: FontWeight.w800)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Event Name', hintText: 'e.g. Parent Teacher Meeting Q1'),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Description (optional)'),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              const Text('Date', style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx2,
+                    initialDate: selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (picked != null) setDlg(() => selectedDate = picked);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.bg,
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today, size: 16, color: AppColors.muted),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameCtrl.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(ctx);
+                try {
+                  final dateStr = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2,'0')}-${selectedDate.day.toString().padLeft(2,'0')}';
+                  await ApiClient.createPTMEvent(
+                    name: name,
+                    eventDate: dateStr,
+                    description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                  );
+                  if (mounted) showSnack(context, 'PTM event created ✓');
+                  _load();
+                } on ApiError catch (e) {
+                  if (mounted) showSnack(context, e.message, error: true);
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -38,18 +126,30 @@ class _PTMScreenState extends State<PTMScreen> {
         title: const Text('Parent-Teacher Meetings', style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
         iconTheme: const IconThemeData(color: AppColors.text),
       ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: _showCreateDialog,
+              backgroundColor: null,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New PTM', style: TextStyle(fontWeight: FontWeight.w700)),
+            )
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : (_events == null || _events!.isEmpty)
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(32),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('📅', style: TextStyle(fontSize: 48)),
-                      SizedBox(height: 12),
-                      Text('No PTM events scheduled', style: TextStyle(color: AppColors.muted, fontSize: 15, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 4),
-                      Text('Admin will create PTM events from the web portal', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                      const Text('📅', style: TextStyle(fontSize: 48)),
+                      const SizedBox(height: 12),
+                      const Text('No PTM events scheduled', style: TextStyle(color: AppColors.muted, fontSize: 15, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(
+                        isAdmin ? 'Tap + to create the first PTM event' : 'Admin will schedule PTM events',
+                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      ),
                     ]),
                   ),
                 )

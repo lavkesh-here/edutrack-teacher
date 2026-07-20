@@ -259,7 +259,7 @@ class _TodosScreenState extends State<TodosScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _loading

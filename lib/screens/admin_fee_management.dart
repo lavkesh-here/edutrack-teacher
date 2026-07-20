@@ -35,9 +35,9 @@ class _AdminFeeManagementScreenState extends State<AdminFeeManagementScreen>
         centerTitle: false,
         bottom: TabBar(
           controller: _tabs,
-          labelColor: AppColors.sun,
+          labelColor: null,
           unselectedLabelColor: AppColors.muted,
-          indicatorColor: AppColors.sun,
+          indicatorColor: null,
           tabs: const [
             Tab(text: 'Components'),
             Tab(text: 'Structures'),
@@ -171,7 +171,7 @@ class _ComponentsTabState extends State<_ComponentsTab> {
                             if (mounted) showSnack(context, e.message, error: true);
                           }
                         },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
+                  style: ElevatedButton.styleFrom(),
                   child: saving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Text('Add Component', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -190,13 +190,13 @@ class _ComponentsTabState extends State<_ComponentsTab> {
       backgroundColor: AppColors.bg,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddSheet,
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _components.isEmpty
               ? const Center(
                   child: Column(
@@ -504,7 +504,7 @@ class _StructuresTabState extends State<_StructuresTab> {
         const SizedBox(height: 8),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+              ? const Center(child: CircularProgressIndicator())
               : _structures.isEmpty
                   ? const Center(
                       child: Column(

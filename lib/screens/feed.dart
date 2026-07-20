@@ -52,7 +52,7 @@ class _FeedScreenState extends State<FeedScreen> {
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('new_announcement_fab'),
         onPressed: _showCreateSheet,
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('New', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -61,7 +61,7 @@ class _FeedScreenState extends State<FeedScreen> {
         color: AppColors.sun,
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+            ? const Center(child: CircularProgressIndicator())
             : _error != null
                 ? Center(
                     child: Column(
@@ -682,7 +682,7 @@ class _CommentsScreenState extends State<_CommentsScreen> {
         children: [
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                ? const Center(child: CircularProgressIndicator())
                 : Stack(
                     children: [
                       _comments.isEmpty

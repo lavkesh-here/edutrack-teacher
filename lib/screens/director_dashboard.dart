@@ -64,9 +64,9 @@ class _DirectorDashboardScreenState extends State<DirectorDashboardScreen>
         ],
         bottom: TabBar(
           controller: _tabs,
-          labelColor: AppColors.sun,
+          labelColor: null,
           unselectedLabelColor: AppColors.muted,
-          indicatorColor: AppColors.sun,
+          indicatorColor: null,
           tabs: const [
             Tab(text: 'Overview'),
             Tab(text: 'Classes'),

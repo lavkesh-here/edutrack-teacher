@@ -174,7 +174,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
         centerTitle: false,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
               child: Column(

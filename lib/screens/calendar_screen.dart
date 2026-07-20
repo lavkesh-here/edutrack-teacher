@@ -81,7 +81,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('add_event_fab'),
         onPressed: _showAddEventSheet,
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Event', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -162,7 +162,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 child: _loading
                     ? const SizedBox(
                         height: 200,
-                        child: Center(child: CircularProgressIndicator(color: AppColors.sun)),
+                        child: Center(child: CircularProgressIndicator()),
                       )
                     : _buildGrid(now),
               ),
@@ -374,12 +374,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             initialDate: startDate ?? DateTime.now(),
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2030),
-                            builder: (c, w) => Theme(
-                              data: ThemeData(
-                                  colorScheme: const ColorScheme.light(
-                                      primary: AppColors.sun)),
-                              child: w!,
-                            ),
+                            builder: (c, w) => Theme(data: Theme.of(c), child: w!),
                           );
                           if (d != null) setSheet(() => startDate = d);
                         },
@@ -409,12 +404,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             initialDate: endDate ?? startDate ?? DateTime.now(),
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2030),
-                            builder: (c, w) => Theme(
-                              data: ThemeData(
-                                  colorScheme: const ColorScheme.light(
-                                      primary: AppColors.sun)),
-                              child: w!,
-                            ),
+                            builder: (c, w) => Theme(data: Theme.of(c), child: w!),
                           );
                           if (d != null) setSheet(() => endDate = d);
                         },

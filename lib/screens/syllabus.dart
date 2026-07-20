@@ -150,7 +150,7 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.sun)),
+            colorScheme: null),
         child: child!,
       ),
     );

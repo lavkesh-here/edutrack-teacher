@@ -187,7 +187,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _ErrorView(onRetry: _load)
               : _body(),
@@ -209,7 +209,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
         SliverAppBar(
           expandedHeight: 210,
           pinned: true,
-          backgroundColor: AppColors.sun,
+          backgroundColor: null,
           foregroundColor: Colors.white,
           title: Text(
             '$name · $classLabel',
@@ -333,7 +333,7 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
       ),
       child: TabBar(
         controller: controller,
-        indicatorColor: AppColors.sun,
+        indicatorColor: null,
         indicatorWeight: 3,
         labelColor: AppColors.text,
         unselectedLabelColor: AppColors.muted,
@@ -1104,7 +1104,15 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) {
+        final is404 = e is ApiError && e.statusCode == 404 ||
+            e.toString().contains('404') || e.toString().contains('Not Found') ||
+            e.toString().contains('Student not found');
+        setState(() {
+          _error = is404 ? null : e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -1137,7 +1145,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return _EmptyState(icon: '⚠️', label: 'Could not load report');
     final report = _report!;
     final canUseAi = context.read<AuthProvider>().features.aiAnalysis;
@@ -1253,7 +1261,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   child: _generating
-                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun))
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Refresh AI Analysis', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
@@ -1300,7 +1308,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                     key: const Key('generate_ai_report_button'),
                     onPressed: total == 0 || _generating ? null : _generateAnalysis,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.sun,
+                      backgroundColor: null,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
@@ -1743,7 +1751,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
     // Plan gate — show upgrade prompt before anything else
     final canUseAi = context.read<AuthProvider>().features.aiAnalysis;
@@ -1803,7 +1811,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
                     : const Text('✨', style: TextStyle(fontSize: 14)),
                 label: Text(hasReport ? 'Regenerate' : 'Generate'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.sun,
+                  backgroundColor: null,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -2221,78 +2229,213 @@ class _EmergencyContactsTabState extends State<_EmergencyContactsTab> {
     }
   }
 
+  Future<void> _showAddDialog() async {
+    final nameCtrl = TextEditingController();
+    final relationCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    int priority = 1;
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Add Emergency Contact', style: TextStyle(fontWeight: FontWeight.w800)),
+          content: Form(
+            key: formKey,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Full Name *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: relationCtrl,
+                decoration: const InputDecoration(labelText: 'Relation (e.g. Mother) *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone *'),
+                validator: (v) => (v == null || v.trim().length < 5) ? 'Enter valid phone' : null,
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                const Text('Priority:', style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                const SizedBox(width: 12),
+                for (int p = 1; p <= 3; p++)
+                  GestureDetector(
+                    onTap: () => setD(() => priority = p),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: priority == p ? Theme.of(ctx).colorScheme.primary : AppColors.bg,
+                        border: Border.all(
+                          color: priority == p ? Theme.of(ctx).colorScheme.primary : AppColors.border,
+                        ),
+                      ),
+                      child: Center(child: Text('$p', style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: priority == p ? Colors.white : AppColors.muted,
+                      ))),
+                    ),
+                  ),
+              ]),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(ctx);
+                try {
+                  await ApiClient.addEmergencyContact(
+                    studentId: widget.studentId,
+                    name: nameCtrl.text.trim(),
+                    relation: relationCtrl.text.trim(),
+                    phone: phoneCtrl.text.trim(),
+                    priority: priority,
+                  );
+                  _load();
+                } catch (e) {
+                  if (mounted) showSnack(context, 'Failed: $e', error: true);
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _delete(String contactId) async {
+    try {
+      await ApiClient.deleteEmergencyContact(contactId);
+      _load();
+    } catch (e) {
+      if (mounted) showSnack(context, 'Failed to delete: $e', error: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.read<AuthProvider>().user;
+    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
+
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_contacts == null || _contacts!.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('🆘', style: TextStyle(fontSize: 40)),
-            SizedBox(height: 12),
-            Text('No emergency contacts added', style: TextStyle(color: AppColors.muted, fontSize: 14)),
-            SizedBox(height: 4),
-            Text('Admin can add them from the web portal', style: TextStyle(color: AppColors.muted, fontSize: 12)),
-          ]),
-        ),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _contacts!.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) {
-        final c = _contacts![i];
-        final priority = c['priority'] as int? ?? 1;
-        final addedBy = c['added_by_type'] as String? ?? 'admin';
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: priority == 1 ? AppColors.coral.withOpacity(0.4) : AppColors.border),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-          ),
-          child: Row(children: [
-            Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(
-                color: priority == 1 ? AppColors.coralLight : AppColors.amberLight,
-                shape: BoxShape.circle,
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: _showAddDialog,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Contact', style: TextStyle(fontWeight: FontWeight.w700)),
+            )
+          : null,
+      body: _contacts == null || _contacts!.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('🆘', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  const Text('No emergency contacts added', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(
+                    isAdmin ? 'Tap + to add a contact' : 'Admin can add them from the app',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                ]),
               ),
-              child: Center(child: Text('$priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,
-                color: priority == 1 ? AppColors.coral : AppColors.amber))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(c['name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              const SizedBox(height: 2),
-              Text(c['relation'] as String? ?? '', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-            ])),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              InkWell(
-                onTap: () async {
-                  final phone = c['phone'] as String? ?? '';
-                  final uri = Uri.parse('tel:$phone');
-                  if (await canLaunchUrl(uri)) launchUrl(uri);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: AppColors.sunLight, borderRadius: BorderRadius.circular(20)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.call, size: 14, color: AppColors.sun),
-                    const SizedBox(width: 4),
-                    Text(c['phone'] as String? ?? '—', style: const TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600)),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              itemCount: _contacts!.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final c = _contacts![i];
+                final priority = c['priority'] as int? ?? 1;
+                final addedBy = c['added_by_type'] as String? ?? 'admin';
+                final contactId = c['id'].toString();
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: priority == 1 ? AppColors.coral.withOpacity(0.4) : AppColors.border),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 42, height: 42,
+                      decoration: BoxDecoration(
+                        color: priority == 1 ? AppColors.coralLight : AppColors.amberLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(child: Text('$priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,
+                        color: priority == 1 ? AppColors.coral : AppColors.amber))),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(c['name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      const SizedBox(height: 2),
+                      Text(c['relation'] as String? ?? '', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                    ])),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      InkWell(
+                        onTap: () async {
+                          final phone = c['phone'] as String? ?? '';
+                          final uri = Uri.parse('tel:$phone');
+                          if (await canLaunchUrl(uri)) launchUrl(uri);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(color: AppColors.sunLight, borderRadius: BorderRadius.circular(20)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.call, size: 14, color: AppColors.sun),
+                            const SizedBox(width: 4),
+                            Text(c['phone'] as String? ?? '—', style: const TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Added by $addedBy', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                    ]),
+                    if (isAdmin) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.coral),
+                        tooltip: 'Remove contact',
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Remove Contact?'),
+                              content: Text('Remove ${c['name']} from emergency contacts?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Remove', style: TextStyle(color: AppColors.coral)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok == true) _delete(contactId);
+                        },
+                      ),
+                    ],
                   ]),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text('Added by $addedBy', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-            ]),
-          ]),
-        );
-      },
+                );
+              },
+            ),
     );
   }
 }
@@ -2325,73 +2468,172 @@ class _MedicalProfileTabState extends State<_MedicalProfileTab> {
     }
   }
 
+  Future<void> _showEditDialog() async {
+    final p = _profile ?? {};
+    final bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'];
+    String? bloodGroup = p['blood_group'] as String?;
+    final allergiesCtrl = TextEditingController(
+      text: ((p['allergies'] as List?)?.cast<String>() ?? []).join(', '),
+    );
+    final medicinesCtrl = TextEditingController(
+      text: ((p['ongoing_medicines'] as List?)?.cast<String>() ?? []).join(', '),
+    );
+    final historyCtrl = TextEditingController(text: p['medical_history'] as String? ?? '');
+    final notesCtrl = TextEditingController(text: p['emergency_notes'] as String? ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Medical Profile', style: TextStyle(fontWeight: FontWeight.w800)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              DropdownButtonFormField<String>(
+                value: bloodGroup,
+                decoration: const InputDecoration(labelText: 'Blood Group'),
+                items: bloodGroups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                onChanged: (v) => setD(() => bloodGroup = v),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: allergiesCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Allergies',
+                  hintText: 'Comma-separated, e.g. Peanuts, Dust',
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: medicinesCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Ongoing Medicines',
+                  hintText: 'Comma-separated',
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: historyCtrl,
+                decoration: const InputDecoration(labelText: 'Medical History'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: notesCtrl,
+                decoration: const InputDecoration(labelText: 'Emergency Notes'),
+                maxLines: 2,
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                List<String> _split(String s) =>
+                    s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                try {
+                  await ApiClient.upsertStudentMedicalProfile(
+                    widget.studentId,
+                    bloodGroup: bloodGroup,
+                    allergies: _split(allergiesCtrl.text),
+                    ongoingMedicines: _split(medicinesCtrl.text),
+                    medicalHistory: historyCtrl.text.trim().isEmpty ? null : historyCtrl.text.trim(),
+                    emergencyNotes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                  );
+                  _load();
+                } catch (e) {
+                  if (mounted) showSnack(context, 'Failed: $e', error: true);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_profile == null) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('🏥', style: TextStyle(fontSize: 40)),
-            SizedBox(height: 12),
-            Text('No medical profile on record', style: TextStyle(color: AppColors.muted, fontSize: 14)),
-            SizedBox(height: 4),
-            Text('Admin can add it from the web portal', style: TextStyle(color: AppColors.muted, fontSize: 12)),
-          ]),
-        ),
-      );
-    }
-    final p = _profile!;
-    final allergies = (p['allergies'] as List?)?.cast<String>() ?? [];
-    final medicines = (p['ongoing_medicines'] as List?)?.cast<String>() ?? [];
+    final user = context.read<AuthProvider>().user;
+    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if ((p['blood_group'] as String?)?.isNotEmpty == true)
-          _MedCard(
-            icon: '🩸', label: 'Blood Group',
-            child: Text(p['blood_group'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.coral)),
-          ),
-        if (allergies.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _MedCard(
-            icon: '⚠️', label: 'Allergies',
-            child: Wrap(spacing: 6, runSpacing: 6, children: allergies.map((a) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: AppColors.coralLight, borderRadius: BorderRadius.circular(20)),
-              child: Text(a, style: const TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w600)),
-            )).toList()),
-          ),
-        ],
-        if (medicines.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _MedCard(
-            icon: '💊', label: 'Ongoing Medicines',
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: medicines.map((m) =>
-              Padding(padding: const EdgeInsets.only(bottom: 4), child: Row(children: [
-                const Text('• ', style: TextStyle(color: AppColors.muted)),
-                Text(m, style: const TextStyle(fontSize: 13)),
-              ]))).toList()),
-          ),
-        ],
-        if ((p['medical_history'] as String?)?.isNotEmpty == true) ...[
-          const SizedBox(height: 12),
-          _MedCard(
-            icon: '📋', label: 'Medical History',
-            child: Text(p['medical_history'] as String, style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2)),
-          ),
-        ],
-        if ((p['emergency_notes'] as String?)?.isNotEmpty == true) ...[
-          const SizedBox(height: 12),
-          _MedCard(
-            icon: '🚨', label: 'Emergency Notes',
-            child: Text(p['emergency_notes'] as String,
-              style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2, fontWeight: FontWeight.w500)),
-          ),
-        ],
-      ]),
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    final p = _profile;
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: _showEditDialog,
+              icon: Icon(p == null ? Icons.add_rounded : Icons.edit_rounded),
+              label: Text(p == null ? 'Add Medical Info' : 'Edit', style: const TextStyle(fontWeight: FontWeight.w700)),
+            )
+          : null,
+      body: p == null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('🏥', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  const Text('No medical profile on record', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(
+                    isAdmin ? 'Tap + to add medical info' : 'Admin can add it from the app',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                ]),
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if ((p['blood_group'] as String?)?.isNotEmpty == true)
+                  _MedCard(
+                    icon: '🩸', label: 'Blood Group',
+                    child: Text(p['blood_group'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.coral)),
+                  ),
+                if ((p['allergies'] as List?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _MedCard(
+                    icon: '⚠️', label: 'Allergies',
+                    child: Wrap(spacing: 6, runSpacing: 6, children: ((p['allergies'] as List).cast<String>()).map((a) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(color: AppColors.coralLight, borderRadius: BorderRadius.circular(20)),
+                      child: Text(a, style: const TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w600)),
+                    )).toList()),
+                  ),
+                ],
+                if ((p['ongoing_medicines'] as List?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _MedCard(
+                    icon: '💊', label: 'Ongoing Medicines',
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: ((p['ongoing_medicines'] as List).cast<String>()).map((m) =>
+                      Padding(padding: const EdgeInsets.only(bottom: 4), child: Row(children: [
+                        const Text('• ', style: TextStyle(color: AppColors.muted)),
+                        Text(m, style: const TextStyle(fontSize: 13)),
+                      ]))).toList()),
+                  ),
+                ],
+                if ((p['medical_history'] as String?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _MedCard(
+                    icon: '📋', label: 'Medical History',
+                    child: Text(p['medical_history'] as String, style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2)),
+                  ),
+                ],
+                if ((p['emergency_notes'] as String?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _MedCard(
+                    icon: '🚨', label: 'Emergency Notes',
+                    child: Text(p['emergency_notes'] as String,
+                      style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2, fontWeight: FontWeight.w500)),
+                  ),
+                ],
+              ]),
+            ),
     );
   }
 }

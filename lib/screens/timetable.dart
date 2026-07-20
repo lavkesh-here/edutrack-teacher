@@ -97,6 +97,11 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 children: [
                   Row(
                     children: [
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.text),
+                      ),
+                      const SizedBox(width: 12),
                       const Text(
                         'Timetable',
                         style: TextStyle(
@@ -219,7 +224,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
             // Content
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                  ? const Center(child: CircularProgressIndicator())
                   : _error != null
                       ? Center(
                           child: Column(

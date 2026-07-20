@@ -80,4 +80,18 @@ ThemeData buildTheme([Color primary = AppColors.sun]) => ThemeData(
           ),
         ),
       ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
+      tabBarTheme: TabBarThemeData(
+        labelColor: primary,
+        indicatorColor: primary,
+        unselectedLabelColor: AppColors.muted,
+      ),
+      chipTheme: ChipThemeData(
+        selectedColor: primary.withOpacity(0.15),
+        checkmarkColor: primary,
+      ),
     );

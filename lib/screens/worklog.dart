@@ -153,7 +153,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddSheet,
-        backgroundColor: AppColors.sun,
+        backgroundColor: null,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Log', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -356,7 +356,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: _loadingSections
-          ? const LinearProgressIndicator(color: AppColors.sun)
+          ? LinearProgressIndicator()
           : _sections == null || _sections!.isEmpty
               ? const Text('No sections assigned',
                   style: TextStyle(color: AppColors.muted, fontSize: 13))
@@ -464,7 +464,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.all(40),
-            child: Center(child: CircularProgressIndicator(color: AppColors.sun)),
+            child: Center(child: CircularProgressIndicator()),
           ),
         ),
       ];
@@ -588,7 +588,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
   Widget Function(BuildContext, Widget?) get _datepickerTheme =>
       (ctx, child) => Theme(
             data: ThemeData(
-                colorScheme: const ColorScheme.light(primary: AppColors.sun)),
+                colorScheme: null),
             child: child!,
           );
 
@@ -607,6 +607,12 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     List<StudentSearchResult> studentResults = [];
     bool searchingStudent = false;
     List<XFile> pickedImages = [];
+    List<Map<String, String>> subjects = [];
+    String? selectedSubjectId;
+    String? selectedSubjectName;
+    ApiClient.getMySubjects().then((s) {
+      subjects = s;
+    });
 
     showModalBottomSheet(
       context: context,
@@ -709,6 +715,43 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                // Subject selector
+                const Text('Subject (optional)',
+                    style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                if (subjects.isNotEmpty)
+                  SizedBox(
+                    height: 34,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: subjects.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) {
+                        if (i == 0) {
+                          final active = selectedSubjectId == null;
+                          return _SectionChip(
+                            label: 'All',
+                            active: active,
+                            onTap: () => setSheet(() {
+                              selectedSubjectId = null;
+                              selectedSubjectName = null;
+                            }),
+                          );
+                        }
+                        final sub = subjects[i - 1];
+                        final active = selectedSubjectId == sub['id'];
+                        return _SectionChip(
+                          label: sub['name']!,
+                          active: active,
+                          onTap: () => setSheet(() {
+                            selectedSubjectId = sub['id'];
+                            selectedSubjectName = sub['name'];
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 10),
                 // Optional: specific student
                 const Text('For Student (optional)',
                     style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
@@ -758,7 +801,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                           prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.muted),
                           suffixIcon: searchingStudent
                               ? const Padding(padding: EdgeInsets.all(12),
-                                  child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun)))
+                                  child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)))
                               : null,
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -815,12 +858,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         firstDate: DateTime.now(),
                         lastDate:
                             DateTime.now().add(const Duration(days: 90)),
-                        builder: (c, w) => Theme(
-                          data: ThemeData(
-                              colorScheme: const ColorScheme.light(
-                                  primary: AppColors.sun)),
-                          child: w!,
-                        ),
+                        builder: (c, w) => Theme(data: Theme.of(c), child: w!),
                       );
                       if (d != null) setSheet(() => dueDate = d);
                     },
@@ -952,6 +990,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             description: desc,
                             dueDate: dueDateStr,
                             imageUrls: gcsUrls.isNotEmpty ? gcsUrls : null,
+                            subjectId: selectedSubjectId,
                           );
                         }
                         descCtrl.clear();

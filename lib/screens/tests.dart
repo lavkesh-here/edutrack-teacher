@@ -79,7 +79,7 @@ class _TestsScreenState extends State<TestsScreen> {
               ),
             ),
           Expanded(child: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(
                   child: Column(

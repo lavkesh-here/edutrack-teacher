@@ -156,9 +156,9 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
         leading: const BackButton(),
         bottom: TabBar(
           controller: _tabCtrl,
-          labelColor: AppColors.sun,
+          labelColor: null,
           unselectedLabelColor: AppColors.muted,
-          indicatorColor: AppColors.sun,
+          indicatorColor: null,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
           tabs: const [Tab(text: 'Send'), Tab(text: 'History')],
         ),
@@ -204,7 +204,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
               const Text('SELECT CLASS', style: _labelStyle),
               const SizedBox(height: 8),
               if (_loadingSections)
-                const LinearProgressIndicator(color: AppColors.sun)
+                LinearProgressIndicator()
               else if (_sections != null && _sections!.isNotEmpty)
                 SizedBox(
                   height: 34,
@@ -289,7 +289,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                     suffixIcon: _searching
                         ? const Padding(
                             padding: EdgeInsets.all(12),
-                            child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.sun)),
+                            child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                           )
                         : null,
                   ),
@@ -469,7 +469,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
                 key: const Key('send_notification_button'),
                 onPressed: _loading ? null : (_canSend ? _send : null),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.sun,
+                  backgroundColor: null,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -503,7 +503,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
 
           // ── Tab 1: History ───────────────────────────────────────────────
           _loadingHistory
-              ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+              ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
                     // Search bar
@@ -623,7 +623,7 @@ class _NotifyParentsScreenState extends State<NotifyParentsScreen>
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(_, true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
+              style: ElevatedButton.styleFrom(),
               child: const Text('Send', style: TextStyle(color: Colors.white)),
             ),
           ],

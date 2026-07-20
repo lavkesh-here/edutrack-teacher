@@ -167,7 +167,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(40),
-                  child: CircularProgressIndicator(color: AppColors.sun),
+                  child: CircularProgressIndicator(),
                 ),
               )
             else if (_notFound || _record == null)

@@ -110,7 +110,7 @@ class _AdminWorkLogsScreenState extends State<AdminWorkLogsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+          ? const Center(child: CircularProgressIndicator())
           : _logs.isEmpty
               ? const Center(
                   child: Column(

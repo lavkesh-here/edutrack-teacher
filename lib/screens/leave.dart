@@ -185,7 +185,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
             // List
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.sun))
+                  ? const Center(child: CircularProgressIndicator())
                   : _leaves == null || _leaves!.isEmpty
                       ? Center(
                           child: Column(
@@ -813,7 +813,7 @@ class _DateField extends StatelessWidget {
               selectableDayPredicate: (date) => date.weekday != DateTime.sunday,
               builder: (ctx, child) => Theme(
                 data: ThemeData(
-                    colorScheme: const ColorScheme.light(primary: AppColors.sun)),
+                    colorScheme: null),
                 child: child!,
               ),
             );

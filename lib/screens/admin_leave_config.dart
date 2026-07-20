@@ -35,9 +35,9 @@ class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen>
         centerTitle: false,
         bottom: TabBar(
           controller: _tabs,
-          labelColor: AppColors.sun,
+          labelColor: null,
           unselectedLabelColor: AppColors.muted,
-          indicatorColor: AppColors.sun,
+          indicatorColor: null,
           tabs: const [
             Tab(text: 'School Defaults'),
             Tab(text: 'Per Teacher'),
@@ -133,7 +133,7 @@ class _GlobalConfigTabState extends State<_GlobalConfigTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
+    if (_loading) return const Center(child: CircularProgressIndicator());
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -172,7 +172,7 @@ class _GlobalConfigTabState extends State<_GlobalConfigTab> {
             child: ElevatedButton(
               key: const Key('save_leave_config_button'),
               onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun),
+              style: ElevatedButton.styleFrom(),
               child: _saving
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                   : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
@@ -344,7 +344,7 @@ class _PerTeacherTabState extends State<_PerTeacherTab> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.sun,
+                        backgroundColor: null,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: saving
@@ -363,7 +363,7 @@ class _PerTeacherTabState extends State<_PerTeacherTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: AppColors.sun));
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_teachers.isEmpty) {
       return const Center(
         child: Column(

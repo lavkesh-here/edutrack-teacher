@@ -552,10 +552,10 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                     children: [
                       Text(
                         a.commentCount > 0 ? 'View ${a.commentCount} comment${a.commentCount == 1 ? '' : 's'}' : 'Add comment',
-                        style: const TextStyle(fontSize: 11, color: AppColors.sun, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.sun),
+                      Icon(Icons.chevron_right_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                     ],
                   ),
                 ),
@@ -844,16 +844,16 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                 GestureDetector(
                   key: const Key('post_comment_button'),
                   onTap: _post,
-                  child: Container(
+                  child: Builder(builder: (ctx) => Container(
                     width: 40, height: 40,
-                    decoration: const BoxDecoration(color: AppColors.sun, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: Theme.of(ctx).colorScheme.primary, shape: BoxShape.circle),
                     child: _posting
                         ? const Padding(
                             padding: EdgeInsets.all(10),
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                         : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                  ),
+                  )),
                 ),
               ],
             ),

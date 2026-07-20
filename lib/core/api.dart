@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cache.dart';
+import 'device_context.dart';
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -715,6 +716,7 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
+      ...DeviceContext.headers,
     };
   }
 
@@ -1869,6 +1871,134 @@ class ApiClient {
     final token = data['token'] as String;
     final base = await getBaseUrl();
     return '$base/api/v1/teacher/certificates/$certId/pdf?token=$token';
+  }
+
+  // ── Emergency Contacts ──────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getStudentEmergencyContacts(String studentId) async {
+    final data = await _get('/api/v1/teacher/students/$studentId/emergency-contacts');
+    return (data['contacts'] as List).cast<Map<String, dynamic>>();
+  }
+
+  // ── Medical Profile ─────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> getStudentMedicalProfile(String studentId) async {
+    final data = await _get('/api/v1/teacher/students/$studentId/medical');
+    return data['profile'] as Map<String, dynamic>?;
+  }
+
+  // ── Emergency SOS ───────────────────────────────────────────────────────────
+
+  static Future<void> triggerSOS({String? locationNote, String? studentId, String? classSectionId}) async {
+    await _post('/api/v1/teacher/sos', {
+      if (locationNote != null) 'location_note': locationNote,
+      if (studentId != null) 'student_id': studentId,
+      if (classSectionId != null) 'class_section_id': classSectionId,
+    });
+  }
+
+  // ── PTM ─────────────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getPTMEvents() async {
+    final data = await _get('/api/v1/teacher/ptm/events');
+    return (data['events'] as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<List<Map<String, dynamic>>> getPTMMeetings(String eventId) async {
+    final data = await _get('/api/v1/teacher/ptm/events/$eventId/meetings');
+    return (data['meetings'] as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<String> createPTMMeeting({
+    required String ptmEventId,
+    required String studentId,
+    String? classSectionId,
+    String? subjectId,
+    required String status,
+    String? remarks,
+    List<String> actionItems = const [],
+  }) async {
+    final data = await _post('/api/v1/teacher/ptm/meetings', {
+      'ptm_event_id': ptmEventId,
+      'student_id': studentId,
+      if (classSectionId != null) 'class_section_id': classSectionId,
+      if (subjectId != null) 'subject_id': subjectId,
+      'status': status,
+      if (remarks != null) 'remarks': remarks,
+      'action_items': actionItems,
+    });
+    return data['id'] as String;
+  }
+
+  static Future<void> updatePTMMeeting(String meetingId, {String? status, String? remarks, List<String>? actionItems}) async {
+    await _put('/api/v1/teacher/ptm/meetings/$meetingId', {
+      if (status != null) 'status': status,
+      if (remarks != null) 'remarks': remarks,
+      if (actionItems != null) 'action_items': actionItems,
+    });
+  }
+
+  // ── Substitute Teacher ──────────────────────────────────────────────────────
+
+  static Future<void> selfSubstitute({
+    required String date,
+    required String classSectionId,
+    String? subjectId,
+    int? periodNumber,
+    String? startTime,
+    String? endTime,
+    String? originalTeacherId,
+    String? reason,
+  }) async {
+    await _post('/api/v1/teacher/substitutes/self', {
+      'date': date,
+      'class_section_id': classSectionId,
+      if (subjectId != null) 'subject_id': subjectId,
+      if (periodNumber != null) 'period_number': periodNumber,
+      if (startTime != null) 'start_time': startTime,
+      if (endTime != null) 'end_time': endTime,
+      if (originalTeacherId != null) 'original_teacher_id': originalTeacherId,
+      if (reason != null) 'reason': reason,
+    });
+  }
+
+  static Future<Map<String, dynamic>> getSubstituteHistory() async {
+    return await _get('/api/v1/teacher/substitutes/history') as Map<String, dynamic>;
+  }
+
+  static Future<List<Map<String, dynamic>>> getSubstituteToday() async {
+    final data = await _get('/api/v1/teacher/substitutes/today');
+    return (data['substitutions'] as List).cast<Map<String, dynamic>>();
+  }
+
+  // ── Syllabus Plan ───────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getSyllabusPlan(String classSectionId) async {
+    return await _get('/api/v1/teacher/syllabus/plan?class_section_id=$classSectionId') as Map<String, dynamic>;
+  }
+
+  static Future<void> upsertSyllabusPlan({
+    required String classSectionId,
+    required String chapterId,
+    required String subjectId,
+    required String targetDate,
+    String? milestoneNote,
+  }) async {
+    await _put('/api/v1/teacher/syllabus/plan', {
+      'class_section_id': classSectionId,
+      'chapter_id': chapterId,
+      'subject_id': subjectId,
+      'target_date': targetDate,
+      if (milestoneNote != null) 'milestone_note': milestoneNote,
+    });
+  }
+
+  // ── Predictive Alerts ───────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getMyAlerts({bool unacknowledgedOnly = false}) async {
+    final q = unacknowledgedOnly ? '?unacknowledged_only=true' : '';
+    final data = await _get('/api/v1/teacher/alerts$q');
+    return (data['alerts'] as List).cast<Map<String, dynamic>>();
   }
 }
 

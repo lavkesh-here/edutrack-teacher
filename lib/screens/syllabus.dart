@@ -10,12 +10,18 @@ class SyllabusChapter {
   final int number;
   final String name;
   String status;
+  String? targetDate;
+  String? milestoneNote;
+  String? onTrack;
 
   SyllabusChapter({
     required this.id,
     required this.number,
     required this.name,
     required this.status,
+    this.targetDate,
+    this.milestoneNote,
+    this.onTrack,
   });
 
   factory SyllabusChapter.fromJson(Map<String, dynamic> j) => SyllabusChapter(
@@ -64,6 +70,8 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
   bool _loadingSections = true;
   bool _loadingSubjects = false;
   String? _error;
+  // plan data keyed by chapter_id
+  Map<String, Map<String, dynamic>> _planByChapter = {};
 
   @override
   void initState() {
@@ -97,12 +105,27 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
       _selectedSectionLabel = label;
       _loadingSubjects = true;
       _error = null;
+      _planByChapter = {};
     });
     try {
-      final raw = await ApiClient.getSyllabus(id);
+      final rawSubjects = await ApiClient.getSyllabus(id);
+      Map<String, dynamic> planResp;
+      try {
+        planResp = await ApiClient.getSyllabusPlan(id);
+      } catch (_) {
+        planResp = {};
+      }
       if (!mounted) return;
+      final planChapters = (planResp['chapters'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+      final planMap = <String, Map<String, dynamic>>{};
+      for (final ch in planChapters) {
+        final cid = ch['chapter_id'] as String?;
+        if (cid != null) planMap[cid] = ch;
+      }
       setState(() {
-        _subjects = raw.map((e) => SyllabusSubject.fromJson(e)).toList();
+        _subjects = rawSubjects.map((e) => SyllabusSubject.fromJson(e)).toList();
+        _planByChapter = planMap;
         _loadingSubjects = false;
       });
     } catch (e) {
@@ -111,6 +134,50 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
         _loadingSubjects = false;
         _error = 'Failed to load syllabus';
       });
+    }
+  }
+
+  Future<void> _setChapterTarget(SyllabusChapter chapter, String subjectId) async {
+    if (_selectedSectionId == null) return;
+    DateTime initial = DateTime.now().add(const Duration(days: 7));
+    if (chapter.targetDate != null) {
+      try { initial = DateTime.parse(chapter.targetDate!); } catch (_) {}
+    }
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+            colorScheme: const ColorScheme.light(primary: AppColors.sun)),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final dateStr =
+        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    try {
+      await ApiClient.upsertSyllabusPlan(
+        classSectionId: _selectedSectionId!,
+        chapterId: chapter.id,
+        subjectId: subjectId,
+        targetDate: dateStr,
+      );
+      if (!mounted) return;
+      setState(() {
+        chapter.targetDate = dateStr;
+        _planByChapter[chapter.id] = {
+          ..._planByChapter[chapter.id] ?? {},
+          'target_date': dateStr,
+        };
+      });
+      showSnack(context, 'Target date set');
+    } catch (e) {
+      if (mounted) {
+        final msg = e is ApiError ? e.message : 'Failed to set target date';
+        showSnack(context, msg, error: true);
+      }
     }
   }
 
@@ -185,7 +252,9 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
                                       itemCount: _subjects.length,
                                       itemBuilder: (ctx, i) => _SubjectCard(
                                         subject: _subjects[i],
+                                        planByChapter: _planByChapter,
                                         onStatusChange: _updateStatus,
+                                        onSetTarget: (ch) => _setChapterTarget(ch, _subjects[i].id),
                                       ),
                                     ),
                     ),
@@ -249,9 +318,16 @@ class _SectionPicker extends StatelessWidget {
 
 class _SubjectCard extends StatefulWidget {
   final SyllabusSubject subject;
+  final Map<String, Map<String, dynamic>> planByChapter;
   final Future<void> Function(SyllabusChapter chapter, String status) onStatusChange;
+  final Future<void> Function(SyllabusChapter chapter) onSetTarget;
 
-  const _SubjectCard({required this.subject, required this.onStatusChange});
+  const _SubjectCard({
+    required this.subject,
+    required this.planByChapter,
+    required this.onStatusChange,
+    required this.onSetTarget,
+  });
 
   @override
   State<_SubjectCard> createState() => _SubjectCardState();
@@ -344,14 +420,23 @@ class _SubjectCardState extends State<_SubjectCard> {
           // Chapter list (expanded)
           if (_expanded) ...[
             Divider(height: 1, color: AppColors.border),
-            ...sub.chapters.map((ch) => _ChapterRow(
-                  chapter: ch,
-                  onTap: () async {
-                    final newStatus = _nextStatus(ch.status);
-                    await widget.onStatusChange(ch, newStatus);
-                    if (mounted) setState(() {});
-                  },
-                )),
+            ...sub.chapters.map((ch) {
+              final plan = widget.planByChapter[ch.id];
+              return _ChapterRow(
+                chapter: ch,
+                targetDate: plan?['target_date'] as String?,
+                onTrack: plan?['on_track'] as String?,
+                onTap: () async {
+                  final newStatus = _nextStatus(ch.status);
+                  await widget.onStatusChange(ch, newStatus);
+                  if (mounted) setState(() {});
+                },
+                onSetTarget: () async {
+                  await widget.onSetTarget(ch);
+                  if (mounted) setState(() {});
+                },
+              );
+            }),
           ],
         ],
       ),
@@ -384,9 +469,18 @@ class _StatChip extends StatelessWidget {
 
 class _ChapterRow extends StatelessWidget {
   final SyllabusChapter chapter;
+  final String? targetDate;
+  final String? onTrack;
   final VoidCallback onTap;
+  final VoidCallback onSetTarget;
 
-  const _ChapterRow({required this.chapter, required this.onTap});
+  const _ChapterRow({
+    required this.chapter,
+    required this.onTap,
+    required this.onSetTarget,
+    this.targetDate,
+    this.onTrack,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -416,39 +510,132 @@ class _ChapterRow extends StatelessWidget {
         icon = Icons.radio_button_unchecked;
     }
 
+    final (onTrackColor, onTrackLabel) = switch (onTrack) {
+      'behind'   => (AppColors.rose, 'Behind'),
+      'due_soon' => (AppColors.amber, 'Due Soon'),
+      'on_track' => (AppColors.green, 'On Track'),
+      'completed'=> (AppColors.green, 'Done'),
+      _ => (null, null),
+    };
+
     return InkWell(
       onTap: onTap,
+      onLongPress: onSetTarget,
       child: Container(
         color: bgColor,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: dotColor, size: 20),
-            const SizedBox(width: 10),
-            Text('${chapter.number}.',
-                style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.muted)),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(chapter.name,
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: status == 'completed' ? AppColors.muted : AppColors.text,
-                      decoration: status == 'completed' ? TextDecoration.lineThrough : null)),
+            Row(
+              children: [
+                Icon(icon, color: dotColor, size: 20),
+                const SizedBox(width: 10),
+                Text('${chapter.number}.',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.muted)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(chapter.name,
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: status == 'completed' ? AppColors.muted : AppColors.text,
+                          decoration:
+                              status == 'completed' ? TextDecoration.lineThrough : null)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: dotColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(statusLabel,
+                      style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w700, color: dotColor)),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: dotColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
+            if (targetDate != null || onTrackColor != null) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 30),
+                child: Row(
+                  children: [
+                    if (targetDate != null)
+                      GestureDetector(
+                        onTap: onSetTarget,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 11, color: AppColors.muted),
+                            const SizedBox(width: 3),
+                            Text(_fmtDate(targetDate!),
+                                style: const TextStyle(
+                                    fontSize: 11, color: AppColors.muted)),
+                          ],
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: onSetTarget,
+                        child: const Text('+ Set target date',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.sun,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    if (onTrackColor != null && onTrackLabel != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: onTrackColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(onTrackLabel,
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: onTrackColor)),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              child: Text(statusLabel,
-                  style:
-                      TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: dotColor)),
-            ),
+            ] else ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 30),
+                child: GestureDetector(
+                  onTap: onSetTarget,
+                  child: const Text('+ Set target date',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.sun,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _fmtDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      const months = [
+        'Jan','Feb','Mar','Apr','May','Jun',
+        'Jul','Aug','Sep','Oct','Nov','Dec'
+      ];
+      return '${d.day} ${months[d.month - 1]}';
+    } catch (_) {
+      return iso;
+    }
   }
 }

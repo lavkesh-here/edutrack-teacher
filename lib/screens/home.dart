@@ -36,6 +36,10 @@ import 'notification_prefs.dart';
 import 'faq_screen.dart';
 import 'support_chat_screen.dart';
 import 'teacher_search.dart';
+import 'ptm.dart';
+import 'substitutes.dart';
+import 'alerts.dart';
+import '../core/branding.dart';
 import '../core/recents.dart';
 import '../core/features.dart';
 
@@ -149,6 +153,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = index == current;
+    final p = Theme.of(context).colorScheme.primary;
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(index),
@@ -161,7 +166,7 @@ class _NavItem extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: active ? AppColors.sunLight : Colors.transparent,
+                  color: active ? p.withOpacity(0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -177,7 +182,7 @@ class _NavItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                  color: active ? AppColors.sun : AppColors.muted,
+                  color: active ? p : AppColors.muted,
                 ),
               ),
             ],
@@ -271,6 +276,7 @@ class _HomeTabState extends State<_HomeTab> {
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     final dateStr = '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
 
+    final p = Theme.of(context).colorScheme.primary;
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -278,11 +284,11 @@ class _HomeTabState extends State<_HomeTab> {
           children: [
             // Static hero header
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.sun, Color(0xFFEA580C), AppColors.coral],
+                  colors: [p, p.withOpacity(0.75), AppColors.coral],
                 ),
               ),
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -371,10 +377,10 @@ class _HomeTabState extends State<_HomeTab> {
                           Container(
                             width: 28, height: 28,
                             decoration: BoxDecoration(
-                              color: AppColors.sunLight,
+                              color: p.withOpacity(0.15),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.person_outline, size: 16, color: AppColors.sun),
+                            child: Icon(Icons.person_outline, size: 16, color: p),
                           ),
                         ],
                       ),
@@ -384,7 +390,7 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
             Expanded(child: RefreshIndicator(
-              color: AppColors.sun,
+              color: p,
               onRefresh: _load,
               child: CustomScrollView(
           slivers: [
@@ -494,9 +500,9 @@ class _HomeTabState extends State<_HomeTab> {
             ),
             SliverToBoxAdapter(
               child: _loadingTimetable
-                  ? const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator(color: AppColors.sun)),
+                  ? Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Center(child: CircularProgressIndicator(color: p)),
                     )
                   : _todaySlots == null || _todaySlots!.isEmpty
                       ? Padding(
@@ -557,7 +563,7 @@ class _HomeTabState extends State<_HomeTab> {
                   children: [
                     _QuickPill(
                       label: '📋 Mark Attendance',
-                      color: AppColors.sun,
+                      color: p,
                       onTap: () => _navigateTab(context, 1, recentId: 'attendance'),
                     ),
                     if (auth.features.workLogs)
@@ -591,6 +597,16 @@ class _HomeTabState extends State<_HomeTab> {
                       label: '🕐 Sign In',
                       color: AppColors.sky,
                       onTap: () => _openScreen(context, const MyAttendanceScreen()),
+                    ),
+                    _QuickPill(
+                      label: '🚨 SOS Alert',
+                      color: AppColors.rose,
+                      onTap: () => _triggerSOS(context),
+                    ),
+                    _QuickPill(
+                      label: '🤝 PTM',
+                      color: AppColors.violet,
+                      onTap: () => _openScreen(context, const PTMScreen(), recentId: 'ptm'),
                     ),
                   ],
                 ),
@@ -726,6 +742,51 @@ class _HomeTabState extends State<_HomeTab> {
           ],
         ), // Column
       ), // SafeArea
+    );
+  }
+
+  void _triggerSOS(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Text('🚨', style: TextStyle(fontSize: 24)),
+            SizedBox(width: 8),
+            Text('Send SOS Alert',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        content: const Text(
+          'This will immediately notify all school admins and principals with your location.',
+          style: TextStyle(fontSize: 13, color: AppColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ApiClient.triggerSOS();
+                if (mounted) showSnack(context, 'SOS alert sent to school admins');
+              } catch (e) {
+                if (mounted) {
+                  final msg = e is ApiError ? e.message : 'Failed to send SOS';
+                  showSnack(context, msg, error: true);
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.rose),
+            child: const Text('Send SOS',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1079,6 +1140,89 @@ class _FeatureRow extends StatelessWidget {
       );
 }
 
+class _ColorPickerRow extends StatelessWidget {
+  const _ColorPickerRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final branding = context.watch<BrandingProvider>();
+    final p = branding.primaryColor;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: p.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.palette_outlined, color: p, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('App Colour',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+                    Text(
+                      branding.hasUserOverride ? 'Your custom colour' : 'School default',
+                      style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              if (branding.hasUserOverride)
+                GestureDetector(
+                  onTap: () => context.read<BrandingProvider>().clearUserOverride(),
+                  child: const Text('Reset',
+                      style: TextStyle(fontSize: 11, color: AppColors.muted, decoration: TextDecoration.underline)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: kBrandingPresets.map((color) {
+              final isSelected = color.value == p.value;
+              return GestureDetector(
+                onTap: () => context.read<BrandingProvider>().setUserOverride(color),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: isSelected
+                        ? Border.all(color: AppColors.text, width: 2.5)
+                        : Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(color: color.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: isSelected ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LockedFeatureRow extends StatelessWidget {
   final String icon;
   final Color iconBg;
@@ -1259,6 +1403,7 @@ class _PeriodRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = Theme.of(context).colorScheme.primary;
     final timeStr = slot.startTime != null && slot.endTime != null
         ? '${slot.startTime}\n${slot.endTime}'
         : 'P${slot.periodNumber}';
@@ -1288,7 +1433,7 @@ class _PeriodRow extends StatelessWidget {
             height: 36,
             margin: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: AppColors.sun.withOpacity(0.3),
+              color: p.withOpacity(0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1472,6 +1617,7 @@ class _MoreTabState extends State<_MoreTab> {
   }
 
   void _showPhotoOptions(BuildContext context, String? currentPhotoUrl) {
+    final p = Theme.of(context).colorScheme.primary;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -1486,7 +1632,7 @@ class _MoreTabState extends State<_MoreTab> {
             ),
             if (currentPhotoUrl != null && currentPhotoUrl.isNotEmpty)
               ListTile(
-                leading: const Icon(Icons.visibility_rounded, color: AppColors.sun),
+                leading: Icon(Icons.visibility_rounded, color: p),
                 title: const Text('View Photo', style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -1494,7 +1640,7 @@ class _MoreTabState extends State<_MoreTab> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.sun),
+              leading: Icon(Icons.camera_alt_rounded, color: p),
               title: const Text('Change Photo', style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(sheetCtx);
@@ -1712,6 +1858,7 @@ class _MoreTabState extends State<_MoreTab> {
     final flags = auth.features;
     final isAdmin = user.role == 'admin';
     final isAdminOrAbove = user.role == 'admin' || user.role == 'principal' || user.role == 'director';
+    final p = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -1724,10 +1871,10 @@ class _MoreTabState extends State<_MoreTab> {
                 margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [AppColors.sun, AppColors.coral],
+                    colors: [p, p.withOpacity(0.75)],
                   ),
                   borderRadius: BorderRadius.circular(18),
                 ),
@@ -1758,7 +1905,7 @@ class _MoreTabState extends State<_MoreTab> {
                             child: Container(
                               width: 18, height: 18,
                               decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                              child: const Icon(Icons.camera_alt, size: 10, color: AppColors.sun),
+                              child: Icon(Icons.camera_alt, size: 10, color: p),
                             ),
                           ),
                         ],
@@ -1811,6 +1958,12 @@ class _MoreTabState extends State<_MoreTab> {
                     if (flags.syllabus)
                       _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
                           onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
+                    _FeatureRow(icon: '🤝', iconBg: AppColors.violetLight, title: 'PTM', sub: 'Parent-teacher meetings & notes',
+                        onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
+                    _FeatureRow(icon: '🔄', iconBg: AppColors.tealLight, title: 'Substitutions', sub: 'Self-assign & view coverage history',
+                        onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
+                    _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by AI rules',
+                        onTap: () => _push(context, const AlertsScreen(), recentId: 'alerts')),
                     if (flags.todo)
                       _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                           onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
@@ -1857,6 +2010,9 @@ class _MoreTabState extends State<_MoreTab> {
                       onTap: () => _push(context, const NotificationPrefsScreen()),
                     ),
 
+                    // App colour picker
+                    const _ColorPickerRow(),
+
                     // Biometric unlock toggle
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -1889,7 +2045,7 @@ class _MoreTabState extends State<_MoreTab> {
                           Switch(
                             value: _bioEnabled,
                             onChanged: _setBioEnabled,
-                            activeColor: AppColors.sun,
+                            activeColor: p,
                           ),
                         ],
                       ),

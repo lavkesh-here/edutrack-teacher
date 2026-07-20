@@ -38,7 +38,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 7, vsync: this);
+    _tabs = TabController(length: 9, vsync: this);
     _load();
   }
 
@@ -310,6 +310,8 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           _ReportTab(studentId: widget.studentId),
           _FullReportCardTab(studentId: widget.studentId),
           _CertificatesTab(studentId: widget.studentId),
+          _EmergencyContactsTab(studentId: widget.studentId),
+          _MedicalProfileTab(studentId: widget.studentId),
         ],
       ),
     );
@@ -346,6 +348,8 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
           Tab(text: 'Report'),
           Tab(text: 'Report Card'),
           Tab(text: 'Certificates'),
+          Tab(text: 'Emergency'),
+          Tab(text: 'Medical'),
         ],
       ),
     );
@@ -2188,6 +2192,235 @@ class _CertCardState extends State<_CertCard> {
     );
   }
 }
+
+// ── Emergency Contacts Tab ────────────────────────────────────────────────────
+
+class _EmergencyContactsTab extends StatefulWidget {
+  final String studentId;
+  const _EmergencyContactsTab({required this.studentId});
+  @override
+  State<_EmergencyContactsTab> createState() => _EmergencyContactsTabState();
+}
+
+class _EmergencyContactsTabState extends State<_EmergencyContactsTab> {
+  List<Map<String, dynamic>>? _contacts;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final contacts = await ApiClient.getStudentEmergencyContacts(widget.studentId);
+      if (mounted) setState(() { _contacts = contacts; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _contacts = []; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_contacts == null || _contacts!.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('🆘', style: TextStyle(fontSize: 40)),
+            SizedBox(height: 12),
+            Text('No emergency contacts added', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+            SizedBox(height: 4),
+            Text('Admin can add them from the web portal', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          ]),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _contacts!.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) {
+        final c = _contacts![i];
+        final priority = c['priority'] as int? ?? 1;
+        final addedBy = c['added_by_type'] as String? ?? 'admin';
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: priority == 1 ? AppColors.rose.withOpacity(0.4) : AppColors.border),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+          ),
+          child: Row(children: [
+            Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(
+                color: priority == 1 ? AppColors.roseLight : AppColors.amberLight,
+                shape: BoxShape.circle,
+              ),
+              child: Center(child: Text('$priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,
+                color: priority == 1 ? AppColors.rose : AppColors.amber))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(c['name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 2),
+              Text(c['relation'] as String? ?? '', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            ])),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              InkWell(
+                onTap: () async {
+                  final phone = c['phone'] as String? ?? '';
+                  final uri = Uri.parse('tel:$phone');
+                  if (await canLaunchUrl(uri)) launchUrl(uri);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: AppColors.sunLight, borderRadius: BorderRadius.circular(20)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.call, size: 14, color: AppColors.sun),
+                    const SizedBox(width: 4),
+                    Text(c['phone'] as String? ?? '—', style: const TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text('Added by $addedBy', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+            ]),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+// ── Medical Profile Tab ───────────────────────────────────────────────────────
+
+class _MedicalProfileTab extends StatefulWidget {
+  final String studentId;
+  const _MedicalProfileTab({required this.studentId});
+  @override
+  State<_MedicalProfileTab> createState() => _MedicalProfileTabState();
+}
+
+class _MedicalProfileTabState extends State<_MedicalProfileTab> {
+  Map<String, dynamic>? _profile;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final profile = await ApiClient.getStudentMedicalProfile(widget.studentId);
+      if (mounted) setState(() { _profile = profile; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_profile == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('🏥', style: TextStyle(fontSize: 40)),
+            SizedBox(height: 12),
+            Text('No medical profile on record', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+            SizedBox(height: 4),
+            Text('Admin can add it from the web portal', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          ]),
+        ),
+      );
+    }
+    final p = _profile!;
+    final allergies = (p['allergies'] as List?)?.cast<String>() ?? [];
+    final medicines = (p['ongoing_medicines'] as List?)?.cast<String>() ?? [];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if ((p['blood_group'] as String?)?.isNotEmpty == true)
+          _MedCard(
+            icon: '🩸', label: 'Blood Group',
+            child: Text(p['blood_group'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.rose)),
+          ),
+        if (allergies.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _MedCard(
+            icon: '⚠️', label: 'Allergies',
+            child: Wrap(spacing: 6, runSpacing: 6, children: allergies.map((a) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: AppColors.roseLight, borderRadius: BorderRadius.circular(20)),
+              child: Text(a, style: const TextStyle(fontSize: 12, color: AppColors.rose, fontWeight: FontWeight.w600)),
+            )).toList()),
+          ),
+        ],
+        if (medicines.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _MedCard(
+            icon: '💊', label: 'Ongoing Medicines',
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: medicines.map((m) =>
+              Padding(padding: const EdgeInsets.only(bottom: 4), child: Row(children: [
+                const Text('• ', style: TextStyle(color: AppColors.muted)),
+                Text(m, style: const TextStyle(fontSize: 13)),
+              ]))).toList()),
+          ),
+        ],
+        if ((p['medical_history'] as String?)?.isNotEmpty == true) ...[
+          const SizedBox(height: 12),
+          _MedCard(
+            icon: '📋', label: 'Medical History',
+            child: Text(p['medical_history'] as String, style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2)),
+          ),
+        ],
+        if ((p['emergency_notes'] as String?)?.isNotEmpty == true) ...[
+          const SizedBox(height: 12),
+          _MedCard(
+            icon: '🚨', label: 'Emergency Notes',
+            child: Text(p['emergency_notes'] as String,
+              style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2, fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+class _MedCard extends StatelessWidget {
+  final String icon;
+  final String label;
+  final Widget child;
+  const _MedCard({required this.icon, required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.border),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('$icon $label', style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 8),
+      child,
+    ]),
+  );
+}
+
+// ── Error View ────────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
   final VoidCallback onRetry;

@@ -118,7 +118,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
             ),
             if (hasPhoto)
               ListTile(
-                leading: const Icon(Icons.visibility_rounded, color: AppColors.sun),
+                leading: Icon(Icons.visibility_rounded, color: context.primary),
                 title: const Text('View Photo', style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -127,7 +127,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
               ),
             if (canChange)
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.sun),
+                leading: Icon(Icons.camera_alt_rounded, color: context.primary),
                 title: const Text('Change Photo', style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.pop(sheetCtx);
@@ -272,7 +272,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
                                 shape: BoxShape.circle,
                                 border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
                               ),
-                              child: const Icon(Icons.camera_alt, size: 14, color: AppColors.sun),
+                              child: Icon(Icons.camera_alt, size: 14, color: context.primary),
                             ),
                         ],
                       ),
@@ -714,7 +714,7 @@ class _CalendarCell extends StatelessWidget {
             color: status != null ? bg : Colors.transparent,
             shape: BoxShape.circle,
             border: isToday && status == null
-                ? Border.all(color: AppColors.sun, width: 1.5)
+                ? Border.all(color: context.primary, width: 1.5)
                 : null,
           ),
           child: Stack(
@@ -725,7 +725,7 @@ class _CalendarCell extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: status != null ? fg : (isToday ? AppColors.sun : AppColors.text2),
+                  color: status != null ? fg : (isToday ? context.primary : AppColors.text2),
                 ),
               ),
               if (status != null)
@@ -1165,7 +1165,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
     final total = report['total_tests'] as int? ?? 0;
 
     return RefreshIndicator(
-      color: AppColors.sun,
+      color: context.primary,
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -1218,15 +1218,15 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.sunLight,
+                    color: context.primaryLight,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.sun.withOpacity(0.3)),
+                    border: Border.all(color: context.primary.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Your previous notes',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.sun)),
+                      Text('Your previous notes',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: context.primary)),
                       const SizedBox(height: 4),
                       Text(_previousTeacherNotes!,
                           style: const TextStyle(fontSize: 12, color: AppColors.text, height: 1.4)),
@@ -1262,8 +1262,8 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                   key: const Key('refresh_analysis_button'),
                   onPressed: _generating ? null : _generateAnalysis,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.sun,
-                    side: const BorderSide(color: AppColors.sun),
+                    foregroundColor: context.primary,
+                    side: BorderSide(color: context.primary),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   child: _generating
@@ -1377,94 +1377,229 @@ class _StatChip extends StatelessWidget {
   );
 }
 
-class _ScoreTrendChart extends StatelessWidget {
+class _ScoreTrendChart extends StatefulWidget {
   final List<Map<String, dynamic>> history;
   const _ScoreTrendChart({required this.history});
+  @override
+  State<_ScoreTrendChart> createState() => _ScoreTrendChartState();
+}
+
+class _ScoreTrendChartState extends State<_ScoreTrendChart> {
+  int? _selectedIndex;
+
+  List<Map<String, dynamic>> get _scored => widget.history
+      .where((t) => t['percentage'] != null && t['is_absent'] == false)
+      .toList();
+
+  String _shortDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso);
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${m[d.month-1]}';
+    } catch (_) { return iso; }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final dataPoints = history
-        .where((t) => t['percentage'] != null && t['is_absent'] == false)
-        .map((t) => (t['percentage'] as num).toDouble())
-        .toList();
+    final scored = _scored;
+    final dataPoints = scored.map((t) => (t['percentage'] as num).toDouble()).toList();
 
     if (dataPoints.isEmpty) {
-      return const Center(child: Text('No scored tests yet', style: TextStyle(fontSize: 12, color: AppColors.muted)));
+      return const Center(child: Text('No scored tests yet',
+          style: TextStyle(fontSize: 12, color: AppColors.muted)));
     }
 
-    return SizedBox(
-      height: 120,
-      child: CustomPaint(
-        painter: _LinePainter(dataPoints),
-        child: Align(
-          alignment: Alignment.bottomLeft,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${dataPoints.length} test${dataPoints.length == 1 ? '' : 's'}',
-              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+    final dates = scored.map((t) => _shortDate(t['date'] as String?)).toList();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      GestureDetector(
+        onTapUp: (details) {
+          if (dataPoints.length < 2) {
+            setState(() => _selectedIndex = _selectedIndex == null ? 0 : null);
+            return;
+          }
+          final renderBox = context.findRenderObject() as RenderBox?;
+          final w = renderBox?.size.width ?? 300.0;
+          final tappedX = details.localPosition.dx;
+          int nearest = 0;
+          double minDist = double.infinity;
+          for (int i = 0; i < dataPoints.length; i++) {
+            final x = i / (dataPoints.length - 1) * w;
+            final dist = (x - tappedX).abs();
+            if (dist < minDist) { minDist = dist; nearest = i; }
+          }
+          setState(() => _selectedIndex = _selectedIndex == nearest ? null : nearest);
+        },
+        child: SizedBox(
+          height: 130,
+          width: double.infinity,
+          child: CustomPaint(
+            painter: _LinePainter(
+              dataPoints,
+              dates: dates,
+              color: context.primary,
+              selectedIndex: _selectedIndex,
             ),
           ),
         ),
       ),
+      // Selected test info card
+      if (_selectedIndex != null && _selectedIndex! < scored.length) ...[
+        const SizedBox(height: 8),
+        _TestDetailTile(test: scored[_selectedIndex!]),
+      ],
+      const SizedBox(height: 4),
+      Text(
+        '${dataPoints.length} test${dataPoints.length == 1 ? '' : 's'} · tap a dot for details',
+        style: const TextStyle(fontSize: 10, color: AppColors.muted),
+      ),
+    ]);
+  }
+}
+
+class _TestDetailTile extends StatelessWidget {
+  final Map<String, dynamic> test;
+  const _TestDetailTile({required this.test});
+
+  String _fmtDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso);
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${m[d.month-1]} ${d.year}';
+    } catch (_) { return iso; }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = test['title'] as String? ?? 'Test';
+    final subject = test['subject'] as String? ?? '';
+    final date = _fmtDate(test['date'] as String?);
+    final score = test['score'];
+    final total = test['total_marks'];
+    final pct = (test['percentage'] as num?)?.toDouble() ?? 0;
+
+    final color = pct >= 75 ? AppColors.green : pct >= 50 ? AppColors.amber : AppColors.coral;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          if (subject.isNotEmpty || date.isNotEmpty)
+            Text('${subject.isNotEmpty ? subject : ''}${subject.isNotEmpty && date.isNotEmpty ? ' · ' : ''}$date',
+                style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+        ])),
+        const SizedBox(width: 10),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text('${pct.toStringAsFixed(0)}%',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+          if (score != null && total != null)
+            Text('$score / $total', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+        ]),
+      ]),
     );
   }
 }
 
 class _LinePainter extends CustomPainter {
   final List<double> points;
-  _LinePainter(this.points);
+  final List<String> dates;
+  final Color color;
+  final int? selectedIndex;
+  _LinePainter(this.points, {required this.color, this.dates = const [], this.selectedIndex});
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
+    if (points.isEmpty) return;
 
-    final linePaint = Paint()
-      ..color = AppColors.sun
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final dotPaint = Paint()..color = AppColors.sun..style = PaintingStyle.fill;
-    final bgPaint = Paint()..color = AppColors.sun.withOpacity(0.08)..style = PaintingStyle.fill;
-
-    final h = size.height - 16;
+    // Reserve bottom space for date labels
+    const dateAreaH = 18.0;
+    final h = size.height - dateAreaH - 8;
     final w = size.width;
     final min = points.reduce((a, b) => a < b ? a : b).clamp(0, 100).toDouble();
     final max = points.reduce((a, b) => a > b ? a : b).clamp(0, 100).toDouble();
     final range = (max - min).clamp(10, 100).toDouble();
 
-    double xOf(int i) => i / (points.length - 1) * w;
+    double xOf(int i) => points.length == 1 ? w / 2 : i / (points.length - 1) * w;
     double yOf(double v) => h - ((v - min) / range * h);
 
-    final path = Path()..moveTo(xOf(0), yOf(points[0]));
-    for (int i = 1; i < points.length; i++) path.lineTo(xOf(i), yOf(points[i]));
+    if (points.length >= 2) {
+      final linePaint = Paint()
+        ..color = color
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
 
-    final fill = Path.from(path)
-      ..lineTo(xOf(points.length - 1), h)
-      ..lineTo(xOf(0), h)
-      ..close();
-    canvas.drawPath(fill, bgPaint);
-    canvas.drawPath(path, linePaint);
+      final bgPaint = Paint()..color = color.withOpacity(0.08)..style = PaintingStyle.fill;
 
-    for (int i = 0; i < points.length; i++) {
-      canvas.drawCircle(Offset(xOf(i), yOf(points[i])), 4, dotPaint);
+      final path = Path()..moveTo(xOf(0), yOf(points[0]));
+      for (int i = 1; i < points.length; i++) path.lineTo(xOf(i), yOf(points[i]));
+
+      final fill = Path.from(path)
+        ..lineTo(xOf(points.length - 1), h)
+        ..lineTo(xOf(0), h)
+        ..close();
+      canvas.drawPath(fill, bgPaint);
+      canvas.drawPath(path, linePaint);
     }
 
-    // Draw first and last % labels
     final tp = TextPainter(textDirection: TextDirection.ltr);
-    void drawLabel(int i, double val) {
-      tp.text = TextSpan(text: '${val.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 9, color: AppColors.muted, fontWeight: FontWeight.w700));
+
+    // Draw dots and score labels
+    for (int i = 0; i < points.length; i++) {
+      final x = xOf(i);
+      final y = yOf(points[i]);
+      final isSelected = selectedIndex == i;
+
+      // Outer ring for selected
+      if (isSelected) {
+        canvas.drawCircle(Offset(x, y), 8, Paint()..color = color.withOpacity(0.2)..style = PaintingStyle.fill);
+        canvas.drawCircle(Offset(x, y), 6, Paint()..color = color..style = PaintingStyle.fill);
+      } else {
+        canvas.drawCircle(Offset(x, y), 4, Paint()..color = color..style = PaintingStyle.fill);
+      }
+
+      // Score label above dot — always visible
+      final labelText = '${points[i].toStringAsFixed(0)}%';
+      tp.text = TextSpan(
+        text: labelText,
+        style: TextStyle(fontSize: 8, color: isSelected ? color : AppColors.muted, fontWeight: FontWeight.w700),
+      );
       tp.layout();
-      final x = xOf(i).clamp(0.0, w - tp.width);
-      tp.paint(canvas, Offset(x, yOf(val) - 13));
+      final lx = x - tp.width / 2;
+      final ly = (y - tp.height - 5).clamp(0.0, h - tp.height);
+      tp.paint(canvas, Offset(lx.clamp(0.0, w - tp.width), ly));
     }
-    drawLabel(0, points.first);
-    if (points.length > 1) drawLabel(points.length - 1, points.last);
+
+    // Date labels below chart — show all if ≤ 6, else every other
+    if (dates.isNotEmpty) {
+      final step = points.length > 6 ? 2 : 1;
+      for (int i = 0; i < points.length; i += step) {
+        if (i >= dates.length) break;
+        final dateLabel = dates[i];
+        if (dateLabel.isEmpty) continue;
+        tp.text = TextSpan(
+          text: dateLabel,
+          style: const TextStyle(fontSize: 7.5, color: AppColors.muted, fontWeight: FontWeight.w500),
+        );
+        tp.layout();
+        final x = xOf(i) - tp.width / 2;
+        tp.paint(canvas, Offset(x.clamp(0.0, w - tp.width), h + 6));
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _LinePainter old) => old.points != points;
+  bool shouldRepaint(covariant _LinePainter old) =>
+      old.points != points || old.selectedIndex != selectedIndex;
 }
 
 class _AnalysisCard extends StatelessWidget {
@@ -1791,7 +1926,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
     final hasReport = reportJson != null;
 
     return RefreshIndicator(
-      color: AppColors.sun,
+      color: context.primary,
       onRefresh: _loadReport,
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -1835,7 +1970,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
             // Level & trend
             Row(
               children: [
-                _RcChip(reportJson['overall_level'] as String? ?? '—', AppColors.sun, AppColors.sunLight),
+                _RcChip(reportJson['overall_level'] as String? ?? '—', context.primary, context.primaryLight),
                 const SizedBox(width: 8),
                 _RcChip(_trendLabel(reportJson['overall_trend'] as String? ?? ''), AppColors.teal, AppColors.tealLight),
               ],
@@ -2407,11 +2542,11 @@ class _EmergencyContactsTabState extends State<_EmergencyContactsTab> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: AppColors.sunLight, borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(20)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.call, size: 14, color: AppColors.sun),
+                            Icon(Icons.call, size: 14, color: context.primary),
                             const SizedBox(width: 4),
-                            Text(c['phone'] as String? ?? '—', style: const TextStyle(fontSize: 12, color: AppColors.sun, fontWeight: FontWeight.w600)),
+                            Text(c['phone'] as String? ?? '—', style: TextStyle(fontSize: 12, color: context.primary, fontWeight: FontWeight.w600)),
                           ]),
                         ),
                       ),

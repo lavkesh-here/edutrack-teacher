@@ -192,8 +192,8 @@ class _EventCard extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: AppColors.sunLight, borderRadius: BorderRadius.circular(20)),
-            child: Text(date, style: const TextStyle(fontSize: 11, color: AppColors.sun, fontWeight: FontWeight.w600)),
+            decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(20)),
+            child: Text(date, style: TextStyle(fontSize: 11, color: context.primary, fontWeight: FontWeight.w600)),
           ),
         ]),
         if ((event['description'] as String?)?.isNotEmpty == true) ...[
@@ -253,6 +253,7 @@ class PTMEventDetail extends StatefulWidget {
 
 class _PTMEventDetailState extends State<PTMEventDetail> {
   List<Map<String, dynamic>>? _meetings;
+  List<Map<String, dynamic>> _registrations = [];
   bool _loading = true;
 
   @override
@@ -263,14 +264,21 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
 
   Future<void> _load() async {
     try {
-      final meetings = await ApiClient.getPTMMeetings(widget.eventId);
-      if (mounted) setState(() { _meetings = meetings; _loading = false; });
+      final results = await Future.wait([
+        ApiClient.getPTMMeetings(widget.eventId),
+        ApiClient.getPTMRegistrations(widget.eventId),
+      ]);
+      if (mounted) setState(() {
+        _meetings = results[0];
+        _registrations = results[1];
+        _loading = false;
+      });
     } catch (_) {
-      if (mounted) setState(() { _meetings = []; _loading = false; });
+      if (mounted) setState(() { _meetings = []; _registrations = []; _loading = false; });
     }
   }
 
-  void _addMeeting() {
+  void _addMeeting({String? prefilledStudentId, String? prefilledStudentName, String? parentRemarks}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -278,12 +286,18 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
       builder: (_) => _AddMeetingSheet(
         eventId: widget.eventId,
         onCreated: _load,
+        prefilledStudentId: prefilledStudentId,
+        prefilledStudentName: prefilledStudentName,
+        parentRemarks: parentRemarks,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Registered students who don't yet have a meeting logged
+    final pending = _registrations.where((r) => !(r['meeting_logged'] as bool? ?? false)).toList();
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -296,7 +310,7 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
         iconTheme: const IconThemeData(color: AppColors.text),
         actions: [
           TextButton.icon(
-            onPressed: _addMeeting,
+            onPressed: () => _addMeeting(),
             icon: const Icon(Icons.add, size: 16),
             label: const Text('Log Meeting', style: TextStyle(fontSize: 13)),
           ),
@@ -306,29 +320,114 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: _meetings == null || _meetings!.isEmpty
-                  ? ListView(children: const [
-                      Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text('📝', style: TextStyle(fontSize: 48)),
-                          SizedBox(height: 12),
-                          Text('No meetings logged yet', style: TextStyle(color: AppColors.muted, fontSize: 15)),
-                          SizedBox(height: 4),
-                          Text('Tap "+ Log Meeting" to add one', style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                        ]),
-                      ),
-                    ])
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _meetings!.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) => _MeetingCard(
-                        meeting: _meetings![i],
-                        onUpdated: _load,
-                      ),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Registered parents section
+                  if (pending.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: context.primaryLight,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text('${pending.length} Registered',
+                              style: TextStyle(fontSize: 11, color: context.primary, fontWeight: FontWeight.w700)),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Parents waiting to meet you',
+                            style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                      ]),
                     ),
+                    ...pending.map((r) => _RegisteredStudentCard(
+                      reg: r,
+                      onLog: () => _addMeeting(
+                        prefilledStudentId: r['student_id'] as String,
+                        prefilledStudentName: r['student_name'] as String,
+                        parentRemarks: r['parent_remarks'] as String?,
+                      ),
+                    )),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                  ],
+                  // Logged meetings
+                  if (_meetings == null || _meetings!.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text('📝', style: TextStyle(fontSize: 48)),
+                        SizedBox(height: 12),
+                        Text('No meetings logged yet', style: TextStyle(color: AppColors.muted, fontSize: 15)),
+                        SizedBox(height: 4),
+                        Text('Tap "+ Log Meeting" to add one', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                      ]),
+                    )
+                  else
+                    ...List.generate(_meetings!.length, (i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _MeetingCard(meeting: _meetings![i], onUpdated: _load),
+                    )),
+                ],
+              ),
             ),
+    );
+  }
+}
+
+class _RegisteredStudentCard extends StatelessWidget {
+  final Map<String, dynamic> reg;
+  final VoidCallback onLog;
+  const _RegisteredStudentCard({required this.reg, required this.onLog});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = reg['student_name'] as String? ?? '—';
+    final section = reg['section_label'] as String? ?? '';
+    final remarks = reg['parent_remarks'] as String?;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(10)),
+            child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: TextStyle(fontWeight: FontWeight.w800, color: context.primary))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            Text(section, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+            if (remarks != null && remarks.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.amberLight,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('💬 $remarks',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF92400E))),
+              ),
+            ],
+          ])),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onLog,
+            style: TextButton.styleFrom(
+              foregroundColor: context.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            child: const Text('Log', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -403,14 +502,23 @@ class _MeetingCard extends StatelessWidget {
 class _AddMeetingSheet extends StatefulWidget {
   final String eventId;
   final VoidCallback onCreated;
-  const _AddMeetingSheet({required this.eventId, required this.onCreated});
+  final String? prefilledStudentId;
+  final String? prefilledStudentName;
+  final String? parentRemarks;
+  const _AddMeetingSheet({
+    required this.eventId,
+    required this.onCreated,
+    this.prefilledStudentId,
+    this.prefilledStudentName,
+    this.parentRemarks,
+  });
   @override
   State<_AddMeetingSheet> createState() => _AddMeetingSheetState();
 }
 
 class _AddMeetingSheetState extends State<_AddMeetingSheet> {
-  final _studentCtrl = TextEditingController();
-  final _studentIdCtrl = TextEditingController();
+  late final TextEditingController _studentCtrl;
+  late final TextEditingController _studentIdCtrl;
   final _remarksCtrl = TextEditingController();
   final _actionCtrl = TextEditingController();
   String _status = 'done';
@@ -419,11 +527,18 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
   List<StudentSearchResult> _searchResults = [];
   bool _searching = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _studentCtrl = TextEditingController(text: widget.prefilledStudentName ?? '');
+    _studentIdCtrl = TextEditingController(text: widget.prefilledStudentId ?? '');
+  }
+
   Future<void> _search(String q) async {
     if (q.length < 2) { setState(() => _searchResults = []); return; }
     setState(() => _searching = true);
     try {
-      final res = await ApiClient.searchStudents(q);
+      final res = await ApiClient.searchStudents(q, classScoped: true);
       if (mounted) setState(() { _searchResults = res.take(5).toList(); _searching = false; });
     } catch (_) {
       if (mounted) setState(() { _searching = false; });
@@ -497,7 +612,8 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
                     child: Column(children: _searchResults.map((s) => ListTile(
                       dense: true,
                       title: Text(s.name, style: const TextStyle(fontSize: 13)),
-                      subtitle: Text(s.admissionNumber, style: const TextStyle(fontSize: 11)),
+                      subtitle: Text('${s.admissionNumber}${s.classLabel != null ? ' · ${s.classLabel}' : ''}',
+                          style: const TextStyle(fontSize: 11)),
                       onTap: () {
                         setState(() {
                           _studentCtrl.text = s.name;
@@ -506,6 +622,26 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
                         });
                       },
                     )).toList()),
+                  ),
+                ],
+                // Parent's pre-meeting remarks (if any)
+                if (widget.parentRemarks != null && widget.parentRemarks!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.amberLight,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Parent\'s concerns', style: TextStyle(fontSize: 10,
+                          fontWeight: FontWeight.w700, color: Color(0xFF92400E))),
+                      const SizedBox(height: 3),
+                      Text(widget.parentRemarks!,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF92400E))),
+                    ]),
                   ),
                 ],
                 const SizedBox(height: 14),
@@ -550,7 +686,7 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
                   )),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.add_circle, color: AppColors.sun),
+                    icon: Icon(Icons.add_circle, color: context.primary),
                     onPressed: () {
                       final text = _actionCtrl.text.trim();
                       if (text.isNotEmpty) {
@@ -579,7 +715,7 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: (_saving || _studentIdCtrl.text.isEmpty) ? null : _save,
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun, foregroundColor: Colors.white,
+                    style: ElevatedButton.styleFrom(backgroundColor: context.primary, foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                     child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Text('Save Meeting', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
@@ -685,7 +821,7 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
               ),
             )),
             const SizedBox(width: 8),
-            IconButton(icon: const Icon(Icons.add_circle, color: AppColors.sun), onPressed: () {
+            IconButton(icon: Icon(Icons.add_circle, color: context.primary), onPressed: () {
               final t = _actionCtrl.text.trim();
               if (t.isNotEmpty) setState(() { _actions.add(t); _actionCtrl.clear(); });
             }),
@@ -702,7 +838,7 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.sun, foregroundColor: Colors.white,
+              style: ElevatedButton.styleFrom(backgroundColor: context.primary, foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               child: _saving
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

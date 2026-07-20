@@ -1242,8 +1242,9 @@ class ApiClient {
 
   // ── Student search ────────────────────────────────────────────────────────
 
-  static Future<List<StudentSearchResult>> searchStudents(String query) async {
-    final data = await _get('/api/v1/teacher/students/search?q=${Uri.encodeComponent(query)}');
+  static Future<List<StudentSearchResult>> searchStudents(String query, {bool classScoped = false}) async {
+    final params = 'q=${Uri.encodeComponent(query)}${classScoped ? '&class_scoped=true' : ''}';
+    final data = await _get('/api/v1/teacher/students/search?$params');
     final list = data as List<dynamic>;
     return list.map((e) => StudentSearchResult.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -1996,6 +1997,11 @@ class ApiClient {
       if (remarks != null) 'remarks': remarks,
       if (actionItems != null) 'action_items': actionItems,
     });
+  }
+
+  static Future<List<Map<String, dynamic>>> getPTMRegistrations(String eventId) async {
+    final data = await _get('/api/v1/teacher/ptm/events/$eventId/registrations');
+    return (data['registrations'] as List).cast<Map<String, dynamic>>();
   }
 
   // ── Substitute Teacher ──────────────────────────────────────────────────────

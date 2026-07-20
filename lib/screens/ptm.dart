@@ -316,7 +316,7 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
   String _status = 'done';
   final List<String> _actions = [];
   bool _saving = false;
-  List<Map<String, dynamic>> _searchResults = [];
+  List<StudentSearchResult> _searchResults = [];
   bool _searching = false;
 
   Future<void> _search(String q) async {
@@ -396,12 +396,12 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
                     decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(10)),
                     child: Column(children: _searchResults.map((s) => ListTile(
                       dense: true,
-                      title: Text(s['name'] as String? ?? '', style: const TextStyle(fontSize: 13)),
-                      subtitle: Text(s['admission_number'] as String? ?? '', style: const TextStyle(fontSize: 11)),
+                      title: Text(s.name, style: const TextStyle(fontSize: 13)),
+                      subtitle: Text(s.admissionNumber, style: const TextStyle(fontSize: 11)),
                       onTap: () {
                         setState(() {
-                          _studentCtrl.text = s['name'] as String? ?? '';
-                          _studentIdCtrl.text = s['id'] as String? ?? '';
+                          _studentCtrl.text = s.name;
+                          _studentIdCtrl.text = s.id;
                           _searchResults = [];
                         });
                       },

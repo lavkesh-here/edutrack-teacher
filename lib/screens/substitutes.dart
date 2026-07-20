@@ -481,7 +481,7 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
         classSectionId: _selectedSectionId!,
         date: dateStr,
         periodNumber: _selectedPeriod!,
-        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        reason: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
       if (mounted) {
         Navigator.pop(context);

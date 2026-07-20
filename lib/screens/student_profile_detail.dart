@@ -2251,18 +2251,18 @@ class _EmergencyContactsTabState extends State<_EmergencyContactsTab> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: priority == 1 ? AppColors.rose.withOpacity(0.4) : AppColors.border),
+            border: Border.all(color: priority == 1 ? AppColors.coral.withOpacity(0.4) : AppColors.border),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
           ),
           child: Row(children: [
             Container(
               width: 42, height: 42,
               decoration: BoxDecoration(
-                color: priority == 1 ? AppColors.roseLight : AppColors.amberLight,
+                color: priority == 1 ? AppColors.coralLight : AppColors.amberLight,
                 shape: BoxShape.circle,
               ),
               child: Center(child: Text('$priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,
-                color: priority == 1 ? AppColors.rose : AppColors.amber))),
+                color: priority == 1 ? AppColors.coral : AppColors.amber))),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2352,7 +2352,7 @@ class _MedicalProfileTabState extends State<_MedicalProfileTab> {
         if ((p['blood_group'] as String?)?.isNotEmpty == true)
           _MedCard(
             icon: '🩸', label: 'Blood Group',
-            child: Text(p['blood_group'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.rose)),
+            child: Text(p['blood_group'] as String, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.coral)),
           ),
         if (allergies.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -2360,8 +2360,8 @@ class _MedicalProfileTabState extends State<_MedicalProfileTab> {
             icon: '⚠️', label: 'Allergies',
             child: Wrap(spacing: 6, runSpacing: 6, children: allergies.map((a) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: AppColors.roseLight, borderRadius: BorderRadius.circular(20)),
-              child: Text(a, style: const TextStyle(fontSize: 12, color: AppColors.rose, fontWeight: FontWeight.w600)),
+              decoration: BoxDecoration(color: AppColors.coralLight, borderRadius: BorderRadius.circular(20)),
+              child: Text(a, style: const TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w600)),
             )).toList()),
           ),
         ],

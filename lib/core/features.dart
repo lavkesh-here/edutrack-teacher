@@ -24,6 +24,8 @@ class FeatureFlags {
   bool get workLogs      =>  _flags['feature.work_logs']       ?? true;
   bool get visitorLog    =>  _flags['feature.visitor_log']     ?? true;
   bool get todo          =>  _flags['feature.todo']            ?? true;
+  bool get library       =>  _flags['feature.library']         ?? true;
+  bool get brainBooster  =>  _flags['feature.brain_booster']   ?? true;
 
   // ── Standard tier ─────────────────────────────────────────────────────────
   bool get tests               =>  _flags['feature.tests']               ?? true;

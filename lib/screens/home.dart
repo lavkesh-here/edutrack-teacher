@@ -1988,9 +1988,10 @@ class _MoreTabState extends State<_MoreTab> {
                     if (flags.todo)
                       _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                           onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
-                    _FeatureRow(icon: '🧠', iconBg: AppColors.violetLight, title: 'Brain Booster', sub: 'Daily puzzles · Sudoku · Streaks · Leaderboard',
-                        onTap: () => _push(context, const BrainBoosterScreen(), recentId: 'brain_booster')),
-                    if (isAdminOrAbove || user.hasTag('librarian'))
+                    if (flags.brainBooster)
+                      _FeatureRow(icon: '🧠', iconBg: AppColors.violetLight, title: 'Brain Booster', sub: 'Daily puzzles · Sudoku · Streaks · Leaderboard',
+                          onTap: () => _push(context, const BrainBoosterScreen(), recentId: 'brain_booster')),
+                    if (flags.library && (isAdminOrAbove || user.hasTag('librarian')))
                       _FeatureRow(icon: '📚', iconBg: AppColors.amberLight, title: 'Library', sub: 'Book catalog, issues & overdue tracking',
                           onTap: () => _push(context, const LibraryScreen(), recentId: 'library')),
                     _FeatureRow(icon: '✨', iconBg: AppColors.tealLight, title: 'Ask Vidya', sub: 'School copilot — ask anything about your data',

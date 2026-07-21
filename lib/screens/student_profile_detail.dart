@@ -8,6 +8,7 @@ import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'whatsapp_report.dart';
+import 'library_screen.dart';
 
 class StudentProfileDetail extends StatefulWidget {
   final String studentId;
@@ -34,11 +35,16 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
   bool _uploading = false;
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
+  bool _showLibraryTab = false;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 9, vsync: this);
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    _showLibraryTab = user != null &&
+        (user.role == 'admin' || user.role == 'principal' || user.role == 'director' || user.hasTag('librarian'));
+    _tabs = TabController(length: _showLibraryTab ? 10 : 9, vsync: this);
     _load();
   }
 
@@ -295,7 +301,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
         // ── Sticky white tab bar (separate from gradient) ─────────────────
         SliverPersistentHeader(
           pinned: true,
-          delegate: _StickyTabBar(_tabs),
+          delegate: _StickyTabBar(_tabs, showLibrary: _showLibraryTab),
         ),
       ],
       body: TabBarView(
@@ -318,6 +324,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           _CertificatesTab(studentId: widget.studentId),
           _EmergencyContactsTab(studentId: widget.studentId),
           _MedicalProfileTab(studentId: widget.studentId),
+          if (_showLibraryTab) StudentLibraryTab(studentId: widget.studentId),
         ],
       ),
     );
@@ -328,7 +335,8 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
 
 class _StickyTabBar extends SliverPersistentHeaderDelegate {
   final TabController controller;
-  const _StickyTabBar(this.controller);
+  final bool showLibrary;
+  const _StickyTabBar(this.controller, {this.showLibrary = false});
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
@@ -346,16 +354,17 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-        tabs: const [
-          Tab(text: 'Profile'),
-          Tab(text: 'Attendance'),
-          Tab(text: 'Tests'),
-          Tab(text: 'Work Logs'),
-          Tab(text: 'Report'),
-          Tab(text: 'Report Card'),
-          Tab(text: 'Certificates'),
-          Tab(text: 'Emergency'),
-          Tab(text: 'Medical'),
+        tabs: [
+          const Tab(text: 'Profile'),
+          const Tab(text: 'Attendance'),
+          const Tab(text: 'Tests'),
+          const Tab(text: 'Work Logs'),
+          const Tab(text: 'Report'),
+          const Tab(text: 'Report Card'),
+          const Tab(text: 'Certificates'),
+          const Tab(text: 'Emergency'),
+          const Tab(text: 'Medical'),
+          if (showLibrary) const Tab(text: 'Library'),
         ],
       ),
     );

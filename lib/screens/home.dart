@@ -39,6 +39,8 @@ import 'vidya_screen.dart';
 import 'teacher_search.dart';
 import 'ptm.dart';
 import 'substitutes.dart';
+import 'library_screen.dart';
+import 'brain_booster_screen.dart';
 import 'alerts.dart';
 import 'visitor_log.dart';
 import 'admin_teacher_roles.dart';
@@ -577,27 +579,12 @@ class _HomeTabState extends State<_HomeTab> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _QuickPill(
-                      label: '📋 Mark Attendance',
-                      color: p,
-                      onTap: () => _navigateTab(context, 1, recentId: 'attendance'),
-                    ),
                     if (auth.features.workLogs)
                       _QuickPill(
                         label: '📚 Add Homework',
                         color: AppColors.coral,
                         onTap: () => _openScreen(context, const WorkLogScreen(), recentId: 'worklog'),
                       ),
-                    _QuickPill(
-                      label: '📝 Apply Leave',
-                      color: AppColors.violet,
-                      onTap: () => _openScreen(context, const LeaveScreen(), recentId: 'leaves'),
-                    ),
-                    _QuickPill(
-                      label: '🏥 Health Incident',
-                      color: AppColors.rose,
-                      onTap: () => _openScreen(context, const HealthIncidentsScreen(), recentId: 'health'),
-                    ),
                     _QuickPill(
                       label: '🔔 Notify Parents',
                       color: AppColors.teal,
@@ -618,11 +605,6 @@ class _HomeTabState extends State<_HomeTab> {
                       label: '🚨 SOS Alert',
                       color: AppColors.rose,
                       onTap: () => _triggerSOS(context),
-                    ),
-                    _QuickPill(
-                      label: '🤝 PTM',
-                      color: AppColors.violet,
-                      onTap: () => _openScreen(context, const PTMScreen(), recentId: 'ptm'),
                     ),
                   ],
                 ),
@@ -920,6 +902,9 @@ class _HomeTabState extends State<_HomeTab> {
       case 'visitor_log':     _openScreen(context, const VisitorLogScreen(), recentId: id);
       case 'vidya':           _openScreen(context, const VidyaScreen(), recentId: id);
       case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
+      case 'health':          _openScreen(context, const HealthIncidentsScreen(), recentId: id);
+      case 'brain_booster':   _openScreen(context, const BrainBoosterScreen(), recentId: id);
+      case 'library':         _openScreen(context, const LibraryScreen(), recentId: id);
       case 'payroll':         _openScreen(context, const PayslipScreen(), recentId: id);
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
       case 'qualifications':  _openScreen(context, const QualificationsScreen(), recentId: id);
@@ -1563,6 +1548,7 @@ class _MoreTab extends StatefulWidget {
 
 class _MoreTabState extends State<_MoreTab> {
   bool _bioEnabled = false;
+  bool _bioAvailable = false;
   bool _uploadingPhoto = false;
   String _appVersion = '';
 
@@ -1577,16 +1563,25 @@ class _MoreTabState extends State<_MoreTab> {
 
   Future<void> _loadBioState() async {
     final auth = context.read<AuthProvider>();
+    final available = await auth.isBiometricAvailable;
     final enabled = await auth.isBiometricEnabled;
-    if (mounted) setState(() => _bioEnabled = enabled);
+    if (mounted) setState(() { _bioAvailable = available; _bioEnabled = enabled; });
   }
 
   Future<void> _setBioEnabled(bool value) async {
     final auth = context.read<AuthProvider>();
+    if (!await auth.isBiometricAvailable) {
+      if (mounted) showSnack(context, 'Biometric authentication not available on this device', error: true);
+      return;
+    }
     final confirmed = await auth.authenticateBiometric(
       value ? 'Confirm your biometric to enable quick unlock' : 'Confirm your biometric to disable quick unlock',
     );
-    if (!confirmed || !mounted) return;
+    if (!mounted) return;
+    if (!confirmed) {
+      showSnack(context, 'Biometric authentication failed or cancelled', error: true);
+      return;
+    }
 
     if (value) {
       await auth.enableBiometric();
@@ -1882,12 +1877,11 @@ class _MoreTabState extends State<_MoreTab> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Profile card — tap avatar to change photo
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Column(
+          children: [
+            // Profile card — fixed, does not scroll
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -1945,13 +1939,16 @@ class _MoreTabState extends State<_MoreTab> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            // Scrollable content below the fixed card
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // ── MY INFO ───────────────────────────────────────────────
                     const Text('MY INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 8),
@@ -1979,6 +1976,8 @@ class _MoreTabState extends State<_MoreTab> {
                           onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
                     _FeatureRow(icon: '🤝', iconBg: AppColors.violetLight, title: 'PTM', sub: 'Parent-teacher meetings & notes',
                         onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
+                    _FeatureRow(icon: '🏥', iconBg: AppColors.coralLight, title: 'Health Incidents', sub: 'Log & track student health events',
+                        onTap: () => _push(context, const HealthIncidentsScreen(), recentId: 'health')),
                     _FeatureRow(icon: '🔄', iconBg: AppColors.tealLight, title: 'Substitutions', sub: 'Self-assign & view coverage history',
                         onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
                     _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by smart rules',
@@ -1989,6 +1988,11 @@ class _MoreTabState extends State<_MoreTab> {
                     if (flags.todo)
                       _FeatureRow(icon: '✅', iconBg: AppColors.tealLight, title: 'My Todos', sub: 'Tasks, reminders & personal notes',
                           onTap: () => _push(context, const TodosScreen(), recentId: 'todos')),
+                    _FeatureRow(icon: '🧠', iconBg: AppColors.violetLight, title: 'Brain Booster', sub: 'Daily puzzles · Sudoku · Streaks · Leaderboard',
+                        onTap: () => _push(context, const BrainBoosterScreen(), recentId: 'brain_booster')),
+                    if (isAdminOrAbove || user.hasTag('librarian'))
+                      _FeatureRow(icon: '📚', iconBg: AppColors.amberLight, title: 'Library', sub: 'Book catalog, issues & overdue tracking',
+                          onTap: () => _push(context, const LibraryScreen(), recentId: 'library')),
                     _FeatureRow(icon: '✨', iconBg: AppColors.tealLight, title: 'Ask Vidya', sub: 'School copilot — ask anything about your data',
                         onTap: () => _push(context, const VidyaScreen(), recentId: 'vidya')),
                     _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'Browse common questions',
@@ -2041,43 +2045,44 @@ class _MoreTabState extends State<_MoreTab> {
                     // App colour picker
                     const _ColorPickerRow(),
 
-                    // Biometric unlock toggle
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border, width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40, height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.violetLight,
-                              borderRadius: BorderRadius.circular(12),
+                    // Biometric unlock toggle — only shown if hardware is available
+                    if (_bioAvailable)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border, width: 1.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.violetLight,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(child: Text('🔑', style: TextStyle(fontSize: 18))),
                             ),
-                            child: const Center(child: Text('🔑', style: TextStyle(fontSize: 18))),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Biometric Unlock', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
-                                Text('Use Face ID / fingerprint to sign in', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                              ],
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Biometric Unlock', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+                                  Text('Use Face ID / fingerprint to sign in', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                                ],
+                              ),
                             ),
-                          ),
-                          Switch(
-                            value: _bioEnabled,
-                            onChanged: _setBioEnabled,
-                            activeColor: p,
-                          ),
-                        ],
+                            Switch(
+                              value: _bioEnabled,
+                              onChanged: _setBioEnabled,
+                              activeColor: p,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
                     const SizedBox(height: 16),
 
@@ -2127,11 +2132,12 @@ class _MoreTabState extends State<_MoreTab> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

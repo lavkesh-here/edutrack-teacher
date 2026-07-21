@@ -614,9 +614,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     String? selectedChapterId;
     String? selectedChapterName;
     bool loadingChapters = false;
-    ApiClient.getMySubjects().then((s) {
-      subjects = s;
-    });
+    bool _subjectsLoaded = false;
 
     Future<void> loadChapters(String sectionId, String subjectId, void Function(void Function()) setSheetFn) async {
       setSheetFn(() { loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null; });
@@ -639,7 +637,12 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setSheet) => Padding(
+        builder: (ctx2, setSheet) {
+          if (!_subjectsLoaded) {
+            _subjectsLoaded = true;
+            ApiClient.getMySubjects().then((s) => setSheet(() => subjects = s)).catchError((_) {});
+          }
+          return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx2).viewInsets.bottom),
           child: Container(
             decoration: const BoxDecoration(
@@ -1099,7 +1102,8 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
               ],
             ),
           ),
-        ),
+        );
+        },
       ),
     );
   }

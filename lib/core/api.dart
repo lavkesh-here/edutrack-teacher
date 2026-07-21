@@ -2130,6 +2130,89 @@ class ApiClient {
   static Future<void> updateTeacherFunctionalTags(String teacherId, List<String> tags) async {
     await _patch('/api/v1/admin/teachers/$teacherId/functional-tags', {'tags': tags});
   }
+
+  // ── Library Management ─────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> libraryListBooks({
+    String? search, String? bookType, bool availableOnly = false, int page = 0, int pageSize = 25,
+  }) async {
+    final params = <String>['page=$page', 'page_size=$pageSize'];
+    if (search != null) params.add('search=${Uri.encodeComponent(search)}');
+    if (bookType != null) params.add('book_type=$bookType');
+    if (availableOnly) params.add('available_only=true');
+    return await _get('/api/v1/admin/library/books?${params.join(\'&\')}') as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryAddBook(Map<String, dynamic> payload) async {
+    return await _post('/api/v1/admin/library/books', payload) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryUpdateBook(String bookId, Map<String, dynamic> payload) async {
+    return await _patch('/api/v1/admin/library/books/$bookId', payload) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryListIssues({
+    String? status, bool overdueOnly = false, String? studentId, int page = 0,
+  }) async {
+    final params = <String>['page=$page'];
+    if (status != null) params.add('status=$status');
+    if (overdueOnly) params.add('overdue_only=true');
+    if (studentId != null) params.add('student_id=$studentId');
+    return await _get('/api/v1/admin/library/issues?${params.join(\'&\')}') as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryIssueBook({
+    required String bookId, required String studentId, required String dueDate,
+  }) async {
+    return await _post('/api/v1/admin/library/issues', {
+      'book_id': bookId, 'student_id': studentId, 'due_date': dueDate,
+    }) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryReturnBook(String issueId) async {
+    return await _patch('/api/v1/admin/library/issues/$issueId/return', {}) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryStudentBooks(String studentId) async {
+    return await _get('/api/v1/admin/library/students/$studentId/books') as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> libraryStats() async {
+    return await _get('/api/v1/admin/library/stats') as Map<String, dynamic>;
+  }
+
+  static Future<List<Map<String, dynamic>>> searchStudents(String query) async {
+    final data = await _get('/api/v1/admin/search/students?q=${Uri.encodeComponent(query)}&limit=10');
+    return ((data as Map<String, dynamic>)['results'] as List? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  // ── Brain Booster ──────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> brainBoosterSudokuToday() async {
+    return await _get('/api/v1/teacher/brain-booster/sudoku/today') as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> brainBoosterHint(int hintNum) async {
+    return await _get('/api/v1/teacher/brain-booster/sudoku/hint/$hintNum') as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> brainBoosterSubmit({
+    required int puzzleNumber, required int hintsUsed,
+    required int timeSeconds, required List<List<int>> board,
+  }) async {
+    return await _post('/api/v1/teacher/brain-booster/sudoku/submit', {
+      'puzzle_number': puzzleNumber, 'hints_used': hintsUsed,
+      'time_seconds': timeSeconds, 'board': board,
+    }) as Map<String, dynamic>;
+  }
+
+  static Future<dynamic> brainBoosterLeaderboard() async {
+    return await _get('/api/v1/teacher/brain-booster/sudoku/leaderboard');
+  }
+
+  static Future<Map<String, dynamic>> brainBoosterMe() async {
+    return await _get('/api/v1/teacher/brain-booster/me') as Map<String, dynamic>;
+  }
 }
 
 class ApiError implements Exception {

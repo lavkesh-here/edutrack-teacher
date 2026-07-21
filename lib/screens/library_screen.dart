@@ -881,7 +881,7 @@ class _IssueBookSheetState extends State<_IssueBookSheet> {
     if (q.length < 2) { setState(() => _studentResults = []); return; }
     setState(() => _searchingStudents = true);
     try {
-      final results = await ApiClient.searchStudents(q);
+      final results = await ApiClient.librarySearchStudents(q);
       setState(() { _studentResults = results; _searchingStudents = false; });
     } catch (_) { setState(() => _searchingStudents = false); }
   }

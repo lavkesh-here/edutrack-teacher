@@ -2140,7 +2140,7 @@ class ApiClient {
     if (search != null) params.add('search=${Uri.encodeComponent(search)}');
     if (bookType != null) params.add('book_type=$bookType');
     if (availableOnly) params.add('available_only=true');
-    return await _get('/api/v1/admin/library/books?${params.join(\'&\')}') as Map<String, dynamic>;
+    return await _get('/api/v1/admin/library/books?${params.join('&')}') as Map<String, dynamic>;
   }
 
   static Future<Map<String, dynamic>> libraryAddBook(Map<String, dynamic> payload) async {
@@ -2158,7 +2158,7 @@ class ApiClient {
     if (status != null) params.add('status=$status');
     if (overdueOnly) params.add('overdue_only=true');
     if (studentId != null) params.add('student_id=$studentId');
-    return await _get('/api/v1/admin/library/issues?${params.join(\'&\')}') as Map<String, dynamic>;
+    return await _get('/api/v1/admin/library/issues?${params.join('&')}') as Map<String, dynamic>;
   }
 
   static Future<Map<String, dynamic>> libraryIssueBook({
@@ -2181,7 +2181,7 @@ class ApiClient {
     return await _get('/api/v1/admin/library/stats') as Map<String, dynamic>;
   }
 
-  static Future<List<Map<String, dynamic>>> searchStudents(String query) async {
+  static Future<List<Map<String, dynamic>>> librarySearchStudents(String query) async {
     final data = await _get('/api/v1/admin/search/students?q=${Uri.encodeComponent(query)}&limit=10');
     return ((data as Map<String, dynamic>)['results'] as List? ?? []).cast<Map<String, dynamic>>();
   }

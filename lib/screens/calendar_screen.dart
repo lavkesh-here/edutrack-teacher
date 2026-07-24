@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -65,6 +67,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       '', 'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
+    final user = context.read<AuthProvider>().user;
+    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -78,14 +82,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('add_event_fab'),
-        onPressed: _showAddEventSheet,
-        backgroundColor: null,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Event', style: TextStyle(fontWeight: FontWeight.w700)),
-      ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              key: const Key('add_event_fab'),
+              onPressed: _showAddEventSheet,
+              backgroundColor: null,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Event', style: TextStyle(fontWeight: FontWeight.w700)),
+            )
+          : null,
       body: RefreshIndicator(
         color: context.primary,
         onRefresh: _loadEvents,

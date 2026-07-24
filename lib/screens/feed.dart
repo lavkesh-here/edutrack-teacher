@@ -5,6 +5,14 @@ import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
+/// Like count after the server confirms the toggle result. Must account for
+/// both the count's state before the optimistic update (wasLiked) and the
+/// server-confirmed state (nowLiked) — using only nowLiked silently cancels
+/// the optimistic decrement on unlike. See test/forum_like_count_test.dart.
+int nextLikeCount(int wasCount, bool wasLiked, bool nowLiked) {
+  return wasCount + (nowLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+}
+
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
@@ -379,7 +387,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
       final nowLiked = result['liked'] as bool? ?? !wasLiked;
       if (mounted) setState(() {
         _liked = nowLiked;
-        _likeCount = wasCount + (nowLiked ? 1 : 0);
+        _likeCount = nextLikeCount(wasCount, wasLiked, nowLiked);
       });
     } catch (_) {
       if (mounted) setState(() { _liked = wasLiked; _likeCount = wasCount; });

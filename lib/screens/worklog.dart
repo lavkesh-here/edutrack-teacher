@@ -615,6 +615,8 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     String? selectedChapterName;
     bool loadingChapters = false;
     bool _subjectsLoaded = false;
+    bool subjectsLoading = true;
+    bool subjectsError = false;
 
     Future<void> loadChapters(String sectionId, String subjectId, void Function(void Function()) setSheetFn) async {
       setSheetFn(() { loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null; });
@@ -640,7 +642,11 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
         builder: (ctx2, setSheet) {
           if (!_subjectsLoaded) {
             _subjectsLoaded = true;
-            ApiClient.getMySubjects().then((s) => setSheet(() => subjects = s)).catchError((_) {});
+            ApiClient.getMySubjects().then((s) {
+              setSheet(() { subjects = s; subjectsLoading = false; });
+            }).catchError((_) {
+              setSheet(() { subjectsLoading = false; subjectsError = true; });
+            });
           }
           return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx2).viewInsets.bottom),
@@ -742,7 +748,18 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 const Text('Subject (optional)',
                     style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-                if (subjects.isNotEmpty)
+                if (subjectsLoading)
+                  const SizedBox(
+                    height: 34,
+                    child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+                  )
+                else if (subjectsError)
+                  const Text('Could not load subjects — pull down to retry',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12))
+                else if (subjects.isEmpty)
+                  const Text('No subjects assigned for these sections',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12))
+                else
                   SizedBox(
                     height: 34,
                     child: ListView.separated(

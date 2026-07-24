@@ -32,6 +32,7 @@ import 'todos.dart';
 import 'my_attendance.dart';
 import 'qualifications.dart';
 import 'syllabus.dart';
+import 'circulars.dart';
 import 'notification_prefs.dart';
 import 'faq_screen.dart';
 import 'support_chat_screen.dart';
@@ -47,6 +48,40 @@ import 'admin_teacher_roles.dart';
 import '../core/branding.dart';
 import '../core/recents.dart';
 import '../core/features.dart';
+
+/// Whether a "Recently Viewed" chip for [id] should still be shown to a
+/// teacher with this [role] and these feature flags. RecentsManager persists
+/// visited screen IDs locally per teacher_id (SharedPreferences), so a role
+/// downgrade or a removed feature flag (e.g. admin -> teacher, fees plan
+/// removed) used to leave a stale chip that still navigated straight to a
+/// screen the backend would now reject with a 403. Recent IDs not covered
+/// below ('schedule', 'leaves', 'payroll', 'todos') are open to every
+/// teacher regardless of role, so they always return true.
+bool canAccessRecent(String id, {
+  required String role,
+  required bool transportFlag,
+  required bool workLogsFlag,
+  required bool feesFlag,
+}) {
+  final isAdminOrAbove = role == 'admin' || role == 'principal' || role == 'director';
+  final isAdmin = role == 'admin';
+  switch (id) {
+    case 'parents':
+    case 'school_settings':
+    case 'attenders':
+      return isAdminOrAbove;
+    case 'transport':
+      return isAdminOrAbove && transportFlag;
+    case 'admin_worklogs':
+      return isAdminOrAbove && workLogsFlag;
+    case 'fees':
+      return isAdminOrAbove && feesFlag;
+    case 'leave_config':
+      return isAdmin;
+    default:
+      return true;
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -276,6 +311,13 @@ class _HomeTabState extends State<_HomeTab> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user!;
+    final accessibleRecents = _recents.where((r) => canAccessRecent(
+      r.id,
+      role: user.role,
+      transportFlag: auth.features.transport,
+      workLogsFlag: auth.features.workLogs,
+      feesFlag: auth.features.fees,
+    )).toList();
     final now = DateTime.now();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -414,7 +456,7 @@ class _HomeTabState extends State<_HomeTab> {
           slivers: [
 
             // Recently viewed chips — only More-tab-exclusive items (max 3)
-            if (_recents.isNotEmpty)
+            if (accessibleRecents.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -432,7 +474,7 @@ class _HomeTabState extends State<_HomeTab> {
                       SizedBox(
                         height: 36,
                         child: Builder(builder: (context) {
-                          final filtered = _recents.take(3).toList();
+                          final filtered = accessibleRecents.take(3).toList();
                           return ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: filtered.length,
@@ -909,6 +951,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'todos':           _openScreen(context, const TodosScreen(), recentId: id);
       case 'qualifications':  _openScreen(context, const QualificationsScreen(), recentId: id);
       case 'syllabus':        _openScreen(context, const SyllabusScreen(), recentId: id);
+      case 'circulars':       _openScreen(context, const CircularsScreen(), recentId: id);
     }
   }
 
@@ -1974,6 +2017,9 @@ class _MoreTabState extends State<_MoreTab> {
                     if (flags.syllabus)
                       _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
                           onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
+                    if (flags.circulars)
+                      _FeatureRow(icon: '📋', iconBg: AppColors.skyLight, title: 'Circulars', sub: 'School-wide notices from admin',
+                          onTap: () => _push(context, const CircularsScreen(), recentId: 'circulars')),
                     _FeatureRow(icon: '🤝', iconBg: AppColors.violetLight, title: 'PTM', sub: 'Parent-teacher meetings & notes',
                         onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
                     _FeatureRow(icon: '🏥', iconBg: AppColors.coralLight, title: 'Health Incidents', sub: 'Log & track student health events',

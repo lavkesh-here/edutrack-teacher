@@ -1927,6 +1927,21 @@ class ApiClient {
     });
   }
 
+  static Future<void> updateEmergencyContact(
+    String contactId, {
+    required String name,
+    required String relation,
+    required String phone,
+    required int priority,
+  }) async {
+    await _put('/api/v1/admin/emergency-contacts/$contactId', {
+      'name': name,
+      'relation': relation,
+      'phone': phone,
+      'priority': priority,
+    });
+  }
+
   static Future<void> deleteEmergencyContact(String contactId) async {
     await _delete('/api/v1/admin/emergency-contacts/$contactId');
   }
@@ -2184,6 +2199,13 @@ class ApiClient {
   static Future<List<Map<String, dynamic>>> librarySearchStudents(String query) async {
     final data = await _get('/api/v1/admin/search/students?q=${Uri.encodeComponent(query)}&limit=10');
     return ((data as Map<String, dynamic>)['results'] as List? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  // ── Circulars ─────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getCirculars() async {
+    final data = await _get('/api/v1/teacher/circulars');
+    return (data as List).cast<Map<String, dynamic>>();
   }
 
   // ── Brain Booster ──────────────────────────────────────────────────────────

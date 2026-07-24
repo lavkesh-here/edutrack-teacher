@@ -44,7 +44,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
     final user = auth.user;
     _showLibraryTab = user != null &&
         (user.role == 'admin' || user.role == 'principal' || user.role == 'director' || user.hasTag('librarian'));
-    _tabs = TabController(length: _showLibraryTab ? 10 : 9, vsync: this);
+    _tabs = TabController(length: _showLibraryTab ? 9 : 8, vsync: this);
     _load();
   }
 
@@ -307,7 +307,7 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
       body: TabBarView(
         controller: _tabs,
         children: [
-          _ProfileTab(profile: _profile!),
+          _ProfileTab(profile: _profile!, studentId: widget.studentId),
           _AttendanceTab(
             profile: _profile!,
             month: _selectedMonth,
@@ -322,7 +322,6 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           _ReportTab(studentId: widget.studentId),
           _FullReportCardTab(studentId: widget.studentId),
           _CertificatesTab(studentId: widget.studentId),
-          _EmergencyContactsTab(studentId: widget.studentId),
           _MedicalProfileTab(studentId: widget.studentId),
           if (_showLibraryTab) StudentLibraryTab(studentId: widget.studentId),
         ],
@@ -362,7 +361,6 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
           const Tab(text: 'Report'),
           const Tab(text: 'Report Card'),
           const Tab(text: 'Certificates'),
-          const Tab(text: 'Emergency'),
           const Tab(text: 'Medical'),
           if (showLibrary) const Tab(text: 'Library'),
         ],
@@ -425,9 +423,33 @@ class _HeroAvatar extends StatelessWidget {
 
 // ── Tab 1: Profile ────────────────────────────────────────────────────────────
 
-class _ProfileTab extends StatelessWidget {
+class _ProfileTab extends StatefulWidget {
   final Map<String, dynamic> profile;
-  const _ProfileTab({required this.profile});
+  final String studentId;
+  const _ProfileTab({required this.profile, required this.studentId});
+
+  @override
+  State<_ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<_ProfileTab> {
+  List<Map<String, dynamic>>? _contacts;
+  bool _loadingContacts = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    try {
+      final contacts = await ApiClient.getStudentEmergencyContacts(widget.studentId);
+      if (mounted) setState(() { _contacts = contacts; _loadingContacts = false; });
+    } catch (_) {
+      if (mounted) setState(() { _contacts = []; _loadingContacts = false; });
+    }
+  }
 
   String _fmtDate(String? raw) {
     if (raw == null) return '—';
@@ -438,9 +460,191 @@ class _ProfileTab extends StatelessWidget {
     } catch (_) { return raw; }
   }
 
+  String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  Future<void> _showAddContactDialog() => _showContactFormDialog();
+
+  Future<void> _showEditContactDialog(Map<String, dynamic> contact) =>
+      _showContactFormDialog(existing: contact);
+
+  Future<void> _showContactFormDialog({Map<String, dynamic>? existing}) async {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?['name'] as String? ?? '');
+    final relationCtrl = TextEditingController(text: existing?['relation'] as String? ?? '');
+    final phoneCtrl = TextEditingController(text: existing?['phone'] as String? ?? '');
+    int priority = existing?['priority'] as int? ?? 1;
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(isEdit ? 'Edit Emergency Contact' : 'Add Emergency Contact', style: const TextStyle(fontWeight: FontWeight.w800)),
+          content: Form(
+            key: formKey,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Full Name *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: relationCtrl,
+                decoration: const InputDecoration(labelText: 'Relation (e.g. Mother) *'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                decoration: const InputDecoration(labelText: 'Mobile Number *', counterText: ''),
+                validator: (v) {
+                  final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                  return digits.length == 10 ? null : 'Enter 10-digit mobile number';
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                const Text('Priority:', style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                const SizedBox(width: 12),
+                for (int p = 1; p <= 3; p++)
+                  GestureDetector(
+                    onTap: () => setD(() => priority = p),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: priority == p ? Theme.of(ctx).colorScheme.primary : AppColors.bg,
+                        border: Border.all(
+                          color: priority == p ? Theme.of(ctx).colorScheme.primary : AppColors.border,
+                        ),
+                      ),
+                      child: Center(child: Text('$p', style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: priority == p ? Colors.white : AppColors.muted,
+                      ))),
+                    ),
+                  ),
+              ]),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(ctx);
+                try {
+                  if (isEdit) {
+                    await ApiClient.updateEmergencyContact(
+                      existing['id'].toString(),
+                      name: nameCtrl.text.trim(),
+                      relation: relationCtrl.text.trim(),
+                      phone: phoneCtrl.text.trim(),
+                      priority: priority,
+                    );
+                  } else {
+                    await ApiClient.addEmergencyContact(
+                      studentId: widget.studentId,
+                      name: nameCtrl.text.trim(),
+                      relation: relationCtrl.text.trim(),
+                      phone: phoneCtrl.text.trim(),
+                      priority: priority,
+                    );
+                  }
+                  _loadContacts();
+                } catch (e) {
+                  if (mounted) showSnack(context, 'Failed: $e', error: true);
+                }
+              },
+              child: Text(isEdit ? 'Save' : 'Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteContact(String contactId, String name) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Contact?'),
+        content: Text('Remove $name from emergency contacts?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove', style: TextStyle(color: AppColors.coral)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiClient.deleteEmergencyContact(contactId);
+      _loadContacts();
+    } catch (e) {
+      if (mounted) showSnack(context, 'Failed to delete: $e', error: true);
+    }
+  }
+
+  Widget _buildEmergencyContactsSection(bool isAdmin) {
+    final contacts = _contacts ?? [];
+    return _SectionCard(
+      title: 'Emergency Contacts',
+      trailing: isAdmin
+          ? InkWell(
+              onTap: _showAddContactDialog,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.add_circle_outline, size: 16, color: context.primary),
+                const SizedBox(width: 4),
+                Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.primary)),
+              ]),
+            )
+          : null,
+      children: [
+        if (_loadingContacts)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+          )
+        else if (contacts.isEmpty)
+          Text(
+            isAdmin ? 'No emergency contacts added — tap Add' : 'No emergency contacts added',
+            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+          )
+        else
+          Column(
+            children: [
+              for (int i = 0; i < contacts.length; i++) ...[
+                if (i > 0) const SizedBox(height: 10),
+                _EmergencyContactRow(
+                  contact: contacts[i],
+                  isAdmin: isAdmin,
+                  onEdit: () => _showEditContactDialog(contacts[i]),
+                  onDelete: () => _deleteContact(
+                    contacts[i]['id'].toString(),
+                    contacts[i]['name'] as String? ?? 'this contact',
+                  ),
+                ),
+              ],
+            ],
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final profile = widget.profile;
     final phone2 = profile['guardian_phone_2'] as String?;
+    final user = context.read<AuthProvider>().user;
+    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -462,11 +666,83 @@ class _ProfileTab extends StatelessWidget {
               _InfoRow(label: 'Secondary Phone', value: phone2),
           ],
         ),
+        const SizedBox(height: 12),
+        _buildEmergencyContactsSection(isAdmin),
       ],
     );
   }
+}
 
-  String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+class _EmergencyContactRow extends StatelessWidget {
+  final Map<String, dynamic> contact;
+  final bool isAdmin;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  const _EmergencyContactRow({required this.contact, required this.isAdmin, required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final priority = contact['priority'] as int? ?? 1;
+    final addedBy = contact['added_by_type'] as String? ?? 'admin';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: priority == 1 ? AppColors.coral.withOpacity(0.4) : AppColors.border),
+      ),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: priority == 1 ? AppColors.coralLight : AppColors.amberLight,
+            shape: BoxShape.circle,
+          ),
+          child: Center(child: Text('$priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
+            color: priority == 1 ? AppColors.coral : AppColors.amber))),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(contact['name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          const SizedBox(height: 2),
+          Text(contact['relation'] as String? ?? '', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        ])),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          InkWell(
+            onTap: () async {
+              final phone = contact['phone'] as String? ?? '';
+              final uri = Uri.parse('tel:$phone');
+              if (await canLaunchUrl(uri)) launchUrl(uri);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.call, size: 14, color: context.primary),
+                const SizedBox(width: 4),
+                Text(contact['phone'] as String? ?? '—', style: TextStyle(fontSize: 12, color: context.primary, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text('Added by $addedBy', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+        ]),
+        if (isAdmin) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.muted),
+            tooltip: 'Edit contact',
+            onPressed: onEdit,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.coral),
+            tooltip: 'Remove contact',
+            onPressed: onDelete,
+          ),
+        ],
+      ]),
+    );
+  }
 }
 
 // ── Tab 2: Attendance (calendar) ──────────────────────────────────────────────
@@ -1721,7 +1997,8 @@ class _ChapterHeatRow extends StatelessWidget {
 class _SectionCard extends StatelessWidget {
   final String title;
   final List<Widget> children;
-  const _SectionCard({required this.title, required this.children});
+  final Widget? trailing;
+  const _SectionCard({required this.title, required this.children, this.trailing});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1730,7 +2007,13 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.3)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.3)),
+                if (trailing != null) trailing!,
+              ],
+            ),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -2347,249 +2630,6 @@ class _CertCardState extends State<_CertCard> {
           ),
         ]),
       ),
-    );
-  }
-}
-
-// ── Emergency Contacts Tab ────────────────────────────────────────────────────
-
-class _EmergencyContactsTab extends StatefulWidget {
-  final String studentId;
-  const _EmergencyContactsTab({required this.studentId});
-  @override
-  State<_EmergencyContactsTab> createState() => _EmergencyContactsTabState();
-}
-
-class _EmergencyContactsTabState extends State<_EmergencyContactsTab> {
-  List<Map<String, dynamic>>? _contacts;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final contacts = await ApiClient.getStudentEmergencyContacts(widget.studentId);
-      if (mounted) setState(() { _contacts = contacts; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() { _contacts = []; _loading = false; });
-    }
-  }
-
-  Future<void> _showAddDialog() async {
-    final nameCtrl = TextEditingController();
-    final relationCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    int priority = 1;
-    final formKey = GlobalKey<FormState>();
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: const Text('Add Emergency Contact', style: TextStyle(fontWeight: FontWeight.w800)),
-          content: Form(
-            key: formKey,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Full Name *'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: relationCtrl,
-                decoration: const InputDecoration(labelText: 'Relation (e.g. Mother) *'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                decoration: const InputDecoration(labelText: 'Mobile Number *', counterText: ''),
-                validator: (v) {
-                  final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
-                  return digits.length == 10 ? null : 'Enter 10-digit mobile number';
-                },
-              ),
-              const SizedBox(height: 12),
-              Row(children: [
-                const Text('Priority:', style: TextStyle(fontSize: 13, color: AppColors.muted)),
-                const SizedBox(width: 12),
-                for (int p = 1; p <= 3; p++)
-                  GestureDetector(
-                    onTap: () => setD(() => priority = p),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: priority == p ? Theme.of(ctx).colorScheme.primary : AppColors.bg,
-                        border: Border.all(
-                          color: priority == p ? Theme.of(ctx).colorScheme.primary : AppColors.border,
-                        ),
-                      ),
-                      child: Center(child: Text('$p', style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: priority == p ? Colors.white : AppColors.muted,
-                      ))),
-                    ),
-                  ),
-              ]),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(ctx);
-                try {
-                  await ApiClient.addEmergencyContact(
-                    studentId: widget.studentId,
-                    name: nameCtrl.text.trim(),
-                    relation: relationCtrl.text.trim(),
-                    phone: phoneCtrl.text.trim(),
-                    priority: priority,
-                  );
-                  _load();
-                } catch (e) {
-                  if (mounted) showSnack(context, 'Failed: $e', error: true);
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _delete(String contactId) async {
-    try {
-      await ApiClient.deleteEmergencyContact(contactId);
-      _load();
-    } catch (e) {
-      if (mounted) showSnack(context, 'Failed to delete: $e', error: true);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final user = context.read<AuthProvider>().user;
-    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
-
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      floatingActionButton: isAdmin
-          ? FloatingActionButton.extended(
-              onPressed: _showAddDialog,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Contact', style: TextStyle(fontWeight: FontWeight.w700)),
-            )
-          : null,
-      body: _contacts == null || _contacts!.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('🆘', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 12),
-                  const Text('No emergency contacts added', style: TextStyle(color: AppColors.muted, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text(
-                    isAdmin ? 'Tap + to add a contact' : 'Admin can add them from the app',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                  ),
-                ]),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              itemCount: _contacts!.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final c = _contacts![i];
-                final priority = c['priority'] as int? ?? 1;
-                final addedBy = c['added_by_type'] as String? ?? 'admin';
-                final contactId = c['id'].toString();
-                return Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: priority == 1 ? AppColors.coral.withOpacity(0.4) : AppColors.border),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 42, height: 42,
-                      decoration: BoxDecoration(
-                        color: priority == 1 ? AppColors.coralLight : AppColors.amberLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(child: Text('$priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,
-                        color: priority == 1 ? AppColors.coral : AppColors.amber))),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(c['name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Text(c['relation'] as String? ?? '', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-                    ])),
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      InkWell(
-                        onTap: () async {
-                          final phone = c['phone'] as String? ?? '';
-                          final uri = Uri.parse('tel:$phone');
-                          if (await canLaunchUrl(uri)) launchUrl(uri);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(20)),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.call, size: 14, color: context.primary),
-                            const SizedBox(width: 4),
-                            Text(c['phone'] as String? ?? '—', style: TextStyle(fontSize: 12, color: context.primary, fontWeight: FontWeight.w600)),
-                          ]),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('Added by $addedBy', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-                    ]),
-                    if (isAdmin) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.coral),
-                        tooltip: 'Remove contact',
-                        onPressed: () async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Remove Contact?'),
-                              content: Text('Remove ${c['name']} from emergency contacts?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Remove', style: TextStyle(color: AppColors.coral)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (ok == true) _delete(contactId);
-                        },
-                      ),
-                    ],
-                  ]),
-                );
-              },
-            ),
     );
   }
 }

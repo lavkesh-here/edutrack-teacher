@@ -830,7 +830,13 @@ class _CommentsScreenState extends State<_CommentsScreen> {
           // Input bar
           Container(
             color: Colors.white,
-            padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 12),
+            // NOT + MediaQuery.viewInsets.bottom here — the enclosing Scaffold
+            // already has resizeToAvoidBottomInset:true (the default) and shrinks
+            // this whole body by the keyboard height on its own. Adding it again
+            // doubled the gap between the input and the keyboard (visibly a huge
+            // blank strip once the keyboard opened) — reported multiple times,
+            // root-caused 2026-07-26 by tracing the Scaffold's resize behavior.
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Row(
               children: [
                 Expanded(

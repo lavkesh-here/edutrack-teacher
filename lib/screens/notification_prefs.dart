@@ -19,6 +19,14 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
     (key: 'leave_reviewed',         icon: '🗓️', title: 'Leave Status',           sub: 'Get notified when your leave is approved or rejected'),
     (key: 'attendance_alerts',      icon: '📋', title: 'Attendance Alerts',       sub: 'Alerts related to your attendance records'),
     (key: 'forum_comments',         icon: '💬', title: 'Forum Replies',           sub: 'When someone replies to your announcements or posts'),
+    (key: 'homework',               icon: '📚', title: 'Homework',                sub: 'New homework, work log activity, and reviews'),
+    (key: 'fees',                   icon: '💳', title: 'Fees',                    sub: 'Fee reminders and payment updates'),
+    (key: 'circulars',              icon: '📰', title: 'Circulars',               sub: 'New school circulars'),
+    (key: 'ptm',                    icon: '🤝', title: 'PTM',                     sub: 'Parent-teacher meeting registrations and updates'),
+    (key: 'tests',                  icon: '📝', title: 'Tests',                   sub: 'Test results and grading updates'),
+    (key: 'payroll',                icon: '💰', title: 'Payroll',                 sub: 'Payslip and payroll updates'),
+    (key: 'transport',              icon: '🚌', title: 'Transport',               sub: 'Transport route and assignment updates'),
+    (key: 'predictive_alerts',      icon: '⚠️', title: 'Predictive Alerts',       sub: 'Early-warning alerts for at-risk students'),
     (key: 'custom_notifications',   icon: '🔔', title: 'Custom Notifications',    sub: 'General school notifications and admin messages'),
   ];
 

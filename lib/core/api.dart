@@ -974,8 +974,9 @@ class ApiClient {
     return list.map((e) => SectionInfo.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<List<Map<String, String>>> getMySubjects() async {
-    final data = await _get('/api/v1/teacher/my-subjects') as List<dynamic>;
+  static Future<List<Map<String, String>>> getMySubjects({String? classSectionId}) async {
+    final qs = classSectionId != null ? '?class_section_id=$classSectionId' : '';
+    final data = await _get('/api/v1/teacher/my-subjects$qs') as List<dynamic>;
     return data.map((e) => {
       'id': (e as Map<String, dynamic>)['id'] as String,
       'name': e['name'] as String,
@@ -1195,6 +1196,7 @@ class ApiClient {
     String? dueDate,
     List<String>? imageUrls,
     String? chapterId,
+    bool markChapterCompleted = false,
   }) async {
     await _post('/api/v1/teacher/work-log', {
       'class_section_id': classSectionId,
@@ -1205,7 +1207,33 @@ class ApiClient {
       if (dueDate != null) 'due_date': dueDate,
       if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
       if (chapterId != null) 'chapter_id': chapterId,
+      if (chapterId != null) 'mark_chapter_completed': markChapterCompleted,
     });
+  }
+
+  // ── Work log teacher review ─────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getWorkLogSubmissions(String workLogId) async {
+    final data = await _get('/api/v1/teacher/work-log/$workLogId/submissions');
+    return ((data as Map<String, dynamic>)['students'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> reviewWorkLogStudent({
+    required String workLogId,
+    required String studentId,
+    required String teacherStatus, // "checked" | "has_remarks"
+    String? teacherRemarks,
+  }) async {
+    await _post('/api/v1/teacher/work-log/$workLogId/review', {
+      'student_id': studentId,
+      'teacher_status': teacherStatus,
+      if (teacherRemarks != null) 'teacher_remarks': teacherRemarks,
+    });
+  }
+
+  static Future<int> reviewWorkLogAllStudents(String workLogId) async {
+    final data = await _post('/api/v1/teacher/work-log/$workLogId/review-all', {});
+    return (data as Map<String, dynamic>)['count'] as int? ?? 0;
   }
 
   // ── Payslip ───────────────────────────────────────────────────────────────

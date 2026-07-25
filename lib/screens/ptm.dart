@@ -386,6 +386,7 @@ class _RegisteredStudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = reg['student_name'] as String? ?? '—';
+    final rollNo = reg['student_roll_no'];
     final section = reg['section_label'] as String? ?? '';
     final remarks = reg['parent_remarks'] as String?;
 
@@ -402,7 +403,8 @@ class _RegisteredStudentCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            Text(rollNo != null ? '$name · Roll $rollNo' : name,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             Text(section, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
             if (remarks != null && remarks.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -453,6 +455,12 @@ class _MeetingCard extends StatelessWidget {
     }
   }
 
+  String _studentTitle(Map<String, dynamic> m) {
+    final name = m['student_name'] as String? ?? '—';
+    final rollNo = m['student_roll_no'];
+    return rollNo != null ? '$name · Roll $rollNo' : name;
+  }
+
   @override
   Widget build(BuildContext context) {
     final actionItems = (meeting['action_items'] as List?)?.cast<String>() ?? [];
@@ -466,7 +474,7 @@ class _MeetingCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(meeting['student_name'] as String? ?? '—',
+            Text(_studentTitle(meeting),
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             if ((meeting['subject_name'] as String?)?.isNotEmpty == true)
               Text(meeting['subject_name'] as String, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
@@ -782,7 +790,10 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
-          Text(widget.meeting['student_name'] as String? ?? 'Meeting',
+          Text(
+            widget.meeting['student_roll_no'] != null
+                ? '${widget.meeting['student_name'] ?? 'Meeting'} · Roll ${widget.meeting['student_roll_no']}'
+                : widget.meeting['student_name'] as String? ?? 'Meeting',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           const Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),

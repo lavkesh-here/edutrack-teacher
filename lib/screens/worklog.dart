@@ -17,7 +17,7 @@ class WorkLogScreen extends StatefulWidget {
 }
 
 class _WorkLogScreenState extends State<WorkLogScreen> {
-  _Tab _tab = _Tab.today;
+  _Tab _tab = _Tab.week;
   DateTime _date = DateTime.now();
   DateTime? _customFrom;
   DateTime? _customTo;
@@ -613,13 +613,33 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     List<Map<String, dynamic>> chapterOptions = [];
     String? selectedChapterId;
     String? selectedChapterName;
+    bool markChapterCompleted = false;
     bool loadingChapters = false;
-    bool _subjectsLoaded = false;
+    String? _subjectsLoadedForSectionId;
     bool subjectsLoading = true;
     bool subjectsError = false;
 
+    Future<void> loadSubjects(String? sectionId, void Function(void Function()) setSheetFn) async {
+      setSheetFn(() {
+        subjectsLoading = true;
+        subjectsError = false;
+        selectedSubjectId = null;
+        selectedSubjectName = null;
+        chapterOptions = [];
+        selectedChapterId = null;
+        selectedChapterName = null;
+        markChapterCompleted = false;
+      });
+      try {
+        final s = await ApiClient.getMySubjects(classSectionId: sectionId);
+        setSheetFn(() { subjects = s; subjectsLoading = false; });
+      } catch (_) {
+        setSheetFn(() { subjectsLoading = false; subjectsError = true; });
+      }
+    }
+
     Future<void> loadChapters(String sectionId, String subjectId, void Function(void Function()) setSheetFn) async {
-      setSheetFn(() { loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null; });
+      setSheetFn(() { loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null; markChapterCompleted = false; });
       try {
         final syllabus = await ApiClient.getSyllabus(sectionId);
         final match = syllabus.firstWhere(
@@ -640,13 +660,10 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setSheet) {
-          if (!_subjectsLoaded) {
-            _subjectsLoaded = true;
-            ApiClient.getMySubjects().then((s) {
-              setSheet(() { subjects = s; subjectsLoading = false; });
-            }).catchError((_) {
-              setSheet(() { subjectsLoading = false; subjectsError = true; });
-            });
+          final currentSectionId = selectedSectionIds.length == 1 ? selectedSectionIds.first : null;
+          if (_subjectsLoadedForSectionId != currentSectionId) {
+            _subjectsLoadedForSectionId = currentSectionId;
+            loadSubjects(currentSectionId, setSheet);
           }
           return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx2).viewInsets.bottom),
@@ -778,6 +795,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                               chapterOptions = [];
                               selectedChapterId = null;
                               selectedChapterName = null;
+                              markChapterCompleted = false;
                             }),
                           );
                         }
@@ -833,6 +851,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                               onTap: () => setSheet(() {
                                 selectedChapterId = null;
                                 selectedChapterName = null;
+                                markChapterCompleted = false;
                               }),
                             );
                           }
@@ -855,11 +874,34 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             onTap: () => setSheet(() {
                               selectedChapterId = chId;
                               selectedChapterName = chName;
+                              markChapterCompleted = false;
                             }),
                           );
                         },
                       ),
                     ),
+                  if (selectedChapterId != null) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => setSheet(() => markChapterCompleted = !markChapterCompleted),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: markChapterCompleted,
+                            onChanged: (v) => setSheet(() => markChapterCompleted = v ?? false),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          const SizedBox(width: 4),
+                          const Expanded(
+                            child: Text('Mark this chapter as completed',
+                                style: TextStyle(fontSize: 12, color: AppColors.text, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 10),
                 // Optional: specific student
@@ -1102,6 +1144,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             imageUrls: gcsUrls.isNotEmpty ? gcsUrls : null,
                             subjectId: selectedSubjectId,
                             chapterId: selectedChapterId,
+                            markChapterCompleted: markChapterCompleted,
                           );
                         }
                         descCtrl.clear();
@@ -1501,9 +1544,195 @@ class _WorkLogCard extends StatelessWidget {
                 ],
               ),
             ],
+            if (entry.logType == 'homework') ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => _HomeworkReviewSheet(workLogId: entry.id),
+                  ),
+                  icon: const Icon(Icons.fact_check_outlined, size: 16),
+                  label: const Text('Review Homework', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: context.primary,
+                    side: BorderSide(color: context.primary.withOpacity(0.4)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       );
+}
+
+class _HomeworkReviewSheet extends StatefulWidget {
+  final String workLogId;
+  const _HomeworkReviewSheet({required this.workLogId});
+
+  @override
+  State<_HomeworkReviewSheet> createState() => _HomeworkReviewSheetState();
+}
+
+class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
+  List<Map<String, dynamic>> _students = [];
+  bool _loading = true;
+  bool _markingAll = false;
+  final Set<String> _savingIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final s = await ApiClient.getWorkLogSubmissions(widget.workLogId);
+      if (mounted) setState(() { _students = s; _loading = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        showSnack(context, 'Could not load students: $e', error: true);
+      }
+    }
+  }
+
+  Future<void> _markOne(String studentId, String status, {String? remarks}) async {
+    setState(() => _savingIds.add(studentId));
+    try {
+      await ApiClient.reviewWorkLogStudent(
+        workLogId: widget.workLogId, studentId: studentId, teacherStatus: status, teacherRemarks: remarks,
+      );
+      await _load();
+    } catch (e) {
+      if (mounted) showSnack(context, 'Failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _savingIds.remove(studentId));
+    }
+  }
+
+  Future<void> _markAll() async {
+    setState(() => _markingAll = true);
+    try {
+      final count = await ApiClient.reviewWorkLogAllStudents(widget.workLogId);
+      await _load();
+      if (mounted) showSnack(context, 'Marked $count student${count == 1 ? '' : 's'} checked ✓');
+    } catch (e) {
+      if (mounted) showSnack(context, 'Failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _markingAll = false);
+    }
+  }
+
+  Future<void> _addRemarks(String studentId, String? existing) async {
+    final ctrl = TextEditingController(text: existing);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Remarks'),
+        content: TextField(controller: ctrl, maxLines: 3, autofocus: true,
+            decoration: const InputDecoration(hintText: 'What needs to be redone or fixed?')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dctx, ctrl.text.trim()), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      await _markOne(studentId, 'has_remarks', remarks: result);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allChecked = _students.isNotEmpty && _students.every((s) => s['teacher_status'] == 'checked');
+    return Container(
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.75,
+          child: Column(children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(children: [
+                const Expanded(child: Text('Review Homework', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+                if (!_loading && _students.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: (_markingAll || allChecked) ? null : _markAll,
+                    icon: _markingAll
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.done_all, size: 16),
+                    label: Text(allChecked ? 'All checked ✓' : 'Mark whole class checked', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+              ]),
+            ),
+            const Divider(height: 20),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _students.isEmpty
+                      ? const Center(child: Text('No students on this work log', style: TextStyle(color: AppColors.muted)))
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: _students.length,
+                          separatorBuilder: (_, __) => const Divider(height: 20),
+                          itemBuilder: (_, i) {
+                            final s = _students[i];
+                            final studentId = s['student_id'] as String;
+                            final name = s['student_name'] as String? ?? '—';
+                            final rollNo = s['roll_no'];
+                            final status = s['teacher_status'] as String?;
+                            final remarks = s['teacher_remarks'] as String?;
+                            final saving = _savingIds.contains(studentId);
+                            return Row(children: [
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(rollNo != null ? '$name · Roll $rollNo' : name,
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                  if (status == 'has_remarks' && remarks != null && remarks.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: Text('💬 $remarks', style: const TextStyle(fontSize: 11, color: AppColors.amber)),
+                                    ),
+                                ]),
+                              ),
+                              if (saving)
+                                const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              else ...[
+                                IconButton(
+                                  tooltip: 'Has remarks',
+                                  onPressed: () => _addRemarks(studentId, remarks),
+                                  icon: Icon(Icons.edit_note,
+                                      color: status == 'has_remarks' ? AppColors.amber : AppColors.muted),
+                                ),
+                                IconButton(
+                                  tooltip: 'Checked',
+                                  onPressed: () => _markOne(studentId, 'checked'),
+                                  icon: Icon(Icons.check_circle,
+                                      color: status == 'checked' ? AppColors.green : AppColors.muted),
+                                ),
+                              ],
+                            ]);
+                          },
+                        ),
+            ),
+            const SizedBox(height: 12),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 void _openImageViewer(BuildContext context, List<String> urls, int initialIndex) {

@@ -105,6 +105,13 @@ class AdminFeatureConfig {
     return (entry?['enabled'] as bool?) ?? true;
   }
 
+  /// Non-null when disabling this feature has real operational impact —
+  /// the admin UI should confirm before turning it off.
+  String? criticalWarning(String key) {
+    final entry = _teacher[key] ?? _parent[key];
+    return entry?['critical_warning'] as String?;
+  }
+
   String? planRequired(String key) {
     if (!isLocked(key)) return null;
     final entry = _teacher[key] ?? _parent[key];

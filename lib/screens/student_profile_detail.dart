@@ -1369,6 +1369,9 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
   @override
   void initState() {
     super.initState();
+    // Rebuild on every keystroke so the Refresh Analysis button's enabled
+    // state (which requires a non-empty note) stays in sync.
+    _notesController.addListener(() { if (mounted) setState(() {}); });
     _load();
   }
 
@@ -1383,14 +1386,13 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
     try {
       final r = await ApiClient.getLongitudinalReport(widget.studentId);
       if (mounted) {
-        // Restore saved notes into the text field
-        final savedNotes = r['teacher_notes'] as String?;
-        if (savedNotes != null && savedNotes.isNotEmpty) {
-          _notesController.text = savedNotes;
-        }
+        // Deliberately does NOT prefill the notes field from the last saved
+        // teacher_notes — that's shown read-only below as "Your previous
+        // notes" instead, so refreshing always requires typing a fresh
+        // observation rather than silently resubmitting the old one.
         setState(() {
           _report = r;
-          _previousTeacherNotes = r['previous_teacher_notes'] as String?;
+          _previousTeacherNotes = r['teacher_notes'] as String?;
           _loading = false;
         });
       }
@@ -1424,6 +1426,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
           // Previous notes become the notes from before this regeneration
           _previousTeacherNotes = _report?['teacher_notes'] as String?;
         });
+        _notesController.clear(); // force a fresh note before the next refresh
         showSnack(context, 'Smart report generated');
       }
     } catch (e) {
@@ -1525,7 +1528,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                 maxLines: 3,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Add your observations before refreshing (optional)…',
+                  hintText: 'Add your observations before refreshing…',
                   hintStyle: const TextStyle(fontSize: 12, color: AppColors.muted),
                   filled: true,
                   fillColor: AppColors.bg,
@@ -1545,7 +1548,7 @@ class _ReportTabState extends State<_ReportTab> with AutomaticKeepAliveClientMix
                 width: double.infinity,
                 child: OutlinedButton(
                   key: const Key('refresh_analysis_button'),
-                  onPressed: _generating ? null : _generateAnalysis,
+                  onPressed: (_generating || _notesController.text.trim().isEmpty) ? null : _generateAnalysis,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: context.primary,
                     side: BorderSide(color: context.primary),
@@ -1805,16 +1808,21 @@ class _LinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    // Reserve bottom space for date labels
+    // Reserve bottom space for date labels, and reserve top space for score labels
+    // so they don't get clipped when a point sits near 100%.
     const dateAreaH = 18.0;
+    const topLabelH = 14.0;
     final h = size.height - dateAreaH - 8;
     final w = size.width;
-    final min = points.reduce((a, b) => a < b ? a : b).clamp(0, 100).toDouble();
-    final max = points.reduce((a, b) => a > b ? a : b).clamp(0, 100).toDouble();
-    final range = (max - min).clamp(10, 100).toDouble();
+    // Fixed 0-100 baseline (not auto-scaled to the data's own min/max) so a
+    // given percentage always lands at the same vertical position — e.g. 50%
+    // sits mid-chart instead of near the bottom when every score happens to be high.
+    const min = 0.0;
+    const max = 100.0;
+    const range = max - min;
 
     double xOf(int i) => points.length == 1 ? w / 2 : i / (points.length - 1) * w;
-    double yOf(double v) => h - ((v - min) / range * h);
+    double yOf(double v) => topLabelH + (h - topLabelH) - ((v - min) / range * (h - topLabelH));
 
     if (points.length >= 2) {
       final linePaint = Paint()
@@ -1836,9 +1844,20 @@ class _LinePainter extends CustomPainter {
       canvas.drawPath(path, linePaint);
     }
 
+    // 50% reference line — makes the fixed baseline visible rather than implicit.
+    final midY = yOf(50);
+    final gridPaint = Paint()
+      ..color = AppColors.muted.withOpacity(0.25)
+      ..strokeWidth = 1;
+    const dashW = 4.0, dashGap = 3.0;
+    for (double x = 0; x < w; x += dashW + dashGap) {
+      canvas.drawLine(Offset(x, midY), Offset((x + dashW).clamp(0, w), midY), gridPaint);
+    }
+
     final tp = TextPainter(textDirection: TextDirection.ltr);
 
     // Draw dots and score labels
+    Rect? lastLabelRect;
     for (int i = 0; i < points.length; i++) {
       final x = xOf(i);
       final y = yOf(points[i]);
@@ -1852,16 +1871,22 @@ class _LinePainter extends CustomPainter {
         canvas.drawCircle(Offset(x, y), 4, Paint()..color = color..style = PaintingStyle.fill);
       }
 
-      // Score label above dot — always visible
+      // Score label above dot — skipped (not overlapped) when two adjacent points
+      // sit close enough vertically that their labels would collide. The dot
+      // itself is always drawn, and remains tappable for the exact value.
       final labelText = '${points[i].toStringAsFixed(0)}%';
       tp.text = TextSpan(
         text: labelText,
         style: TextStyle(fontSize: 8, color: isSelected ? color : AppColors.muted, fontWeight: FontWeight.w700),
       );
       tp.layout();
-      final lx = x - tp.width / 2;
+      final lx = (x - tp.width / 2).clamp(0.0, w - tp.width);
       final ly = (y - tp.height - 5).clamp(0.0, h - tp.height);
-      tp.paint(canvas, Offset(lx.clamp(0.0, w - tp.width), ly));
+      final rect = Rect.fromLTWH(lx, ly, tp.width, tp.height).inflate(1.5);
+      if (isSelected || lastLabelRect == null || !rect.overlaps(lastLabelRect)) {
+        tp.paint(canvas, Offset(lx, ly));
+        lastLabelRect = rect;
+      }
     }
 
     // Date labels below chart — show all if ≤ 6, else every other

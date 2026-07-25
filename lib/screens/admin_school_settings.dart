@@ -125,6 +125,28 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
 
   Future<void> _toggleFeature(String role, String key, bool newValue) async {
     if (_togglingFeature) return;
+
+    if (!newValue) {
+      final warning = _featureConfig?.criticalWarning(key);
+      if (warning != null) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dctx) => AlertDialog(
+            title: const Text('⚠️ This impacts core functionality'),
+            content: Text(warning),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(dctx, true),
+                child: const Text('Disable anyway', style: TextStyle(color: AppColors.coral, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+      }
+    }
+
     setState(() => _togglingFeature = true);
     try {
       await ApiClient.adminSetFeatureConfig(role, key, newValue);

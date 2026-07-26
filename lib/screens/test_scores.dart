@@ -39,9 +39,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _loadingScores = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Score load error: $e'), backgroundColor: Colors.orange, duration: const Duration(seconds: 6)),
-        );
+        showSnack(context, 'Score load error: $e', error: true);
       }
     }
   }
@@ -109,9 +107,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Preview failed: $e'), backgroundColor: Colors.red),
-      );
+      showSnack(context, 'Preview failed: $e', error: true);
     }
   }
 

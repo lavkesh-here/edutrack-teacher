@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
+import '../widgets/common.dart';
 
 class BankAccountsScreen extends StatefulWidget {
   const BankAccountsScreen({super.key});
@@ -35,7 +36,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
       await ApiClient.setDefaultBankAccount(account.id);
       _load();
     } catch (_) {
-      if (mounted) _showSnack('Failed to set default account', error: true);
+      if (mounted) showSnack(context, 'Failed to set default account', error: true);
     }
   }
 
@@ -56,14 +57,8 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
       await ApiClient.deleteMyBankAccount(account.id);
       _load();
     } catch (_) {
-      if (mounted) _showSnack('Failed to remove account', error: true);
+      if (mounted) showSnack(context, 'Failed to remove account', error: true);
     }
-  }
-
-  void _showSnack(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: error ? AppColors.coral : null),
-    );
   }
 
   void _openAddSheet() {
@@ -72,6 +67,15 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _AddBankAccountSheet(onAdded: _load),
+    );
+  }
+
+  void _openEditSheet(MaskedBankAccount account) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddBankAccountSheet(onAdded: _load, existing: account),
     );
   }
 
@@ -134,6 +138,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
                           account: a,
                           onSetDefault: () => _setDefault(a),
                           onDelete: () => _delete(a),
+                          onEdit: () => _openEditSheet(a),
                         )),
                   const SizedBox(height: 20),
                   if (_accounts.length < 2)
@@ -162,8 +167,9 @@ class _BankAccountCard extends StatelessWidget {
   final MaskedBankAccount account;
   final VoidCallback onSetDefault;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
-  const _BankAccountCard({required this.account, required this.onSetDefault, required this.onDelete});
+  const _BankAccountCard({required this.account, required this.onSetDefault, required this.onDelete, required this.onEdit});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -201,6 +207,7 @@ class _BankAccountCard extends StatelessWidget {
             if (!account.isDefault)
               TextButton(onPressed: onSetDefault, child: const Text('Set as Default')),
             const Spacer(),
+            TextButton(onPressed: onEdit, child: const Text('Edit')),
             TextButton(
               onPressed: onDelete,
               style: TextButton.styleFrom(foregroundColor: AppColors.coral),
@@ -215,22 +222,25 @@ class _BankAccountCard extends StatelessWidget {
 
 class _AddBankAccountSheet extends StatefulWidget {
   final VoidCallback onAdded;
-  const _AddBankAccountSheet({required this.onAdded});
+  final MaskedBankAccount? existing;
+  const _AddBankAccountSheet({required this.onAdded, this.existing});
 
   @override
   State<_AddBankAccountSheet> createState() => _AddBankAccountSheetState();
 }
 
 class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
-  final _holderCtrl = TextEditingController();
+  late final _holderCtrl = TextEditingController(text: widget.existing?.accountHolderName ?? '');
   final _numberCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _ifscCtrl = TextEditingController();
-  final _bankCtrl = TextEditingController();
+  late final _ifscCtrl = TextEditingController(text: widget.existing?.ifsc ?? '');
+  late final _bankCtrl = TextEditingController(text: widget.existing?.bankName ?? '');
   bool _saving = false;
   bool _showAccountNumber = false;
   bool _consentChecked = false;
   String? _error;
+
+  bool get _isEdit => widget.existing != null;
 
   @override
   void dispose() {
@@ -267,18 +277,31 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
     }
     setState(() { _saving = true; _error = null; });
     try {
-      await ApiClient.addMyBankAccount(
-        accountHolderName: holder,
-        accountNumber: number,
-        confirmAccountNumber: _confirmCtrl.text.trim(),
-        ifsc: _ifscCtrl.text.trim().toUpperCase(),
-        bankName: _bankCtrl.text.trim(),
-        confirmed: _consentChecked,
-      );
+      if (_isEdit) {
+        await ApiClient.updateMyBankAccount(
+          accountId: widget.existing!.id,
+          accountHolderName: holder,
+          accountNumber: number,
+          confirmAccountNumber: _confirmCtrl.text.trim(),
+          ifsc: _ifscCtrl.text.trim().toUpperCase(),
+          bankName: _bankCtrl.text.trim(),
+          confirmed: _consentChecked,
+        );
+      } else {
+        await ApiClient.addMyBankAccount(
+          accountHolderName: holder,
+          accountNumber: number,
+          confirmAccountNumber: _confirmCtrl.text.trim(),
+          ifsc: _ifscCtrl.text.trim().toUpperCase(),
+          bankName: _bankCtrl.text.trim(),
+          confirmed: _consentChecked,
+        );
+      }
       widget.onAdded();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() { _error = e is ApiError ? e.message : 'Failed to add account. Check your details and try again.'; _saving = false; });
+      final fallback = _isEdit ? 'Failed to update account. Check your details and try again.' : 'Failed to add account. Check your details and try again.';
+      setState(() { _error = e is ApiError ? e.message : fallback; _saving = false; });
     }
   }
 
@@ -301,10 +324,17 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
                 child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
               ),
               const SizedBox(height: 16),
-              const Text('Add Bank Account', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.text)),
+              Text(_isEdit ? 'Edit Bank Account' : 'Add Bank Account', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.text)),
               const SizedBox(height: 16),
               _field('Account Holder Name', _holderCtrl, maxLength: 30),
               const SizedBox(height: 12),
+              if (_isEdit) ...[
+                Text(
+                  'Re-enter the account number to confirm this change — it stays masked and is never shown back to you.',
+                  style: TextStyle(fontSize: 11, color: AppColors.muted),
+                ),
+                const SizedBox(height: 8),
+              ],
               _field('Account Number', _numberCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true),
               const SizedBox(height: 12),
               _field('Confirm Account Number', _confirmCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -109,6 +111,7 @@ class _FeedScreenState extends State<FeedScreen> {
                         itemBuilder: (_, i) => _AnnouncementCard(
                           a: _announcements![i],
                           onCommentTap: () => _openComments(_announcements![i]),
+                          onChanged: _load,
                         ),
                       ),
       ),
@@ -323,7 +326,8 @@ class _FeedScreenState extends State<FeedScreen> {
 class _AnnouncementCard extends StatefulWidget {
   final Announcement a;
   final VoidCallback? onCommentTap;
-  const _AnnouncementCard({required this.a, this.onCommentTap});
+  final VoidCallback? onChanged;
+  const _AnnouncementCard({required this.a, this.onCommentTap, this.onChanged});
 
   @override
   State<_AnnouncementCard> createState() => _AnnouncementCardState();
@@ -376,6 +380,102 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
     super.initState();
     _liked = widget.a.likedByMe;
     _likeCount = widget.a.likeCount;
+  }
+
+  bool _isAdmin(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    return user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
+  }
+
+  Widget _buildModerationMenu(BuildContext context) {
+    final a = widget.a;
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.muted),
+      padding: EdgeInsets.zero,
+      onSelected: (value) {
+        switch (value) {
+          case 'pin': _togglePin(); break;
+          case 'audience': _changeAudience(); break;
+          case 'comments': _toggleComments(); break;
+          case 'delete': _confirmDeletePost(); break;
+        }
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'pin', child: Text(a.isPinned ? 'Unpin post' : 'Pin post')),
+        const PopupMenuItem(value: 'audience', child: Text('Change audience')),
+        PopupMenuItem(value: 'comments', child: Text(a.allowComments ? 'Disable comments' : 'Allow comments')),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Text('Delete post', style: TextStyle(color: AppColors.coral)),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _togglePin() async {
+    try {
+      await ApiClient.updateAnnouncement(widget.a.id, isPinned: !widget.a.isPinned);
+      widget.onChanged?.call();
+    } catch (e) {
+      if (mounted) showSnack(context, e is ApiError ? e.message : 'Failed to update post', error: true);
+    }
+  }
+
+  Future<void> _toggleComments() async {
+    try {
+      await ApiClient.updateAnnouncement(widget.a.id, allowComments: !widget.a.allowComments);
+      widget.onChanged?.call();
+    } catch (e) {
+      if (mounted) showSnack(context, e is ApiError ? e.message : 'Failed to update post', error: true);
+    }
+  }
+
+  Future<void> _changeAudience() async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Change audience'),
+        children: [
+          for (final opt in const [('all', 'Everyone'), ('teachers', 'Teachers'), ('parents', 'Parents')])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, opt.$1),
+              child: Text(opt.$2),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || selected == widget.a.audience) return;
+    try {
+      await ApiClient.updateAnnouncement(widget.a.id, audience: selected);
+      widget.onChanged?.call();
+    } catch (e) {
+      if (mounted) showSnack(context, e is ApiError ? e.message : 'Failed to update post', error: true);
+    }
+  }
+
+  Future<void> _confirmDeletePost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This removes the post and all its comments. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.coral),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ApiClient.deleteAnnouncement(widget.a.id);
+      widget.onChanged?.call();
+    } catch (e) {
+      if (mounted) showSnack(context, e is ApiError ? e.message : 'Failed to delete post', error: true);
+    }
   }
 
   Future<void> _toggleLike() async {
@@ -453,6 +553,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                   ],
                 ),
               ),
+              if (_isAdmin(context)) _buildModerationMenu(context),
             ],
           ),
 
@@ -595,7 +696,7 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                           style: const TextStyle(fontSize: 12, color: AppColors.text2),
                           children: [
                             TextSpan(
-                              text: '${preview['author'] ?? ''} ',
+                              text: '${preview['author'] ?? ''}${preview['is_parent'] == true ? ' (Parent)' : ''} ',
                               style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text),
                             ),
                             TextSpan(text: preview['body'] as String? ?? ''),
@@ -756,6 +857,8 @@ class _CommentsScreenState extends State<_CommentsScreen> {
                                   return _CommentBlock(
                                     comment: c,
                                     replies: replies,
+                                    announcementId: widget.announcement.id,
+                                    onDeleted: _load,
                                     onReply: (id, author, body) => setState(() {
                                       _replyToId = id;
                                       _replyToAuthor = author;
@@ -887,19 +990,27 @@ class _CommentsScreenState extends State<_CommentsScreen> {
 class _CommentBlock extends StatelessWidget {
   final AnnouncementComment comment;
   final List<AnnouncementComment> replies;
+  final String announcementId;
+  final VoidCallback onDeleted;
   final void Function(String id, String author, String body) onReply;
 
-  const _CommentBlock({required this.comment, required this.replies, required this.onReply});
+  const _CommentBlock({
+    required this.comment,
+    required this.replies,
+    required this.announcementId,
+    required this.onDeleted,
+    required this.onReply,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _CommentTile(comment: comment, onReply: onReply),
+        _CommentTile(comment: comment, onReply: onReply, announcementId: announcementId, onDeleted: onDeleted),
         ...replies.map((r) => Padding(
           padding: const EdgeInsets.only(left: 32),
-          child: _CommentTile(comment: r, onReply: onReply, isReply: true),
+          child: _CommentTile(comment: r, onReply: onReply, isReply: true, announcementId: announcementId, onDeleted: onDeleted),
         )),
         const SizedBox(height: 4),
       ],
@@ -911,8 +1022,16 @@ class _CommentTile extends StatefulWidget {
   final AnnouncementComment comment;
   final void Function(String id, String author, String body) onReply;
   final bool isReply;
+  final String announcementId;
+  final VoidCallback onDeleted;
 
-  const _CommentTile({required this.comment, required this.onReply, this.isReply = false});
+  const _CommentTile({
+    required this.comment,
+    required this.onReply,
+    this.isReply = false,
+    required this.announcementId,
+    required this.onDeleted,
+  });
 
   @override
   State<_CommentTile> createState() => _CommentTileState();
@@ -936,6 +1055,36 @@ class _CommentTileState extends State<_CommentTile> {
       await ApiClient.toggleCommentLike(widget.comment.id);
     } catch (_) {
       if (mounted) setState(() { _liked = was; _likeCount += was ? 1 : -1; });
+    }
+  }
+
+  bool _isAdmin(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    return user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete comment?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.coral),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ApiClient.deleteComment(widget.announcementId, widget.comment.id);
+      widget.onDeleted();
+    } catch (e) {
+      if (mounted) showSnack(context, e is ApiError ? e.message : 'Failed to delete comment', error: true);
     }
   }
 
@@ -981,11 +1130,11 @@ class _CommentTileState extends State<_CommentTile> {
                     children: [
                       Expanded(
                         child: Text(
-                          c.authorName ?? 'Teacher',
+                          '${c.authorName ?? 'Teacher'}${c.isParentAuthor ? ' (Parent)' : ''}',
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text),
                         ),
                       ),
-                      Text(fmtDate(c.createdAt),
+                      Text(fmtDateTime(c.createdAt),
                           style: const TextStyle(fontSize: 10, color: AppColors.muted)),
                     ],
                   ),
@@ -1024,6 +1173,20 @@ class _CommentTileState extends State<_CommentTile> {
                               SizedBox(width: 3),
                               Text('Reply',
                                   style: TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (_isAdmin(context)) ...[
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: _confirmDelete,
+                          child: const Row(
+                            children: [
+                              Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.coral),
+                              SizedBox(width: 3),
+                              Text('Delete',
+                                  style: TextStyle(fontSize: 11, color: AppColors.coral, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),

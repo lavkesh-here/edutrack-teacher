@@ -577,7 +577,7 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        showSnack(context, e is ApiError ? e.message : 'Failed to save meeting. Please try again.', error: true);
         setState(() => _saving = false);
       }
     }
@@ -781,7 +781,7 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
       if (mounted) { Navigator.pop(context); widget.onUpdated(); }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        showSnack(context, e is ApiError ? e.message : 'Failed to save meeting. Please try again.', error: true);
         setState(() => _saving = false);
       }
     }

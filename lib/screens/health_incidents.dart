@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/theme.dart';
+import '../widgets/common.dart';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -407,9 +408,7 @@ class _LogIncidentScreenState extends State<_LogIncidentScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Incident logged. Parents notified.'), backgroundColor: Theme.of(context).colorScheme.primary),
-        );
+        showSnack(context, 'Incident logged. Parents notified.');
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -421,7 +420,7 @@ class _LogIncidentScreenState extends State<_LogIncidentScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red.shade700));
+    showSnack(context, msg, error: true);
   }
 
   @override

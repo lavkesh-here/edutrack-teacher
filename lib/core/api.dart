@@ -489,6 +489,7 @@ class AnnouncementComment {
   final String id;
   final String body;
   final String? authorName;
+  final bool isParentAuthor;
   final String createdAt;
   final String? parentId;
   final int likeCount;
@@ -497,6 +498,7 @@ class AnnouncementComment {
     required this.id,
     required this.body,
     this.authorName,
+    this.isParentAuthor = false,
     required this.createdAt,
     this.parentId,
     this.likeCount = 0,
@@ -506,6 +508,7 @@ class AnnouncementComment {
         id: j['id'].toString(),
         body: j['body'] as String? ?? '',
         authorName: j['author_name'] as String?,
+        isParentAuthor: j['is_parent_author'] as bool? ?? false,
         createdAt: j['created_at'] as String? ?? '',
         parentId: j['parent_id']?.toString(),
         likeCount: j['like_count'] as int? ?? 0,
@@ -1147,6 +1150,23 @@ class ApiClient {
     return (data as Map<String, dynamic>)['id']?.toString() ?? '';
   }
 
+  static Future<void> updateAnnouncement(
+    String announcementId, {
+    String? audience,
+    bool? isPinned,
+    bool? allowComments,
+  }) async {
+    await _patch('/api/v1/admin/announcements/$announcementId', {
+      if (audience != null) 'audience': audience,
+      if (isPinned != null) 'is_pinned': isPinned,
+      if (allowComments != null) 'allow_comments': allowComments,
+    });
+  }
+
+  static Future<void> deleteAnnouncement(String announcementId) async {
+    await _delete('/api/v1/admin/announcements/$announcementId');
+  }
+
   static Future<Map<String, dynamic>> getAnnouncementUploadUrl(
       String filename, String contentType, int fileSize) async {
     final data = await _post('/api/v1/admin/announcements/upload-url', {
@@ -1193,6 +1213,10 @@ class ApiClient {
   static Future<bool> toggleCommentLike(String commentId) async {
     final data = await _post('/api/v1/admin/announcements/comments/$commentId/like', {});
     return (data as Map<String, dynamic>)['liked'] as bool? ?? false;
+  }
+
+  static Future<void> deleteComment(String announcementId, String commentId) async {
+    await _delete('/api/v1/admin/announcements/$announcementId/comments/$commentId');
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────
@@ -1350,6 +1374,25 @@ class ApiClient {
     required bool confirmed,
   }) async {
     await _post('/api/v1/teacher/bank-accounts', {
+      'account_holder_name': accountHolderName,
+      'account_number': accountNumber,
+      'confirm_account_number': confirmAccountNumber,
+      'ifsc': ifsc,
+      'bank_name': bankName,
+      'confirmed': confirmed,
+    });
+  }
+
+  static Future<void> updateMyBankAccount({
+    required String accountId,
+    required String accountHolderName,
+    required String accountNumber,
+    required String confirmAccountNumber,
+    required String ifsc,
+    required String bankName,
+    required bool confirmed,
+  }) async {
+    await _put('/api/v1/teacher/bank-accounts/$accountId', {
       'account_holder_name': accountHolderName,
       'account_number': accountNumber,
       'confirm_account_number': confirmAccountNumber,

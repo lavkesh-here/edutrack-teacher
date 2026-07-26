@@ -169,7 +169,9 @@ class _SnackToastState extends State<_SnackToast> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: widget.error ? AppColors.coral : AppColors.teal,
+            // Error always reads as red regardless of branding — success follows
+            // the school's configured brand color so it matches the rest of the UI.
+            color: widget.error ? AppColors.coral : context.primary,
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))],
           ),
@@ -189,6 +191,21 @@ String fmtDate(String isoDate) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
+  } catch (_) {
+    return isoDate;
+  }
+}
+
+/// Date + time, e.g. "26 Jul 2026, 05:45 AM" — local time zone.
+String fmtDateTime(String isoDate) {
+  try {
+    final d = DateTime.parse(isoDate).toLocal();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final period = d.hour < 12 ? 'AM' : 'PM';
+    final minute = d.minute.toString().padLeft(2, '0');
+    return '${d.day} ${months[d.month - 1]} ${d.year}, ${hour12.toString().padLeft(2, '0')}:$minute $period';
   } catch (_) {
     return isoDate;
   }

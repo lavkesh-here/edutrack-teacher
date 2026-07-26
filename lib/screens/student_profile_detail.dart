@@ -2582,9 +2582,7 @@ class _CertCardState extends State<_CertCard> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to open certificate PDF')),
-        );
+        showSnack(context, 'Failed to open certificate PDF', error: true);
       }
     } finally {
       if (mounted) setState(() => _downloading = false);

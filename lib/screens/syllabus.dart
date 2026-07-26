@@ -195,7 +195,7 @@ class _SyllabusScreenState extends State<SyllabusScreen> {
       if (!mounted) return;
       setState(() => chapter.status = oldStatus);
       final msg = e is ApiError ? e.message : 'Failed to update. Please try again.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      showSnack(context, msg, error: true);
     }
   }
 

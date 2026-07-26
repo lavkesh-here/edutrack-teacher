@@ -730,7 +730,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 const SizedBox(height: 12),
                 // Section chip multi-selector
                 const Text(
-                  'Sections (tap to select multiple)',
+                  'Section',
                   style: TextStyle(
                       fontSize: 12,
                       color: AppColors.muted,
@@ -750,11 +750,9 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         label: sec.label,
                         active: active,
                         onTap: () => setSheet(() {
-                          if (active) {
-                            if (selectedSectionIds.length > 1) selectedSectionIds.remove(sec.id);
-                          } else {
-                            selectedSectionIds.add(sec.id);
-                          }
+                          selectedSectionIds
+                            ..clear()
+                            ..add(sec.id);
                         }),
                       );
                     },
@@ -1492,6 +1490,10 @@ class _WorkLogCard extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 13, color: AppColors.text, height: 1.4),
             ),
+            if (entry.chapterName != null) ...[
+              const SizedBox(height: 6),
+              _ChapterStatusChip(name: entry.chapterName!, status: entry.chapterStatus),
+            ],
             if (entry.dueDate != null) ...[
               const SizedBox(height: 6),
               Row(
@@ -1569,6 +1571,47 @@ class _WorkLogCard extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _ChapterStatusChip extends StatelessWidget {
+  final String name;
+  final String? status;
+  const _ChapterStatusChip({required this.name, this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (dotColor, bgColor, label) = switch (status) {
+      'completed' => (AppColors.green, const Color(0xFFE8F5E9), 'Done'),
+      'in_progress' => (AppColors.amber, const Color(0xFFFFF8E1), 'In Progress'),
+      _ => (AppColors.border, Colors.transparent, 'Not Started'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: dotColor.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.menu_book_rounded, size: 12, color: AppColors.muted),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.text),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(width: 5, height: 5, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: dotColor)),
+        ],
+      ),
+    );
+  }
 }
 
 class _HomeworkReviewSheet extends StatefulWidget {

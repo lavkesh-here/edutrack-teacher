@@ -28,3 +28,10 @@ local.properties
 # Generated
 *.g.dart
 *.freezed.dart
+
+# Claude Code session artifacts
+.claude/
+
+# Downloaded/local build artifacts
+*.apk
+edutrack-teacher-DEV-arm64/

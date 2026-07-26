@@ -178,7 +178,7 @@ class _TodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subject = item['subject_name'] as String? ?? 'Unknown';
+    final subject = item['subject_name'] as String? ?? 'No subject recorded';
     final className = item['class_section_label'] as String? ??
         item['class_section_name'] as String? ?? '';
     final period = item['period_number'] as int?;
@@ -421,6 +421,19 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
   int? _selectedPeriod;
   DateTime _selectedDate = DateTime.now();
   bool _saving = false;
+  String? _selectedSubjectId;
+  List<Map<String, String>> _subjects = [];
+  bool _loadingSubjects = false;
+
+  Future<void> _loadSubjectsForSection(String classSectionId) async {
+    setState(() { _loadingSubjects = true; _subjects = []; _selectedSubjectId = null; });
+    try {
+      final subjects = await ApiClient.getSectionSubjectsForSubstitute(classSectionId);
+      if (mounted) setState(() { _subjects = subjects; _loadingSubjects = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingSubjects = false);
+    }
+  }
 
   @override
   void initState() {
@@ -480,6 +493,7 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
       await ApiClient.selfSubstitute(
         classSectionId: _selectedSectionId!,
         date: dateStr,
+        subjectId: _selectedSubjectId,
         periodNumber: _selectedPeriod!,
         reason: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
@@ -593,10 +607,13 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
                         children: _sections.map((s) {
                           final selected = s.id == _selectedSectionId;
                           return GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedSectionId = s.id;
-                              _selectedSectionLabel = s.label;
-                            }),
+                            onTap: () {
+                              setState(() {
+                                _selectedSectionId = s.id;
+                                _selectedSectionLabel = s.label;
+                              });
+                              _loadSubjectsForSection(s.id);
+                            },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 7),
@@ -626,6 +643,50 @@ class _SelfAssignSheetState extends State<_SelfAssignSheet> {
                         }).toList(),
                       ),
             const SizedBox(height: 14),
+
+            // Subject
+            if (_selectedSectionId != null) ...[
+              const Text('Subject',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.muted)),
+              const SizedBox(height: 6),
+              _loadingSubjects
+                  ? Center(
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: context.primary))
+                  : _subjects.isEmpty
+                      ? const Text('No subjects found for this section',
+                          style: TextStyle(fontSize: 13, color: AppColors.muted))
+                      : Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: _subjects.map((subj) {
+                            final selected = subj['id'] == _selectedSubjectId;
+                            return GestureDetector(
+                              onTap: () => setState(() => _selectedSubjectId = subj['id']),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: selected ? context.primary : AppColors.bg,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: selected ? context.primary : AppColors.border),
+                                ),
+                                child: Text(
+                                  subj['name'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: selected ? Colors.white : AppColors.text,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+              const SizedBox(height: 14),
+            ],
 
             // Period
             const Text('Period Number',

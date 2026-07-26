@@ -529,12 +529,14 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                       size: 18,
                       color: _liked ? AppColors.coral : AppColors.muted,
                     ),
-                    const SizedBox(width: 4),
-                    Text('$_likeCount',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: _liked ? AppColors.coral : AppColors.muted,
-                            fontWeight: FontWeight.w600)),
+                    if (_likeCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Text('$_likeCount',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: _liked ? AppColors.coral : AppColors.muted,
+                              fontWeight: FontWeight.w600)),
+                    ],
                   ],
                 ),
               ),
@@ -545,9 +547,11 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                   child: Row(
                     children: [
                       const Icon(Icons.mode_comment_outlined, size: 17, color: AppColors.muted),
-                      const SizedBox(width: 4),
-                      Text('${a.commentCount}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                      if (a.commentCount > 0) ...[
+                        const SizedBox(width: 4),
+                        Text('${a.commentCount}',
+                            style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                      ],
                     ],
                   ),
                 ),
@@ -999,12 +1003,14 @@ class _CommentTileState extends State<_CommentTile> {
                               size: 14,
                               color: _liked ? AppColors.coral : AppColors.muted,
                             ),
-                            const SizedBox(width: 3),
-                            Text('$_likeCount',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: _liked ? AppColors.coral : AppColors.muted,
-                                    fontWeight: FontWeight.w600)),
+                            if (_likeCount > 0) ...[
+                              const SizedBox(width: 3),
+                              Text('$_likeCount',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: _liked ? AppColors.coral : AppColors.muted,
+                                      fontWeight: FontWeight.w600)),
+                            ],
                           ],
                         ),
                       ),

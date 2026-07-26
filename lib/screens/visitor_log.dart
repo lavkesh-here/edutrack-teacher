@@ -15,22 +15,33 @@ class _VisitorLogScreenState extends State<VisitorLogScreen> {
   String? _error;
   List<Map<String, dynamic>> _visitors = [];
   bool _activeOnly = false;
+  String? _visitTypeFilter;
+  late DateTime _dateFrom;
+  late DateTime _dateTo;
+  bool _showingToday = true;
+
+  static const _maxRangeDays = 90;
 
   @override
   void initState() {
     super.initState();
+    final today = DateTime.now();
+    _dateFrom = DateTime(today.year, today.month, today.day);
+    _dateTo = _dateFrom;
     _load();
   }
 
-  String _isoToday() {
-    final n = DateTime.now();
-    return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
-  }
+  String _iso(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ApiClient.listVisitors(dateFrom: _isoToday());
+      final data = await ApiClient.listVisitors(
+        dateFrom: _iso(_dateFrom),
+        dateTo: _iso(_dateTo),
+        visitType: _visitTypeFilter,
+      );
       if (mounted) {
         setState(() {
           _visitors = (data['visitors'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
@@ -41,6 +52,37 @@ class _VisitorLogScreenState extends State<VisitorLogScreen> {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _openFilters() async {
+    final result = await showModalBottomSheet<_VisitorFilters>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _FilterSheet(
+        dateFrom: _dateFrom,
+        dateTo: _dateTo,
+        visitType: _visitTypeFilter,
+        maxRangeDays: _maxRangeDays,
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _dateFrom = result.dateFrom;
+        _dateTo = result.dateTo;
+        _visitTypeFilter = result.visitType;
+        final today = DateTime.now();
+        _showingToday = result.dateFrom.year == today.year &&
+            result.dateFrom.month == today.month &&
+            result.dateFrom.day == today.day &&
+            result.dateTo.year == today.year &&
+            result.dateTo.month == today.month &&
+            result.dateTo.day == today.day;
+      });
+      _load();
     }
   }
 
@@ -79,6 +121,10 @@ class _VisitorLogScreenState extends State<VisitorLogScreen> {
         title: const Text('Visitor Log'),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: Icon(Icons.filter_list, color: _visitTypeFilter != null || !_showingToday ? AppColors.sky : null),
+            onPressed: _openFilters,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
@@ -112,6 +158,38 @@ class _VisitorLogScreenState extends State<VisitorLogScreen> {
               ],
             ),
           ),
+          if (!_showingToday || _visitTypeFilter != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Row(
+                children: [
+                  Icon(Icons.filter_alt, size: 13, color: AppColors.sky),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      [
+                        if (!_showingToday) '${_iso(_dateFrom)} → ${_iso(_dateTo)}',
+                        if (_visitTypeFilter != null) _visitTypeFilter!,
+                      ].join(' · '),
+                      style: const TextStyle(color: AppColors.sky, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        final today = DateTime.now();
+                        _dateFrom = DateTime(today.year, today.month, today.day);
+                        _dateTo = _dateFrom;
+                        _visitTypeFilter = null;
+                        _showingToday = true;
+                      });
+                      _load();
+                    },
+                    child: const Text('Clear', style: TextStyle(color: AppColors.sky, fontSize: 11, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -164,6 +242,146 @@ class _FilterChip extends StatelessWidget {
             color: selected ? Colors.white : AppColors.text,
           ),
         ),
+      ),
+    );
+  }
+}
+
+const _visitTypeFilterOptions = [
+  ('parent', 'Parent'),
+  ('vendor', 'Vendor'),
+  ('official', 'Official'),
+  ('other', 'Other'),
+  ('visitor', 'Visitor'),
+];
+
+class _VisitorFilters {
+  const _VisitorFilters({required this.dateFrom, required this.dateTo, this.visitType});
+  final DateTime dateFrom;
+  final DateTime dateTo;
+  final String? visitType;
+}
+
+class _FilterSheet extends StatefulWidget {
+  const _FilterSheet({
+    required this.dateFrom,
+    required this.dateTo,
+    required this.visitType,
+    required this.maxRangeDays,
+  });
+  final DateTime dateFrom;
+  final DateTime dateTo;
+  final String? visitType;
+  final int maxRangeDays;
+
+  @override
+  State<_FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<_FilterSheet> {
+  late DateTime _from;
+  late DateTime _to;
+  String? _type;
+
+  @override
+  void initState() {
+    super.initState();
+    _from = widget.dateFrom;
+    _to = widget.dateTo;
+    _type = widget.visitType;
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final today = DateTime.now();
+    final earliest = today.subtract(Duration(days: widget.maxRangeDays));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: isFrom ? _from : _to,
+      firstDate: earliest,
+      lastDate: today,
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _from = picked;
+        if (_to.isBefore(_from)) _to = _from;
+      } else {
+        _to = picked;
+        if (_from.isAfter(_to)) _from = _to;
+      }
+    });
+  }
+
+  String _label(DateTime d) => '${d.day}/${d.month}/${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('Filter Visitors',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+          const SizedBox(height: 4),
+          Text('Full history is kept; showing up to ${widget.maxRangeDays} days at a time.',
+              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+          const SizedBox(height: 16),
+          const Text('Date range', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _pickDate(isFrom: true),
+                  child: Text(_label(_from)),
+                ),
+              ),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('to')),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _pickDate(isFrom: false),
+                  child: Text(_label(_to)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Visit type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _FilterChip(label: 'All types', selected: _type == null, onTap: () => setState(() => _type = null)),
+              ..._visitTypeFilterOptions.map((t) => _FilterChip(
+                    label: t.$2,
+                    selected: _type == t.$1,
+                    onTap: () => setState(() => _type = t.$1),
+                  )),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(
+                context,
+                _VisitorFilters(dateFrom: _from, dateTo: _to, visitType: _type),
+              ),
+              child: const Text('Apply Filters'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -265,7 +483,7 @@ class _VisitorCardState extends State<_VisitorCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _formatTime(checkIn),
+                        _formatDateTime(checkIn),
                         style: const TextStyle(fontSize: 10, color: AppColors.muted),
                       ),
                     ],
@@ -285,8 +503,9 @@ class _VisitorCardState extends State<_VisitorCard> {
                   _DetailRow('Visit Type', _visitTypeLabel(visitType)),
                   if (phone != null && phone.isNotEmpty)
                     _DetailRow('Phone', phone),
+                  _DetailRow('Checked In', _formatDateTime(checkIn)),
                   if (checkOut != null)
-                    _DetailRow('Checked Out', _formatTime(checkOut)),
+                    _DetailRow('Checked Out', _formatDateTime(checkOut)),
                   if (notes != null && notes.isNotEmpty)
                     _DetailRow('Notes', notes),
                   if (isActive) ...[
@@ -334,13 +553,16 @@ class _VisitorCardState extends State<_VisitorCard> {
     }
   }
 
-  String _formatTime(String? iso) {
+  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  String _formatDateTime(String? iso) {
     if (iso == null || iso.isEmpty) return '—';
     try {
       final dt = DateTime.parse(iso).toLocal();
       final h = dt.hour.toString().padLeft(2, '0');
       final m = dt.minute.toString().padLeft(2, '0');
-      return '$h:$m';
+      return '${dt.day} ${_months[dt.month - 1]}, $h:$m';
     } catch (_) {
       return iso;
     }

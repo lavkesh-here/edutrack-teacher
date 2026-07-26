@@ -27,6 +27,7 @@ import 'admin_work_logs.dart';
 import 'admin_attenders.dart';
 import 'admin_fee_management.dart';
 import 'admin_leave_config.dart';
+import 'admin_sos.dart';
 import 'director_dashboard.dart';
 import 'notifications_screen.dart';
 import 'todos.dart';
@@ -739,6 +740,8 @@ class _HomeTabState extends State<_HomeTab> {
                             onTap: () => _openScreen(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
                       _FeatureRow(icon: '👤', iconBg: AppColors.coralLight, title: 'Attenders', sub: 'Authorized pickup persons',
                           onTap: () => _openScreen(context, const AdminAttendersScreen(), recentId: 'attenders')),
+                      _FeatureRow(icon: '🚨', iconBg: AppColors.coralLight, title: 'SOS Alerts', sub: 'Emergency alert history & resolution',
+                          onTap: () => _openScreen(context, const AdminSOSScreen(), recentId: 'admin_sos')),
                       // Fee Management — always shown for admin; locked if plan doesn't include it
                       if (config != null && config.isLocked('feature.parent_fees'))
                         _LockedFeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status', planRequired: config.planRequired('feature.parent_fees'))
@@ -938,6 +941,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'school_settings': _openScreen(context, const AdminSchoolSettingsScreen(), recentId: id);
       case 'admin_worklogs':  _openScreen(context, const AdminWorkLogsScreen(), recentId: id);
       case 'attenders':       _openScreen(context, const AdminAttendersScreen(), recentId: id);
+      case 'admin_sos':       _openScreen(context, const AdminSOSScreen(), recentId: id);
       case 'fees':            _openScreen(context, const AdminFeeManagementScreen(), recentId: id);
       case 'leave_config':         _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
       case 'director_analytics':   _openScreen(context, const DirectorDashboardScreen(), recentId: id);

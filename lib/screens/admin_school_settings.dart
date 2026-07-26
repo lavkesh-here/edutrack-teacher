@@ -429,6 +429,44 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
 }
 
 // ── Features & Plan Section ───────────────────────────────────────────────────
+//
+// Key lists mirror backend `_ALL_FEATURES` (app/api/v1/endpoints/admin/school.py).
+// Kept as top-level constants (rather than nested in the private section widget)
+// so admin_school_settings_test.dart can assert parity and catch future drift.
+
+const teacherFeatureDefs = [
+  ('feature.work_logs',   '📋', 'Work Logs',      'Homework & daily work tracking'),
+  ('feature.announcements','📢', 'Announcements',  'Forum & school-wide posts'),
+  ('feature.circulars',   '📄', 'Circulars',      'Circular distribution to parents'),
+  ('feature.ai_analysis', '🤖', 'AI Analysis',    'AI-powered student performance insights'),
+  ('feature.transport',   '🚌', 'Transport',      'Bus routes & stop management'),
+  ('feature.parent_fees', '💰', 'Fee Management', 'Fee components & payment tracking'),
+  ('feature.payroll',     '💳', 'Payroll',        'Teacher salary & auto-calculation'),
+  ('feature.diksha',      '📚', 'DIKSHA',         'NCERT digital content library'),
+  ('feature.syllabus',    '📘', 'Syllabus',       'Chapter-wise syllabus tracking'),
+  ('feature.todo',        '✅', 'To-Do List',     'Personal task list for teachers'),
+  ('feature.tests',       '📝', 'Tests',          'Test creation & score entry'),
+  ('feature.ai_generate', '🧠', 'AI Question Generation', 'AI-generated test questions'),
+  ('feature.attendance_analytics', '📊', 'Attendance Analytics', 'Attendance trends & insights'),
+  ('feature.operational_dashboard', '📈', 'Operational Dashboard', 'School-wide operations overview'),
+  ('feature.pdf_export',  '🖨️', 'PDF Export',     'Export reports & question papers as PDF'),
+  ('feature.visitor_log', '🧾', 'Visitor Log',    'Track school visitor check-ins'),
+  ('feature.analytics_dashboard', '📉', 'Analytics Dashboard', 'School performance analytics'),
+  ('feature.online_fees', '💳', 'Online Fees',    'Online fee payment collection'),
+  ('feature.spaced_repetition', '🔁', 'Spaced Repetition', 'Spaced-repetition revision tool'),
+  ('feature.color_theme', '🎨', 'Custom Branding', 'Custom app color theme'),
+  ('feature.library',     '📗', 'Library',        'Book catalog & issue tracking'),
+  ('feature.brain_booster','🧩', 'Brain Booster',  'Daily puzzle game for students'),
+];
+
+const parentFeatureDefs = [
+  ('feature.work_logs',   '📚', 'Work Log (Parent)',  'Parents see homework in parent app'),
+  ('feature.circulars',   '📄', 'Circulars (Parent)', 'Circulars visible in parent app'),
+  ('feature.parent_fees', '💰', 'Fees (Parent)',      'Fee status visible in parent app'),
+  ('feature.transport',   '🚌', 'Transport (Parent)', 'Bus tracking in parent app'),
+  ('feature.announcements','💬', 'Forum (Parent)',    'School forum access for parents'),
+  ('feature.brain_booster','🧩', 'Brain Booster (Parent)', 'Daily puzzle game in parent app'),
+];
 
 class _FeaturesPlanSection extends StatelessWidget {
   final AdminFeatureConfig config;
@@ -441,24 +479,8 @@ class _FeaturesPlanSection extends StatelessWidget {
     required this.onToggle,
   });
 
-  static const _teacherFeatures = [
-    ('feature.work_logs',   '📋', 'Work Logs',      'Homework & daily work tracking'),
-    ('feature.announcements','📢', 'Announcements',  'Forum & school-wide posts'),
-    ('feature.circulars',   '📄', 'Circulars',      'Circular distribution to parents'),
-    ('feature.ai_analysis', '🤖', 'AI Analysis',    'AI-powered student performance insights'),
-    ('feature.transport',   '🚌', 'Transport',      'Bus routes & stop management'),
-    ('feature.parent_fees', '💰', 'Fee Management', 'Fee components & payment tracking'),
-    ('feature.payroll',     '💳', 'Payroll',        'Teacher salary & auto-calculation'),
-    ('feature.diksha',      '📚', 'DIKSHA',         'NCERT digital content library'),
-  ];
-
-  static const _parentFeatures = [
-    ('feature.work_logs',   '📚', 'Work Log (Parent)',  'Parents see homework in parent app'),
-    ('feature.circulars',   '📄', 'Circulars (Parent)', 'Circulars visible in parent app'),
-    ('feature.parent_fees', '💰', 'Fees (Parent)',      'Fee status visible in parent app'),
-    ('feature.transport',   '🚌', 'Transport (Parent)', 'Bus tracking in parent app'),
-    ('feature.announcements','💬', 'Forum (Parent)',    'School forum access for parents'),
-  ];
+  static const _teacherFeatures = teacherFeatureDefs;
+  static const _parentFeatures = parentFeatureDefs;
 
   Color _planColor(String plan) {
     return switch (plan) {

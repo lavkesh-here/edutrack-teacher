@@ -96,6 +96,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
   Timer? _inactivityTimer;
   AuthProvider? _authRef;
   bool _wasLoggedIn = false;
+  String? _fcmToken;
   static const _inactivityDuration = Duration(minutes: 5);
 
   @override
@@ -127,11 +128,17 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     } else if (!isLoggedIn && _wasLoggedIn) {
       context.read<BrandingProvider>().reset();
     }
+    final justLoggedIn = isLoggedIn && !_wasLoggedIn;
     _wasLoggedIn = isLoggedIn;
     if (isLoggedIn && !_authRef!.isLocked) {
       _resetInactivityTimer();
     } else {
       _inactivityTimer?.cancel();
+    }
+    // The cold-start registration attempt in _setupFcm() runs before login
+    // and 401s for a fresh install — retry now that we have a valid session.
+    if (justLoggedIn && _fcmToken != null) {
+      _registerToken(_fcmToken!);
     }
   }
 
@@ -177,7 +184,12 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
 
       await messaging.requestPermission(alert: true, badge: true, sound: true);
 
+      // Obtained at cold start, before login has necessarily happened, so
+      // the first _registerToken() call below will 401 and be dropped for a
+      // freshly-installed app. Stashed so _handleAuthChange can retry once
+      // login succeeds.
       final token = await messaging.getToken();
+      _fcmToken = token;
       if (token != null) await _registerToken(token);
       messaging.onTokenRefresh.listen(_registerToken);
 
@@ -186,8 +198,11 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
 
       final initial = await messaging.getInitialMessage();
       if (initial != null) _handleNotificationTap(initial);
-    } catch (_) {
-      // Firebase not configured; skip silently
+    } catch (e) {
+      // Firebase not configured (e.g. a local dev build with no
+      // google-services.json — the platform folder is only ever regenerated
+      // inside CI). Not fatal to the app, but silent otherwise, so log it.
+      debugPrint('FCM setup failed, push notifications disabled: $e');
     }
   }
 
@@ -200,7 +215,11 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
         await prefs.setString('push_device_id', deviceId);
       }
       await ApiClient.registerPushToken(token, deviceId);
-    } catch (_) {}
+    } catch (e) {
+      // Expected to fail once at cold start before login (401) — retried
+      // from _handleAuthChange. Logged so a persistent failure is visible.
+      debugPrint('Push token registration failed: $e');
+    }
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

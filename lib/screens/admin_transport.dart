@@ -106,7 +106,7 @@ class _RoutesTabState extends State<_RoutesTab> {
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('add_route_fab'),
         onPressed: _showAddRouteSheet,
-        backgroundColor: AppColors.sky,
+        backgroundColor: context.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Route', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -478,7 +478,7 @@ class _AssignmentsTabState extends State<_AssignmentsTab> {
                   onPressed: _showAssignSheet,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Assign Student'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.sky),
+                  style: ElevatedButton.styleFrom(backgroundColor: context.primary),
                 ),
               ),
             ),

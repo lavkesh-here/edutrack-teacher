@@ -661,9 +661,13 @@ class _ProfileTabState extends State<_ProfileTab> {
           title: 'Guardian',
           children: [
             _InfoRow(label: 'Name', value: profile['guardian_name']?.toString() ?? '—'),
-            _InfoRow(label: 'Primary Phone', value: profile['guardian_phone']?.toString() ?? '—'),
+            _InfoRow(
+              label: 'Primary Phone',
+              value: profile['guardian_phone']?.toString() ?? '—',
+              onTap: () => _launchPhoneDialer(profile['guardian_phone']?.toString()),
+            ),
             if (phone2 != null && phone2.isNotEmpty)
-              _InfoRow(label: 'Secondary Phone', value: phone2),
+              _InfoRow(label: 'Secondary Phone', value: phone2, onTap: () => _launchPhoneDialer(phone2)),
           ],
         ),
         const SizedBox(height: 12),
@@ -2049,24 +2053,40 @@ class _SectionCard extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  const _InfoRow({required this.label, required this.value});
+  final VoidCallback? onTap;
+  const _InfoRow({required this.label, required this.value, this.onTap});
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 120),
-              child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-            ),
-            Expanded(
-              child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
-            ),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    final valueText = Text(value,
+        style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: onTap != null ? context.primary : AppColors.text));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 120),
+            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          ),
+          Expanded(
+            child: onTap != null
+                ? InkWell(onTap: onTap, child: valueText)
+                : valueText,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _launchPhoneDialer(String? phone) async {
+  if (phone == null || phone.isEmpty || phone == '—') return;
+  final uri = Uri.parse('tel:$phone');
+  if (await canLaunchUrl(uri)) launchUrl(uri);
 }
 
 class _AttBadge extends StatelessWidget {

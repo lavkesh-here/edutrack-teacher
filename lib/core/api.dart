@@ -603,6 +603,9 @@ class WorkLogEntry {
   final String? studentRollNo;
   final String? studentClassLabel;
   final List<String> imageUrls;
+  final String? chapterId;
+  final String? chapterName;
+  final String? chapterStatus;
 
   const WorkLogEntry({
     required this.id,
@@ -620,6 +623,9 @@ class WorkLogEntry {
     this.studentRollNo,
     this.studentClassLabel,
     this.imageUrls = const [],
+    this.chapterId,
+    this.chapterName,
+    this.chapterStatus,
   });
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
@@ -641,6 +647,9 @@ class WorkLogEntry {
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
+        chapterId: j['chapter_id']?.toString(),
+        chapterName: j['chapter_name'] as String?,
+        chapterStatus: j['chapter_status'] as String?,
       );
 }
 
@@ -770,7 +779,15 @@ class ApiClient {
   static String _errorDetail(http.Response res) {
     try {
       final b = jsonDecode(res.body);
-      return b['detail']?.toString() ?? 'Server error (${res.statusCode})';
+      final detail = b['detail'];
+      if (detail is String) return detail;
+      // FastAPI/Pydantic 422s return detail as a list of {loc, msg, ...} dicts —
+      // surface just the first message instead of a raw Dart list dump.
+      if (detail is List && detail.isNotEmpty && detail.first is Map) {
+        final msg = detail.first['msg']?.toString();
+        if (msg != null) return msg.replaceFirst('Value error, ', '');
+      }
+      return detail?.toString() ?? 'Server error (${res.statusCode})';
     } catch (_) {
       return 'Server error (${res.statusCode})';
     }
@@ -1027,6 +1044,17 @@ class ApiClient {
   static Future<List<Map<String, String>>> getMySubjects({String? classSectionId}) async {
     final qs = classSectionId != null ? '?class_section_id=$classSectionId' : '';
     final data = await _get('/api/v1/teacher/my-subjects$qs') as List<dynamic>;
+    return data.map((e) => {
+      'id': (e as Map<String, dynamic>)['id'] as String,
+      'name': e['name'] as String,
+    }).toList();
+  }
+
+  /// All subjects taught in a section (any teacher) — for the substitute
+  /// self-assign subject picker, since you may be covering a subject that
+  /// isn't your own assignment in that section.
+  static Future<List<Map<String, String>>> getSectionSubjectsForSubstitute(String classSectionId) async {
+    final data = await _get('/api/v1/teacher/substitutes/section-subjects?class_section_id=$classSectionId') as List<dynamic>;
     return data.map((e) => {
       'id': (e as Map<String, dynamic>)['id'] as String,
       'name': e['name'] as String,
@@ -1319,6 +1347,7 @@ class ApiClient {
     required String confirmAccountNumber,
     required String ifsc,
     required String bankName,
+    required bool confirmed,
   }) async {
     await _post('/api/v1/teacher/bank-accounts', {
       'account_holder_name': accountHolderName,
@@ -1326,6 +1355,7 @@ class ApiClient {
       'confirm_account_number': confirmAccountNumber,
       'ifsc': ifsc,
       'bank_name': bankName,
+      'confirmed': confirmed,
     });
   }
 
@@ -2225,10 +2255,25 @@ class ApiClient {
     return (await _get('/api/v1/admin/ptm/events/$eventId/parent-attendance')) as Map<String, dynamic>;
   }
 
+  // ── Admin: SOS ─────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getSOSEvents({bool? resolved}) async {
+    final q = resolved == null ? '' : '?resolved=$resolved';
+    return (await _get('/api/v1/admin/sos/events$q')) as Map<String, dynamic>;
+  }
+
+  static Future<void> resolveSOSEvent(String eventId, {String? notes}) async {
+    await _patch('/api/v1/admin/sos/events/$eventId/resolve', {'notes': notes});
+  }
+
   // ── Admin: Visitors ────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> listVisitors({String? dateFrom}) async {
-    final q = dateFrom != null ? '?date_from=$dateFrom' : '';
+  static Future<Map<String, dynamic>> listVisitors({String? dateFrom, String? dateTo, String? visitType}) async {
+    final params = <String>[];
+    if (dateFrom != null) params.add('date_from=$dateFrom');
+    if (dateTo != null) params.add('date_to=$dateTo');
+    if (visitType != null && visitType.isNotEmpty) params.add('visit_type=$visitType');
+    final q = params.isEmpty ? '' : '?${params.join('&')}';
     return (await _get('/api/v1/admin/visitors$q')) as Map<String, dynamic>;
   }
 

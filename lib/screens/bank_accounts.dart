@@ -228,6 +228,8 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
   final _ifscCtrl = TextEditingController();
   final _bankCtrl = TextEditingController();
   bool _saving = false;
+  bool _showAccountNumber = false;
+  bool _consentChecked = false;
   String? _error;
 
   @override
@@ -241,27 +243,42 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
   }
 
   Future<void> _save() async {
-    if (_holderCtrl.text.trim().isEmpty || _bankCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Account holder name and bank name are required');
+    final holder = _holderCtrl.text.trim();
+    final number = _numberCtrl.text.trim();
+    if (holder.length < 2 || holder.length > 30) {
+      setState(() => _error = 'Account holder name must be 2–30 characters');
       return;
     }
-    if (_numberCtrl.text.trim() != _confirmCtrl.text.trim()) {
+    if (_bankCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'Bank name is required');
+      return;
+    }
+    if (!RegExp(r'^\d{9,18}$').hasMatch(number)) {
+      setState(() => _error = 'Account number must be 9–18 digits');
+      return;
+    }
+    if (number != _confirmCtrl.text.trim()) {
       setState(() => _error = 'Account number and confirmation do not match');
+      return;
+    }
+    if (!_consentChecked) {
+      setState(() => _error = 'Please confirm these details are correct before saving');
       return;
     }
     setState(() { _saving = true; _error = null; });
     try {
       await ApiClient.addMyBankAccount(
-        accountHolderName: _holderCtrl.text.trim(),
-        accountNumber: _numberCtrl.text.trim(),
+        accountHolderName: holder,
+        accountNumber: number,
         confirmAccountNumber: _confirmCtrl.text.trim(),
         ifsc: _ifscCtrl.text.trim().toUpperCase(),
         bankName: _bankCtrl.text.trim(),
+        confirmed: _consentChecked,
       );
       widget.onAdded();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() { _error = 'Failed to add account. Check your details and try again.'; _saving = false; });
+      setState(() { _error = e is ApiError ? e.message : 'Failed to add account. Check your details and try again.'; _saving = false; });
     }
   }
 
@@ -286,15 +303,38 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
               const SizedBox(height: 16),
               const Text('Add Bank Account', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.text)),
               const SizedBox(height: 16),
-              _field('Account Holder Name', _holderCtrl),
+              _field('Account Holder Name', _holderCtrl, maxLength: 30),
               const SizedBox(height: 12),
-              _field('Account Number', _numberCtrl, keyboardType: TextInputType.number),
+              _field('Account Number', _numberCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true),
               const SizedBox(height: 12),
-              _field('Confirm Account Number', _confirmCtrl, keyboardType: TextInputType.number),
+              _field('Confirm Account Number', _confirmCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true),
               const SizedBox(height: 12),
               _field('IFSC Code', _ifscCtrl, hint: 'SBIN0001234'),
               const SizedBox(height: 12),
               _field('Bank Name', _bankCtrl),
+              const SizedBox(height: 14),
+              InkWell(
+                onTap: () => setState(() => _consentChecked = !_consentChecked),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _consentChecked,
+                      onChanged: (v) => setState(() => _consentChecked = v ?? false),
+                      activeColor: context.primary,
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: Text(
+                          'I confirm these bank details are correct',
+                          style: const TextStyle(fontSize: 12, color: AppColors.text2, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 10),
                 Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.coral)),
@@ -319,7 +359,8 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
     );
   }
 
-  Widget _field(String label, TextEditingController controller, {TextInputType? keyboardType, String? hint}) {
+  Widget _field(String label, TextEditingController controller,
+      {TextInputType? keyboardType, String? hint, int? maxLength, bool masked = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -328,7 +369,18 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
-          decoration: InputDecoration(hintText: hint),
+          maxLength: maxLength,
+          obscureText: masked && !_showAccountNumber,
+          decoration: InputDecoration(
+            hintText: hint,
+            suffixIcon: masked
+                ? IconButton(
+                    icon: Icon(_showAccountNumber ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        size: 20, color: AppColors.muted),
+                    onPressed: () => setState(() => _showAccountNumber = !_showAccountNumber),
+                  )
+                : null,
+          ),
         ),
       ],
     );

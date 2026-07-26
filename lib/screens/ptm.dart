@@ -461,6 +461,11 @@ class _MeetingCard extends StatelessWidget {
     return rollNo != null ? '$name · Roll $rollNo' : name;
   }
 
+  String? get _sectionLabel {
+    final label = meeting['section_label'] as String?;
+    return (label != null && label.trim().isNotEmpty) ? label : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final actionItems = (meeting['action_items'] as List?)?.cast<String>() ?? [];
@@ -476,6 +481,8 @@ class _MeetingCard extends StatelessWidget {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(_studentTitle(meeting),
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            if (_sectionLabel != null)
+              Text(_sectionLabel!, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
             if ((meeting['subject_name'] as String?)?.isNotEmpty == true)
               Text(meeting['subject_name'] as String, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
           ])),

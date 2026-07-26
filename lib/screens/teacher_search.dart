@@ -5,6 +5,8 @@ import '../core/theme.dart';
 import 'student_profile_detail.dart';
 import 'test_scores.dart';
 import 'feed.dart';
+import 'circulars.dart';
+import 'todos.dart';
 
 class TeacherSearchScreen extends StatefulWidget {
   const TeacherSearchScreen({super.key});
@@ -108,7 +110,7 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
           focusNode: _focusNode,
           style: const TextStyle(fontSize: 15, color: AppColors.text),
           decoration: const InputDecoration(
-            hintText: 'Search students, tests, announcements…',
+            hintText: 'Search students, tests, circulars, todos…',
             hintStyle: TextStyle(fontSize: 14, color: AppColors.muted),
             border: InputBorder.none,
           ),
@@ -142,7 +144,8 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
           children: [
             Text('🔍', style: TextStyle(fontSize: 40)),
             SizedBox(height: 12),
-            Text('Search students, tests, announcements',
+            Text('Search students, tests, announcements, circulars,\nwork logs, todos, and teachers',
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: AppColors.muted)),
             SizedBox(height: 4),
             Text('Type at least 2 characters to search',
@@ -219,8 +222,32 @@ class _TeacherSearchScreenState extends State<TeacherSearchScreen> {
           ),
           ..._results!.announcements.map((a) => _AnnouncementTile(ann: a, onTap: () => _openAnnouncement(a))),
         ],
+        if (_results!.circulars.isNotEmpty) ...[
+          _SectionHeader(title: 'Circulars', count: _results!.circulars.length),
+          ..._results!.circulars.map((c) => _CircularTile(circular: c, onTap: _openCirculars)),
+        ],
+        if (_results!.workLogs.isNotEmpty) ...[
+          _SectionHeader(title: 'Work Logs', count: _results!.workLogs.length),
+          ..._results!.workLogs.map((w) => _WorkLogTile(workLog: w)),
+        ],
+        if (_results!.todos.isNotEmpty) ...[
+          _SectionHeader(title: 'Todos', count: _results!.todos.length),
+          ..._results!.todos.map((t) => _TodoTile(todo: t, onTap: _openTodos)),
+        ],
+        if (_results!.teachers.isNotEmpty) ...[
+          _SectionHeader(title: 'Teachers', count: _results!.teachers.length),
+          ..._results!.teachers.map((t) => _TeacherTile(teacher: t)),
+        ],
       ],
     );
+  }
+
+  void _openCirculars() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const CircularsScreen()));
+  }
+
+  void _openTodos() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const TodosScreen()));
   }
 
   void _openAnnouncement(Map<String, dynamic> a) {
@@ -471,5 +498,106 @@ class _AnnouncementTile extends StatelessWidget {
     subtitle: Text(ann['body'] as String? ?? '',
         style: const TextStyle(fontSize: 11, color: AppColors.muted),
         maxLines: 2, overflow: TextOverflow.ellipsis),
+  );
+}
+
+class _CircularTile extends StatelessWidget {
+  final Map<String, dynamic> circular;
+  final VoidCallback? onTap;
+  const _CircularTile({required this.circular, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    onTap: onTap,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    leading: Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(color: AppColors.skyLight, borderRadius: BorderRadius.circular(10)),
+      child: const Icon(Icons.description_outlined, color: AppColors.sky, size: 20),
+    ),
+    title: Text(circular['title'] as String? ?? '',
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
+        maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: Text(circular['body'] as String? ?? '',
+        style: const TextStyle(fontSize: 11, color: AppColors.muted),
+        maxLines: 2, overflow: TextOverflow.ellipsis),
+    trailing: const Icon(Icons.chevron_right, color: AppColors.border),
+  );
+}
+
+class _WorkLogTile extends StatelessWidget {
+  final Map<String, dynamic> workLog;
+  const _WorkLogTile({required this.workLog});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    leading: Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(color: AppColors.violetLight, borderRadius: BorderRadius.circular(10)),
+      child: const Icon(Icons.edit_note_outlined, color: AppColors.violet, size: 20),
+    ),
+    title: Text(workLog['description'] as String? ?? '',
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
+        maxLines: 2, overflow: TextOverflow.ellipsis),
+    subtitle: Text(
+      [
+        if ((workLog['class_label'] as String?)?.isNotEmpty == true) workLog['class_label'],
+        if ((workLog['subject_name'] as String?)?.isNotEmpty == true) workLog['subject_name'],
+        if (workLog['date'] != null) workLog['date'],
+      ].join(' · '),
+      style: const TextStyle(fontSize: 11, color: AppColors.muted),
+    ),
+  );
+}
+
+class _TodoTile extends StatelessWidget {
+  final Map<String, dynamic> todo;
+  final VoidCallback? onTap;
+  const _TodoTile({required this.todo, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    onTap: onTap,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    leading: Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(color: AppColors.tealLight, borderRadius: BorderRadius.circular(10)),
+      child: const Icon(Icons.check_circle_outline, color: AppColors.teal, size: 20),
+    ),
+    title: Text(todo['title'] as String? ?? '',
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
+        maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: todo['due_date'] != null
+        ? Text('Due ${todo['due_date']}', style: const TextStyle(fontSize: 11, color: AppColors.muted))
+        : null,
+    trailing: const Icon(Icons.chevron_right, color: AppColors.border),
+  );
+}
+
+class _TeacherTile extends StatelessWidget {
+  final Map<String, dynamic> teacher;
+  const _TeacherTile({required this.teacher});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    leading: CircleAvatar(
+      radius: 20,
+      backgroundColor: AppColors.violetLight,
+      child: Text(
+        (teacher['name'] as String? ?? '?')[0].toUpperCase(),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.violet),
+      ),
+    ),
+    title: Text(teacher['name'] as String? ?? '',
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+    subtitle: Text(
+      [
+        if ((teacher['email'] as String?)?.isNotEmpty == true) teacher['email'],
+        if ((teacher['role'] as String?)?.isNotEmpty == true) teacher['role'],
+      ].join(' · '),
+      style: const TextStyle(fontSize: 11, color: AppColors.muted),
+    ),
   );
 }

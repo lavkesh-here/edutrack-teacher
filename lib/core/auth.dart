@@ -78,10 +78,25 @@ class AuthProvider extends ChangeNotifier {
       if (!authed) return 'Authentication cancelled.';
       _isLocked = false;
       notifyListeners();
+      refreshSession();
       return null;
     } catch (e) {
       return 'Biometric error: $e';
     }
+  }
+
+  /// Exchanges the current token for a fresh 7-day one. Fire-and-forget: a
+  /// failure here just means the next real API call 401s and logs out the
+  /// normal way (ApiClient.onUnauthorized), so nothing extra to handle.
+  /// Called on unlock and on cold-start restore — an actively-used session
+  /// should never hit the hard expiry wall; only a genuinely idle-for-7-days
+  /// one should force a re-login.
+  Future<void> refreshSession() async {
+    if (_user == null) return;
+    try {
+      final token = await ApiClient.refreshToken();
+      await ApiClient.setToken(token);
+    } catch (_) {}
   }
 
   /// Prompts biometric for confirmation (enrollment / toggle). Returns true if authenticated.
@@ -147,7 +162,10 @@ class AuthProvider extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
-    if (_user != null) _loadFeatureFlags();
+    if (_user != null) {
+      _loadFeatureFlags();
+      refreshSession();
+    }
   }
 
   Future<String?> getStoredEmail() async =>

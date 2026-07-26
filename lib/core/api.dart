@@ -441,19 +441,33 @@ class TeacherSearchResult {
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> tests;
   final List<Map<String, dynamic>> announcements;
+  final List<Map<String, dynamic>> circulars;
+  final List<Map<String, dynamic>> workLogs;
+  final List<Map<String, dynamic>> todos;
+  final List<Map<String, dynamic>> teachers;
 
   const TeacherSearchResult({
     required this.students,
     required this.tests,
     required this.announcements,
+    this.circulars = const [],
+    this.workLogs = const [],
+    this.todos = const [],
+    this.teachers = const [],
   });
 
-  bool get isEmpty => students.isEmpty && tests.isEmpty && announcements.isEmpty;
+  bool get isEmpty =>
+      students.isEmpty && tests.isEmpty && announcements.isEmpty &&
+      circulars.isEmpty && workLogs.isEmpty && todos.isEmpty && teachers.isEmpty;
 
   factory TeacherSearchResult.fromJson(Map<String, dynamic> j) => TeacherSearchResult(
         students: (j['students'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
         tests: (j['tests'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
         announcements: (j['announcements'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+        circulars: (j['circulars'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+        workLogs: (j['work_logs'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+        todos: (j['todos'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+        teachers: (j['teachers'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
       );
 }
 
@@ -657,6 +671,33 @@ class PayslipRecord {
         deductions: (j['deductions'] as num?)?.toDouble() ?? 0,
         netPay: (j['net_pay'] as num?)?.toDouble() ?? 0,
         status: j['status'] as String? ?? 'pending',
+      );
+}
+
+class MaskedBankAccount {
+  final String id;
+  final String accountHolderName;
+  final String maskedAccountNumber;
+  final String bankName;
+  final String ifsc;
+  final bool isDefault;
+
+  const MaskedBankAccount({
+    required this.id,
+    required this.accountHolderName,
+    required this.maskedAccountNumber,
+    required this.bankName,
+    required this.ifsc,
+    required this.isDefault,
+  });
+
+  factory MaskedBankAccount.fromJson(Map<String, dynamic> j) => MaskedBankAccount(
+        id: j['id'] as String,
+        accountHolderName: j['account_holder_name'] as String? ?? '',
+        maskedAccountNumber: j['masked_account_number'] as String? ?? '',
+        bankName: j['bank_name'] as String? ?? '',
+        ifsc: j['ifsc'] as String? ?? '',
+        isDefault: j['is_default'] as bool? ?? false,
       );
 }
 
@@ -877,6 +918,15 @@ class ApiClient {
       if (schoolCode != null) 'school_code': schoolCode,
     }, handleUnauthorized: false);
     return AuthResponse.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Exchanges the current (still-valid) token for a fresh 7-day one. Call
+  /// whenever the app confirms the user is still active (resume, biometric
+  /// unlock) so an actively-used session doesn't hit the hard expiry wall —
+  /// only a genuinely idle-for-7-days session should force a re-login.
+  static Future<String> refreshToken() async {
+    final data = await _post('/api/v1/auth/refresh', {});
+    return data['access_token'] as String;
   }
 
   static Future<void> changePassword({
@@ -1253,6 +1303,38 @@ class ApiClient {
     return list
         .map((e) => PayslipRecord.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // ── Bank accounts (self-service, for payroll transfer) ───────────────────
+
+  static Future<List<MaskedBankAccount>> getMyBankAccounts() async {
+    final data = await _get('/api/v1/teacher/bank-accounts');
+    final list = (data as Map<String, dynamic>)['accounts'] as List<dynamic>;
+    return list.map((e) => MaskedBankAccount.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<void> addMyBankAccount({
+    required String accountHolderName,
+    required String accountNumber,
+    required String confirmAccountNumber,
+    required String ifsc,
+    required String bankName,
+  }) async {
+    await _post('/api/v1/teacher/bank-accounts', {
+      'account_holder_name': accountHolderName,
+      'account_number': accountNumber,
+      'confirm_account_number': confirmAccountNumber,
+      'ifsc': ifsc,
+      'bank_name': bankName,
+    });
+  }
+
+  static Future<void> setDefaultBankAccount(String accountId) async {
+    await _put('/api/v1/teacher/bank-accounts/$accountId/set-default', {});
+  }
+
+  static Future<void> deleteMyBankAccount(String accountId) async {
+    await _delete('/api/v1/teacher/bank-accounts/$accountId');
   }
 
   // ── Notify Parents ────────────────────────────────────────────────────────

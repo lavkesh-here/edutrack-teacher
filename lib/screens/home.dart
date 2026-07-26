@@ -18,6 +18,7 @@ import 'worklog.dart';
 import 'health_incidents.dart';
 import 'notify_parents.dart';
 import 'payslip.dart';
+import 'bank_accounts.dart';
 import 'my_students.dart';
 import 'admin_parents.dart';
 import 'admin_transport.dart';
@@ -2004,6 +2005,9 @@ class _MoreTabState extends State<_MoreTab> {
                     if (flags.payroll)
                       _FeatureRow(icon: '💰', iconBg: AppColors.greenLight, title: 'Payroll History', sub: 'Monthly salary & payslips',
                           onTap: () => _push(context, const PayslipScreen(), recentId: 'payroll')),
+                    if (flags.payroll)
+                      _FeatureRow(icon: '🏦', iconBg: AppColors.skyLight, title: 'Bank Details', sub: 'Account for payroll transfer',
+                          onTap: () => _push(context, const BankAccountsScreen(), recentId: 'bank_accounts')),
                     _FeatureRow(icon: '🎓', iconBg: AppColors.violetLight, title: 'Qualifications', sub: 'Degrees & certifications',
                         onTap: () => _push(context, const QualificationsScreen(), recentId: 'qualifications')),
 

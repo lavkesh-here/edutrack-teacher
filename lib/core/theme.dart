@@ -32,9 +32,17 @@ extension BuildContextTheme on BuildContext {
   Color get primaryLight => Theme.of(this).colorScheme.primary.withOpacity(0.12);
 }
 
+/// .copyWith(primary: primary) below is load-bearing: ColorScheme.fromSeed's
+/// tonal-palette algorithm does NOT guarantee colorScheme.primary equals the
+/// seed you pass in (it derives its own tone/chroma, which can drift hue for
+/// saturated seeds). Sixty-plus call sites read Theme.of(context).colorScheme.primary
+/// directly expecting the exact school brand color, so pin it to the raw seed.
+ColorScheme buildColorScheme(Color primary) =>
+    ColorScheme.fromSeed(seedColor: primary, surface: AppColors.bg).copyWith(primary: primary);
+
 ThemeData buildTheme([Color primary = AppColors.sun]) => ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: primary, surface: AppColors.bg),
+      colorScheme: buildColorScheme(primary),
       scaffoldBackgroundColor: AppColors.bg,
       textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme),
       appBarTheme: const AppBarTheme(

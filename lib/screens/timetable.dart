@@ -14,10 +14,16 @@ class _TimetableScreenState extends State<TimetableScreen> {
   bool _loading = true;
   String? _error;
   int _selectedDay = DateTime.now().weekday.clamp(1, 6); // Mon=1..Sat=6
-  final _stripCtrl = ScrollController();
+  DateTime _selectedDate = DateTime.now();
+  DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
-  static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  String _monthLabel(DateTime month) => '${_monthNames[month.month - 1]} ${month.year}';
 
   // Color palette for subjects (deterministic by index)
   static const _palette = [
@@ -33,22 +39,30 @@ class _TimetableScreenState extends State<TimetableScreen> {
   void initState() {
     super.initState();
     _load();
-    // Scroll strip so today is roughly centered after layout
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      const chipW = 56.0;
-      const gap = 8.0;
-      final todayIndex = 7; // 14-day strip, today is at index 7 (0-based center)
-      final offset = todayIndex * (chipW + gap) - (MediaQuery.of(context).size.width / 2) + chipW / 2;
-      if (_stripCtrl.hasClients) {
-        _stripCtrl.jumpTo(offset.clamp(0.0, _stripCtrl.position.maxScrollExtent));
-      }
+  }
+
+  void _changeMonth(int delta) {
+    setState(() {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
     });
   }
 
-  @override
-  void dispose() {
-    _stripCtrl.dispose();
-    super.dispose();
+  void _selectDate(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+      _selectedDay = date.weekday.clamp(1, 6);
+    });
+  }
+
+  List<DateTime> get _monthDays {
+    final first = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
+    final daysInMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0).day;
+    // Leading blanks so day 1 lines up under its weekday column (Mon-start week).
+    final leading = first.weekday - 1;
+    return [
+      for (int i = 0; i < leading; i++) DateTime(0),
+      for (int d = 1; d <= daysInMonth; d++) DateTime(_visibleMonth.year, _visibleMonth.month, d),
+    ];
   }
 
   Future<void> _load() async {
@@ -127,95 +141,98 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Your weekly schedule',
-                    style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                  const Text(
+                    'Your recurring weekly schedule, shown across the month',
+                    style: TextStyle(fontSize: 11, color: AppColors.muted),
                   ),
-                  const SizedBox(height: 12),
-                  // 2-week day strip centered on today (14 days: -7 to +6)
-                  Builder(builder: (ctx) {
-                    final today = DateTime.now();
-                    final stripStart = today.subtract(const Duration(days: 7));
-                    return SizedBox(
-                      height: 72,
-                      child: ListView.separated(
-                        controller: _stripCtrl,
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 14,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (_, i) {
-                          final chipDate = stripStart.add(Duration(days: i));
-                          final isSun = chipDate.weekday == DateTime.sunday;
-                          final dayNum = chipDate.weekday.clamp(1, 6);
-                          final active = !isSun && dayNum == _selectedDay;
-                          final isToday = chipDate.year == today.year &&
-                              chipDate.month == today.month &&
-                              chipDate.day == today.day;
-                          const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                          final label = dayLabels[chipDate.weekday - 1];
-                          return GestureDetector(
-                            onTap: isSun ? null : () => setState(() => _selectedDay = dayNum),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              width: 48,
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? context.primary
-                                    : isSun
-                                        ? const Color(0xFFF3F4F6)
-                                        : AppColors.bg,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: active
-                                      ? context.primary
-                                      : isToday
-                                          ? context.primary.withOpacity(0.5)
-                                          : AppColors.border,
-                                  width: 1.5,
-                                ),
+                  const SizedBox(height: 10),
+                  // Month navigation
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _changeMonth(-1),
+                        child: const Icon(Icons.chevron_left, color: AppColors.muted),
+                      ),
+                      Text(
+                        _monthLabel(_visibleMonth),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text),
+                      ),
+                      GestureDetector(
+                        onTap: () => _changeMonth(1),
+                        child: const Icon(Icons.chevron_right, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Weekday header row
+                  Row(
+                    children: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                        .map((d) => Expanded(
+                              child: Center(
+                                child: Text(d,
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.muted)),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    label,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: active
-                                          ? Colors.white
-                                          : isSun
-                                              ? AppColors.muted
-                                              : isToday
-                                                  ? context.primary
-                                                  : AppColors.muted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${chipDate.day}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      color: active
-                                          ? Colors.white
-                                          : isSun
-                                              ? AppColors.muted
-                                              : isToday
-                                                  ? context.primary
-                                                  : AppColors.text,
-                                    ),
-                                  ),
-                                ],
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 4),
+                  // Month grid — 7 columns, Mon-start weeks
+                  GridView.count(
+                    crossAxisCount: 7,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 0.85,
+                    children: _monthDays.map((date) {
+                      if (date.year == 0) return const SizedBox.shrink();
+                      final today = DateTime.now();
+                      final isSun = date.weekday == DateTime.sunday;
+                      final active = !isSun &&
+                          date.year == _selectedDate.year &&
+                          date.month == _selectedDate.month &&
+                          date.day == _selectedDate.day;
+                      final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
+                      return GestureDetector(
+                        onTap: isSun ? null : () => _selectDate(date),
+                        child: Container(
+                          margin: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? context.primary
+                                : isSun
+                                    ? const Color(0xFFF3F4F6)
+                                    : AppColors.bg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: active
+                                  ? context.primary
+                                  : isToday
+                                      ? context.primary.withOpacity(0.5)
+                                      : AppColors.border,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${date.day}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: active
+                                    ? Colors.white
+                                    : isSun
+                                        ? AppColors.muted
+                                        : isToday
+                                            ? context.primary
+                                            : AppColors.text,
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
                   Container(height: 1, color: AppColors.border),
                 ],
               ),

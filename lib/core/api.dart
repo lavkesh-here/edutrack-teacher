@@ -988,6 +988,18 @@ class ApiClient {
     return (map['students'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
   }
 
+  static Future<List<Map<String, dynamic>>> getTestSections(String testId) async {
+    final data = await _get('/api/v1/tests/$testId/sections');
+    final map = data as Map<String, dynamic>;
+    return (map['sections'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  static Future<List<Map<String, dynamic>>> getEnrolledRoster(String testId, String sectionId) async {
+    final data = await _get('/api/v1/tests/$testId/enrolled-roster?section_id=$sectionId');
+    final map = data as Map<String, dynamic>;
+    return (map['students'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+  }
+
   static Future<List<TestQuestion>> getTestQuestions(String testId) async {
     final data = await _get('/api/v1/tests/$testId');
     final map = data as Map<String, dynamic>;
@@ -2282,6 +2294,10 @@ class ApiClient {
     final q = unacknowledgedOnly ? '?unacknowledged_only=true' : '';
     final data = await _get('/api/v1/teacher/alerts$q');
     return (data['alerts'] as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> acknowledgeAlert(String eventId) async {
+    await _post('/api/v1/teacher/alerts/$eventId/acknowledge', {});
   }
 
   // ── Admin: PTM ─────────────────────────────────────────────────────────────

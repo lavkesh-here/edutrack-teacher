@@ -95,26 +95,27 @@ class AdminFeatureConfig {
     );
   }
 
-  bool isLocked(String key) {
-    final entry = _teacher[key] ?? _parent[key];
-    return (entry?['locked'] as bool?) ?? false;
+  Map<String, dynamic>? _entry(String role, String key) =>
+      role == 'parent' ? _parent[key] : _teacher[key];
+
+  bool isLocked(String role, String key) {
+    return (_entry(role, key)?['locked'] as bool?) ?? false;
   }
 
-  bool isEnabled(String key) {
-    final entry = _teacher[key] ?? _parent[key];
-    return (entry?['enabled'] as bool?) ?? true;
+  bool isEnabled(String role, String key) {
+    return (_entry(role, key)?['enabled'] as bool?) ?? true;
   }
 
   /// Non-null when disabling this feature has real operational impact —
-  /// the admin UI should confirm before turning it off.
-  String? criticalWarning(String key) {
-    final entry = _teacher[key] ?? _parent[key];
-    return entry?['critical_warning'] as String?;
+  /// the admin UI should confirm before turning it off. `role` matters:
+  /// the same feature key can carry a different warning per role
+  /// (e.g. feature.work_logs means something different for teacher vs parent).
+  String? criticalWarning(String role, String key) {
+    return _entry(role, key)?['critical_warning'] as String?;
   }
 
-  String? planRequired(String key) {
-    if (!isLocked(key)) return null;
-    final entry = _teacher[key] ?? _parent[key];
-    return entry?['plan_required'] as String?;
+  String? planRequired(String role, String key) {
+    if (!isLocked(role, key)) return null;
+    return _entry(role, key)?['plan_required'] as String?;
   }
 }

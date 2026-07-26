@@ -14,6 +14,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   List<Map<String, dynamic>> _alerts = [];
   bool _loading = true;
   bool _unackOnly = false;
+  final Set<String> _acking = {};
 
   @override
   void initState() {
@@ -28,6 +29,34 @@ class _AlertsScreenState extends State<AlertsScreen> {
       if (mounted) setState(() { _alerts = data; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _acknowledge(String id) async {
+    setState(() => _acking.add(id));
+    try {
+      await ApiClient.acknowledgeAlert(id);
+      if (!mounted) return;
+      if (_unackOnly) {
+        // This alert no longer belongs in the unacknowledged-only filter.
+        setState(() {
+          _alerts = _alerts.where((a) => a['id'] != id).toList();
+          _acking.remove(id);
+        });
+      } else {
+        setState(() {
+          final idx = _alerts.indexWhere((a) => a['id'] == id);
+          if (idx != -1) {
+            _alerts[idx] = {..._alerts[idx], 'acknowledged_at': DateTime.now().toIso8601String()};
+          }
+          _acking.remove(id);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _acking.remove(id));
+        showSnack(context, 'Could not acknowledge alert', error: true);
+      }
     }
   }
 
@@ -125,6 +154,26 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 style: const TextStyle(
                                     fontSize: 13, color: AppColors.muted),
                               ),
+                              if (!_unackOnly) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: const Text(
+                                    'An alert appears here automatically when a student crosses a '
+                                    'threshold your school has configured — for example, attendance '
+                                    'dropping below a set %, average test scores falling below a set %, '
+                                    'or a class falling behind its syllabus plan. These are checked daily; '
+                                    'ask your admin about Alert Rules if you expected one and don\'t see it.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 11, color: AppColors.muted, height: 1.4),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -161,6 +210,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                               metricLabel: _metricLabel,
                               metricIcon: _metricIcon,
                               severityColor: _severityColor,
+                              acking: _acking.contains(_alerts[i]['id'] as String? ?? ''),
+                              onAcknowledge: () => _acknowledge(_alerts[i]['id'] as String),
                             ),
                           ),
                         ),
@@ -176,12 +227,16 @@ class _AlertCard extends StatelessWidget {
   final String Function(String) metricLabel;
   final String Function(String) metricIcon;
   final Color Function(String, num) severityColor;
+  final bool acking;
+  final VoidCallback onAcknowledge;
 
   const _AlertCard({
     required this.alert,
     required this.metricLabel,
     required this.metricIcon,
     required this.severityColor,
+    required this.acking,
+    required this.onAcknowledge,
   });
 
   @override
@@ -292,18 +347,33 @@ class _AlertCard extends StatelessWidget {
                             color: AppColors.green)),
                   )
                 else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.coralLight,
-                      borderRadius: BorderRadius.circular(8),
+                  GestureDetector(
+                    onTap: acking ? null : onAcknowledge,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.coralLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: acking
+                          ? const SizedBox(
+                              width: 12, height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.coral),
+                            )
+                          : const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check, size: 12, color: AppColors.coral),
+                                SizedBox(width: 3),
+                                Text('Acknowledge',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.coral)),
+                              ],
+                            ),
                     ),
-                    child: const Text('New',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.coral)),
                   ),
               ],
             ),

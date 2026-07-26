@@ -237,6 +237,7 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
   late final _bankCtrl = TextEditingController(text: widget.existing?.bankName ?? '');
   bool _saving = false;
   bool _showAccountNumber = false;
+  bool _showConfirmAccountNumber = false;
   bool _consentChecked = false;
   String? _error;
 
@@ -335,9 +336,11 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
                 ),
                 const SizedBox(height: 8),
               ],
-              _field('Account Number', _numberCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true),
+              _field('Account Number', _numberCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true,
+                  showValue: _showAccountNumber, onToggleShow: () => setState(() => _showAccountNumber = !_showAccountNumber)),
               const SizedBox(height: 12),
-              _field('Confirm Account Number', _confirmCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true),
+              _field('Confirm Account Number', _confirmCtrl, keyboardType: TextInputType.number, maxLength: 18, masked: true,
+                  showValue: _showConfirmAccountNumber, onToggleShow: () => setState(() => _showConfirmAccountNumber = !_showConfirmAccountNumber)),
               const SizedBox(height: 12),
               _field('IFSC Code', _ifscCtrl, hint: 'SBIN0001234'),
               const SizedBox(height: 12),
@@ -390,7 +393,8 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
   }
 
   Widget _field(String label, TextEditingController controller,
-      {TextInputType? keyboardType, String? hint, int? maxLength, bool masked = false}) {
+      {TextInputType? keyboardType, String? hint, int? maxLength, bool masked = false,
+      bool showValue = false, VoidCallback? onToggleShow}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -400,14 +404,14 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
           controller: controller,
           keyboardType: keyboardType,
           maxLength: maxLength,
-          obscureText: masked && !_showAccountNumber,
+          obscureText: masked && !showValue,
           decoration: InputDecoration(
             hintText: hint,
             suffixIcon: masked
                 ? IconButton(
-                    icon: Icon(_showAccountNumber ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    icon: Icon(showValue ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 20, color: AppColors.muted),
-                    onPressed: () => setState(() => _showAccountNumber = !_showAccountNumber),
+                    onPressed: onToggleShow,
                   )
                 : null,
           ),

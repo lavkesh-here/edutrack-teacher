@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/api.dart';
+import '../core/motivation.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -13,6 +14,7 @@ class TodosScreen extends StatefulWidget {
 class _TodosScreenState extends State<TodosScreen> {
   List<TodoItem>? _todos;
   bool _loading = true;
+  String _quote = Motivation.random();
 
   @override
   void initState() {
@@ -23,7 +25,13 @@ class _TodosScreenState extends State<TodosScreen> {
   Future<void> _load() async {
     try {
       final todos = await ApiClient.getTodos();
-      if (mounted) setState(() { _todos = todos; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _todos = todos;
+          _loading = false;
+          _quote = Motivation.random(exclude: _quote);
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
@@ -265,17 +273,24 @@ class _TodosScreenState extends State<TodosScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : (_todos?.isEmpty ?? true)
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              ? RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(24, 40, 24, 40),
                     children: [
-                      const Text('📝', style: TextStyle(fontSize: 48)),
+                      const Center(child: Text('📝', style: TextStyle(fontSize: 48))),
                       const SizedBox(height: 12),
-                      const Text('No todos yet',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
+                      const Center(
+                        child: Text('No todos yet',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
+                      ),
                       const SizedBox(height: 4),
-                      const Text('Tap + to add a task',
-                          style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                      const Center(
+                        child: Text('Tap + to add a task',
+                            style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                      ),
+                      const SizedBox(height: 20),
+                      _QuoteCard(quote: _quote),
                     ],
                   ),
                 )
@@ -284,6 +299,8 @@ class _TodosScreenState extends State<TodosScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                     children: [
+                      _QuoteCard(quote: _quote),
+                      const SizedBox(height: 12),
                       if (active.isNotEmpty) ...[
                         _SectionLabel('ACTIVE  (${active.length})'),
                         ...active.map((t) => _TodoCard(
@@ -407,6 +424,39 @@ class _SectionLabel extends StatelessWidget {
         child: Text(text,
             style: const TextStyle(
                 fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+      );
+}
+
+class _QuoteCard extends StatelessWidget {
+  final String quote;
+  const _QuoteCard({required this.quote});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: context.primaryLight,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('✨', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                quote,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: context.primary,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
 }
 

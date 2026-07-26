@@ -78,6 +78,66 @@ jobs:
           sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' \
             android/app/src/main/AndroidManifest.xml
 
+      - name: Add notification permissions
+        run: |
+          sed -i '/<manifest/a\    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>' \
+            android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a\    <uses-permission android:name="android.permission.VIBRATE"/>' \
+            android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' \
+            android/app/src/main/AndroidManifest.xml
+
+      - name: Patch build.gradle for Firebase
+        run: |
+          # Prepend buildscript block to root build.gradle (Flutter 3.22+ no longer includes one)
+          {
+            echo "buildscript {"
+            echo "    repositories { google(); mavenCentral() }"
+            echo "    dependencies {"
+            echo "        classpath 'com.google.gms:google-services:4.4.2'"
+            echo "    }"
+            echo "}"
+            echo ""
+            cat android/build.gradle
+          } > /tmp/build_merged.gradle && mv /tmp/build_merged.gradle android/build.gradle
+          # App build.gradle — apply the plugin
+          echo "" >> android/app/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+
+      - name: Write google-services.json
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            # Stub file — allows build to succeed; push won't work until this app is
+            # registered in the Firebase console (same project as edutrack-parent, so
+            # the backend's single FCM_PROJECT can send to both apps) and the real
+            # file is added as the GOOGLE_SERVICES_JSON secret on this repo.
+            cat > android/app/google-services.json << 'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "project-b7d6b5f8-fe9f-49fd-acb",
+              "storage_bucket": "project-b7d6b5f8-fe9f-49fd-acb.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                "android_client_info": {
+                  "package_name": "com.edutrack.dev.edutrack_teacher"
+                }
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "stub-replace-with-real-key"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
       - name: Write local.properties
         run: |
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties

@@ -40,11 +40,14 @@ class _AdminFeatureConfig {
         parent: Map<String, dynamic>.from(j['parent'] as Map? ?? {}),
       );
 
-  bool isLocked(String key) => (_teacher[key] ?? _parent[key])?.locked ?? false;
-  bool isEnabled(String key) => (_teacher[key] ?? _parent[key])?.enabled ?? true;
-  String? planRequired(String key) {
-    if (!isLocked(key)) return null;
-    return (_teacher[key] ?? _parent[key])?.planRequired;
+  _FeatureEntry? _entry(String role, String key) =>
+      role == 'parent' ? _parent[key] : _teacher[key];
+
+  bool isLocked(String role, String key) => _entry(role, key)?.locked ?? false;
+  bool isEnabled(String role, String key) => _entry(role, key)?.enabled ?? true;
+  String? planRequired(String role, String key) {
+    if (!isLocked(role, key)) return null;
+    return _entry(role, key)?.planRequired;
   }
 }
 
@@ -72,37 +75,46 @@ void main() {
     test('plan is parsed correctly', () => expect(cfg.plan, 'standard'));
 
     test('unlocked enabled feature: isLocked=false, isEnabled=true', () {
-      expect(cfg.isLocked('feature.announcements'), isFalse);
-      expect(cfg.isEnabled('feature.announcements'), isTrue);
+      expect(cfg.isLocked('teacher', 'feature.announcements'), isFalse);
+      expect(cfg.isEnabled('teacher', 'feature.announcements'), isTrue);
     });
 
     test('locked feature: isLocked=true', () {
-      expect(cfg.isLocked('feature.ai_generate'), isTrue);
-      expect(cfg.isEnabled('feature.ai_generate'), isFalse);
+      expect(cfg.isLocked('teacher', 'feature.ai_generate'), isTrue);
+      expect(cfg.isEnabled('teacher', 'feature.ai_generate'), isFalse);
     });
 
     test('planRequired returns null for unlocked feature', () {
-      expect(cfg.planRequired('feature.announcements'), isNull);
+      expect(cfg.planRequired('teacher', 'feature.announcements'), isNull);
     });
 
     test('planRequired returns plan string for locked standard feature', () {
-      expect(cfg.planRequired('feature.ai_generate'), 'standard');
+      expect(cfg.planRequired('teacher', 'feature.ai_generate'), 'standard');
     });
 
     test('planRequired returns premium for premium-locked feature', () {
-      expect(cfg.planRequired('feature.transport'), 'premium');
-      expect(cfg.planRequired('feature.payroll'), 'premium');
+      expect(cfg.planRequired('teacher', 'feature.transport'), 'premium');
+      expect(cfg.planRequired('teacher', 'feature.payroll'), 'premium');
     });
 
     test('missing key → not locked, enabled by default', () {
-      expect(cfg.isLocked('feature.nonexistent'), isFalse);
-      expect(cfg.isEnabled('feature.nonexistent'), isTrue);
-      expect(cfg.planRequired('feature.nonexistent'), isNull);
+      expect(cfg.isLocked('teacher', 'feature.nonexistent'), isFalse);
+      expect(cfg.isEnabled('teacher', 'feature.nonexistent'), isTrue);
+      expect(cfg.planRequired('teacher', 'feature.nonexistent'), isNull);
     });
 
-    test('parent-only key resolved via _parent map', () {
-      // feature.parent_fees defined in parent map too
-      expect(cfg.isEnabled('feature.parent_fees'), isTrue);
+    test('parent role reads its own map, not the teacher map', () {
+      // feature.parent_fees also exists in the teacher map with different values —
+      // passing role: 'parent' must resolve strictly from _parent, never fall back
+      // to _teacher (that fallback was the root cause of a real cross-role bug
+      // where a parent-app toggle showed teacher-app copy/state).
+      expect(cfg.isEnabled('parent', 'feature.parent_fees'), isTrue);
+    });
+
+    test('role without an entry for the key does not fall back to the other role', () {
+      // feature.ai_generate only exists under 'teacher' in this fixture.
+      expect(cfg.isLocked('parent', 'feature.ai_generate'), isFalse);
+      expect(cfg.isEnabled('parent', 'feature.ai_generate'), isTrue);
     });
   });
 
@@ -115,7 +127,7 @@ void main() {
     test('empty teacher/parent maps parse without error', () {
       final cfg = _AdminFeatureConfig.fromJson({'plan': 'premium', 'teacher': {}, 'parent': {}});
       expect(cfg.plan, 'premium');
-      expect(cfg.isLocked('feature.ai_generate'), isFalse);
+      expect(cfg.isLocked('teacher', 'feature.ai_generate'), isFalse);
     });
   });
 

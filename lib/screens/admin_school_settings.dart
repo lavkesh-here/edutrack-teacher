@@ -127,7 +127,7 @@ class _AdminSchoolSettingsScreenState extends State<AdminSchoolSettingsScreen> {
     if (_togglingFeature) return;
 
     if (!newValue) {
-      final warning = _featureConfig?.criticalWarning(key);
+      final warning = _featureConfig?.criticalWarning(role, key);
       if (warning != null) {
         final confirmed = await showDialog<bool>(
           context: context,
@@ -545,9 +545,9 @@ class _FeaturesPlanSection extends StatelessWidget {
               const SizedBox(height: 8),
               ..._teacherFeatures.map((f) {
                 final (key, icon, title, sub) = f;
-                final locked = config.isLocked(key);
-                final enabled = config.isEnabled(key);
-                final planReq = config.planRequired(key);
+                final locked = config.isLocked('teacher', key);
+                final enabled = config.isEnabled('teacher', key);
+                final planReq = config.planRequired('teacher', key);
                 return _FeatureToggleRow(
                   icon: icon,
                   title: title,
@@ -567,9 +567,9 @@ class _FeaturesPlanSection extends StatelessWidget {
               const SizedBox(height: 8),
               ..._parentFeatures.map((f) {
                 final (key, icon, title, sub) = f;
-                final locked = config.isLocked(key);
-                final enabled = config.isEnabled(key);
-                final planReq = config.planRequired(key);
+                final locked = config.isLocked('parent', key);
+                final enabled = config.isEnabled('parent', key);
+                final planReq = config.planRequired('parent', key);
                 return _FeatureToggleRow(
                   icon: icon,
                   title: title,

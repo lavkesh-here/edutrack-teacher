@@ -266,7 +266,7 @@ class _TestScoresScreenState extends State<TestScoresScreen> {
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
-                                child: Text('${q.order}',
+                                child: Text('${q.order + 1}',
                                     style: const TextStyle(
                                         fontSize: 12, fontWeight: FontWeight.w900,
                                         color: AppColors.violet)),
@@ -777,10 +777,17 @@ class _MarkEntryScreen extends StatefulWidget {
 class _MarkEntryScreenState extends State<_MarkEntryScreen> {
   List<Map<String, dynamic>> _roster = [];
   final Map<int, TextEditingController> _controllers = {};
+  final Map<int, TextEditingController> _nameControllers = {};
+  final Map<int, TextEditingController> _rollControllers = {};
   final Map<int, bool> _absent = {};
+  final Set<int> _manualRows = {};
   bool _loading = true;
   bool _saving = false;
   String? _error;
+
+  List<Map<String, dynamic>> _sections = [];
+  String? _selectedSectionId;
+  bool _sectionsLoading = false;
 
   @override
   void initState() {
@@ -791,7 +798,25 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
   @override
   void dispose() {
     for (final c in _controllers.values) c.dispose();
+    for (final c in _nameControllers.values) c.dispose();
+    for (final c in _rollControllers.values) c.dispose();
     super.dispose();
+  }
+
+  void _resetRosterState(List<Map<String, dynamic>> roster) {
+    for (final c in _controllers.values) c.dispose();
+    for (final c in _nameControllers.values) c.dispose();
+    for (final c in _rollControllers.values) c.dispose();
+    _controllers.clear();
+    _nameControllers.clear();
+    _rollControllers.clear();
+    _absent.clear();
+    _manualRows.clear();
+    _roster = roster;
+    for (int i = 0; i < roster.length; i++) {
+      _controllers[i] = TextEditingController();
+      _absent[i] = false;
+    }
   }
 
   Future<void> _load() async {
@@ -800,21 +825,68 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
       final roster = await ApiClient.getTestRoster(widget.test.id);
       if (!mounted) return;
       setState(() {
-        _roster = roster;
+        _resetRosterState(roster);
         _loading = false;
-        for (int i = 0; i < roster.length; i++) {
-          _controllers[i] = TextEditingController();
-          _absent[i] = false;
-        }
       });
+      if (roster.isEmpty) _loadSections();
     } catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.toString(); });
     }
   }
 
+  Future<void> _loadSections() async {
+    setState(() => _sectionsLoading = true);
+    try {
+      final sections = await ApiClient.getTestSections(widget.test.id);
+      if (mounted) setState(() { _sections = sections; _sectionsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _sectionsLoading = false);
+    }
+  }
+
+  Future<void> _selectSection(String sectionId) async {
+    setState(() { _selectedSectionId = sectionId; _loading = true; });
+    try {
+      final roster = await ApiClient.getEnrolledRoster(widget.test.id, sectionId);
+      if (!mounted) return;
+      setState(() {
+        _resetRosterState(roster);
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        showSnack(context, 'Could not load section roster', error: true);
+      }
+    }
+  }
+
+  void _addManualRow() {
+    setState(() {
+      final idx = _roster.length;
+      _roster = [..._roster, {'student_name': '', 'roll_no': '', 'student_id': null}];
+      _controllers[idx] = TextEditingController();
+      _nameControllers[idx] = TextEditingController();
+      _rollControllers[idx] = TextEditingController();
+      _absent[idx] = false;
+      _manualRows.add(idx);
+    });
+  }
+
   Future<void> _save() async {
-    // Validate: each non-absent student needs a score
-    for (int i = 0; i < _roster.length; i++) {
+    // Manual rows the teacher never filled in (no name typed) are skipped entirely
+    // rather than blocking save.
+    final activeIndexes = <int>[
+      for (int i = 0; i < _roster.length; i++)
+        if (!_manualRows.contains(i) || (_nameControllers[i]?.text.trim() ?? '').isNotEmpty) i,
+    ];
+    if (activeIndexes.isEmpty) {
+      showSnack(context, 'Add at least one student', error: true);
+      return;
+    }
+
+    // Validate: each non-absent active student needs a score
+    for (final i in activeIndexes) {
       if (!(_absent[i] ?? false)) {
         final text = _controllers[i]?.text.trim() ?? '';
         if (text.isEmpty) {
@@ -833,13 +905,16 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
     setState(() => _saving = true);
     try {
       final scores = <Map<String, dynamic>>[];
-      for (int i = 0; i < _roster.length; i++) {
+      for (final i in activeIndexes) {
         final s = _roster[i];
         final isAbsent = _absent[i] ?? false;
+        final isManual = _manualRows.contains(i);
+        final name = isManual ? _nameControllers[i]!.text.trim() : (s['student_name'] as String? ?? '');
+        final rollNo = isManual ? _rollControllers[i]!.text.trim() : (s['roll_no'] as String?);
         scores.add({
           'student_id': s['student_id'],
-          'student_name': s['student_name'] as String,
-          'roll_no': s['roll_no'] as String?,
+          'student_name': name,
+          'roll_no': rollNo,
           'score': isAbsent ? 0.0 : double.parse(_controllers[i]!.text.trim()),
           'is_absent': isAbsent,
         });
@@ -882,7 +957,13 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
           : _error != null
               ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.muted)))
               : _roster.isEmpty
-                  ? const Center(child: Text('No students found', style: TextStyle(color: AppColors.muted)))
+                  ? _EmptyRosterView(
+                      sections: _sections,
+                      sectionsLoading: _sectionsLoading,
+                      selectedSectionId: _selectedSectionId,
+                      onSelectSection: _selectSection,
+                      onAddStudent: _addManualRow,
+                    )
                   : Column(
                       children: [
                         Container(
@@ -925,7 +1006,12 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                                       ),
                                       child: Center(
                                         child: Text(
-                                          (s['student_name'] as String? ?? '?')[0].toUpperCase(),
+                                          () {
+                                            final name = _manualRows.contains(i)
+                                                ? _nameControllers[i]!.text
+                                                : (s['student_name'] as String? ?? '');
+                                            return name.isNotEmpty ? name[0].toUpperCase() : '?';
+                                          }(),
                                           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,
                                               color: isAbsent ? AppColors.coral : context.primary),
                                         ),
@@ -933,13 +1019,40 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
-                                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        Text(s['student_name'] as String? ?? '',
-                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                                        if ((s['roll_no'] as String?)?.isNotEmpty == true)
-                                          Text('Roll ${s['roll_no']}',
-                                              style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-                                      ]),
+                                      child: _manualRows.contains(i)
+                                          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                              TextField(
+                                                controller: _nameControllers[i],
+                                                onChanged: (_) => setState(() {}),
+                                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                                decoration: const InputDecoration(
+                                                  hintText: 'Student name',
+                                                  isDense: true,
+                                                  contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                                  border: UnderlineInputBorder(),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 80,
+                                                child: TextField(
+                                                  controller: _rollControllers[i],
+                                                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                                                  decoration: const InputDecoration(
+                                                    hintText: 'Roll no.',
+                                                    isDense: true,
+                                                    contentPadding: EdgeInsets.symmetric(vertical: 2),
+                                                    border: UnderlineInputBorder(),
+                                                  ),
+                                                ),
+                                              ),
+                                            ])
+                                          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                              Text(s['student_name'] as String? ?? '',
+                                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                                              if ((s['roll_no'] as String?)?.isNotEmpty == true)
+                                                Text('Roll ${s['roll_no']}',
+                                                    style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                                            ]),
                                     ),
                                     const SizedBox(width: 8),
                                     if (isAbsent)
@@ -982,8 +1095,85 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                             },
                           ),
                         ),
+                        SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: OutlinedButton.icon(
+                              onPressed: _addManualRow,
+                              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                              label: const Text('Add Student'),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
+    );
+  }
+}
+
+class _EmptyRosterView extends StatelessWidget {
+  final List<Map<String, dynamic>> sections;
+  final bool sectionsLoading;
+  final String? selectedSectionId;
+  final ValueChanged<String> onSelectSection;
+  final VoidCallback onAddStudent;
+
+  const _EmptyRosterView({
+    required this.sections,
+    required this.sectionsLoading,
+    required this.selectedSectionId,
+    required this.onSelectSection,
+    required this.onAddStudent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No students found', style: TextStyle(color: AppColors.muted, fontSize: 14)),
+            const SizedBox(height: 16),
+            if (sectionsLoading)
+              const CircularProgressIndicator(color: AppColors.violet)
+            else if (sections.isNotEmpty) ...[
+              const Text('Pick a section to load its enrolled students',
+                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: sections.map((sec) {
+                  final id = sec['id'] as String;
+                  final selected = id == selectedSectionId;
+                  return ChoiceChip(
+                    label: Text('Section ${sec['name']}'),
+                    selected: selected,
+                    onSelected: (_) => onSelectSection(id),
+                    selectedColor: AppColors.violet,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : AppColors.text,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              const Text('or', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+              const SizedBox(height: 12),
+            ],
+            OutlinedButton.icon(
+              onPressed: onAddStudent,
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+              label: const Text('Add Student Manually'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

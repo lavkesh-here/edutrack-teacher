@@ -17,6 +17,7 @@ import 'screens/home.dart';
 import 'screens/force_change_password.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/leave.dart';
+import 'screens/admin_sos.dart';
 
 // Background message handler — must be top-level function
 @pragma('vm:entry-point')
@@ -254,6 +255,8 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
         case 'leave_approved':
         case 'leave_rejected':
           nav.push(MaterialPageRoute(builder: (_) => const LeaveScreen()));
+        case 'sos':
+          nav.push(MaterialPageRoute(builder: (_) => const AdminSOSScreen()));
         default:
           nav.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
       }

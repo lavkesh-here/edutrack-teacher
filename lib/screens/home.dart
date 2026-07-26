@@ -725,16 +725,16 @@ class _HomeTabState extends State<_HomeTab> {
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
                           onTap: () => _openScreen(context, const AdminParentsScreen(), recentId: 'parents')),
                       // Transport — always shown for admin; locked if plan doesn't include it
-                      if (config != null && config.isLocked('feature.transport'))
-                        _LockedFeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments', planRequired: config.planRequired('feature.transport'))
+                      if (config != null && config.isLocked('teacher', 'feature.transport'))
+                        _LockedFeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments', planRequired: config.planRequired('teacher', 'feature.transport'))
                       else
                         _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
                             onTap: () => _openScreen(context, const AdminTransportScreen(), recentId: 'transport')),
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
                           onTap: () => _openScreen(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
                       // Work Log Overview — always shown for admin; locked if plan doesn't include it
-                      if (config != null && config.isLocked('feature.work_logs'))
-                        _LockedFeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats', planRequired: config.planRequired('feature.work_logs'))
+                      if (config != null && config.isLocked('teacher', 'feature.work_logs'))
+                        _LockedFeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats', planRequired: config.planRequired('teacher', 'feature.work_logs'))
                       else
                         _FeatureRow(icon: '📋', iconBg: AppColors.amberLight, title: 'Work Log Overview', sub: 'All classes & acknowledgment stats',
                             onTap: () => _openScreen(context, const AdminWorkLogsScreen(), recentId: 'admin_worklogs')),
@@ -743,14 +743,14 @@ class _HomeTabState extends State<_HomeTab> {
                       _FeatureRow(icon: '🚨', iconBg: AppColors.coralLight, title: 'SOS Alerts', sub: 'Emergency alert history & resolution',
                           onTap: () => _openScreen(context, const AdminSOSScreen(), recentId: 'admin_sos')),
                       // Fee Management — always shown for admin; locked if plan doesn't include it
-                      if (config != null && config.isLocked('feature.parent_fees'))
-                        _LockedFeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status', planRequired: config.planRequired('feature.parent_fees'))
+                      if (config != null && config.isLocked('teacher', 'feature.parent_fees'))
+                        _LockedFeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status', planRequired: config.planRequired('teacher', 'feature.parent_fees'))
                       else
                         _FeatureRow(icon: '💰', iconBg: AppColors.amberLight, title: 'Fee Management', sub: 'Fee components & payment status',
                             onTap: () => _openScreen(context, const AdminFeeManagementScreen(), recentId: 'fees')),
                       // Payroll — always shown for admin; locked if plan doesn't include it
-                      if (config != null && config.isLocked('feature.payroll'))
-                        _LockedFeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation', planRequired: config.planRequired('feature.payroll'))
+                      if (config != null && config.isLocked('teacher', 'feature.payroll'))
+                        _LockedFeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation', planRequired: config.planRequired('teacher', 'feature.payroll'))
                       else
                         _FeatureRow(icon: '💳', iconBg: AppColors.tealLight, title: 'Payroll', sub: 'Teacher salary & auto-calculation',
                             onTap: () => _openScreen(context, const PayslipScreen(), recentId: 'payroll')),

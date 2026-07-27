@@ -632,6 +632,8 @@ class WorkLogEntry {
   final String? chapterId;
   final String? chapterName;
   final String? chapterStatus;
+  // review_status: 'not_applicable' (non-homework) | 'not_reviewed' | 'partial' | 'reviewed'
+  final String reviewStatus;
 
   const WorkLogEntry({
     required this.id,
@@ -652,6 +654,7 @@ class WorkLogEntry {
     this.chapterId,
     this.chapterName,
     this.chapterStatus,
+    this.reviewStatus = 'not_applicable',
   });
 
   factory WorkLogEntry.fromJson(Map<String, dynamic> j) => WorkLogEntry(
@@ -676,6 +679,7 @@ class WorkLogEntry {
         chapterId: j['chapter_id']?.toString(),
         chapterName: j['chapter_name'] as String?,
         chapterStatus: j['chapter_status'] as String?,
+        reviewStatus: j['review_status'] as String? ?? 'not_applicable',
       );
 }
 
@@ -1358,7 +1362,7 @@ class ApiClient {
   static Future<void> reviewWorkLogStudent({
     required String workLogId,
     required String studentId,
-    required String teacherStatus, // "checked" | "has_remarks"
+    required String? teacherStatus, // "checked" | "has_remarks" | null to clear
     String? teacherRemarks,
   }) async {
     await _post('/api/v1/teacher/work-log/$workLogId/review', {
@@ -1368,8 +1372,8 @@ class ApiClient {
     });
   }
 
-  static Future<int> reviewWorkLogAllStudents(String workLogId) async {
-    final data = await _post('/api/v1/teacher/work-log/$workLogId/review-all', {});
+  static Future<int> reviewWorkLogAllStudents(String workLogId, {bool clear = false}) async {
+    final data = await _post('/api/v1/teacher/work-log/$workLogId/review-all', {'clear': clear});
     return (data as Map<String, dynamic>)['count'] as int? ?? 0;
   }
 

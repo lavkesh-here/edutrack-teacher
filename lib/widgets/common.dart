@@ -203,6 +203,19 @@ String fmtDate(String isoDate) {
   }
 }
 
+/// Time only, e.g. "05:45 AM" — local time zone.
+String fmtTime(String isoDate) {
+  try {
+    final d = DateTime.parse(isoDate).toLocal();
+    final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final period = d.hour < 12 ? 'AM' : 'PM';
+    final minute = d.minute.toString().padLeft(2, '0');
+    return '${hour12.toString().padLeft(2, '0')}:$minute $period';
+  } catch (_) {
+    return '';
+  }
+}
+
 /// Date + time, e.g. "26 Jul 2026, 05:45 AM" — local time zone.
 String fmtDateTime(String isoDate) {
   try {

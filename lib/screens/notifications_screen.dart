@@ -84,6 +84,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'leave_reviewed': return '🗓️';
       case 'comment_posted': return '💬';
       case 'attendance_absent': return '📋';
+      case 'homework_review_reminder': return '📋';
       default: return '🔔';
     }
   }
@@ -93,6 +94,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'leave_reviewed': return AppColors.violetLight;
       case 'comment_posted': return AppColors.tealLight;
       case 'attendance_absent': return AppColors.coralLight;
+      case 'homework_review_reminder': return AppColors.amberLight;
       default: return AppColors.skyLight;
     }
   }
@@ -175,7 +177,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               final body = n['body'] as String? ?? '';
                               final type = n['notification_type'] as String? ?? '';
                               final isRead = n['is_read'] as bool? ?? false;
-                              final date = (n['created_at'] as String? ?? '').split('T').first;
+                              final createdAt = n['created_at'] as String? ?? '';
 
                               return GestureDetector(
                                 onTap: isRead ? null : () => _markRead(id),
@@ -220,7 +222,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                             const SizedBox(height: 4),
                                             Row(
                                               children: [
-                                                Text(fmtDate(date),
+                                                Text(fmtDateTime(createdAt),
                                                     style: const TextStyle(
                                                         fontSize: 10, color: AppColors.muted)),
                                                 if (!isRead) ...[

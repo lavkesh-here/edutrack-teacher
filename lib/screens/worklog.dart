@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
-String _workLogShareText(WorkLogEntry entry) {
+String _workLogShareText(WorkLogEntry entry, String schoolName) {
   final typeLabel = switch (entry.logType) {
     'homework' => 'Homework',
     'note' => 'Note',
@@ -19,7 +21,7 @@ String _workLogShareText(WorkLogEntry entry) {
   buf.writeln(entry.description);
   if (entry.chapterName != null) buf.writeln('\nChapter: ${entry.chapterName}');
   if (entry.dueDate != null) buf.writeln('\n📅 Due: ${fmtDate(entry.dueDate!)}');
-  buf.write('\n— via EduTrack');
+  buf.write('\n— via $schoolName');
   return buf.toString();
 }
 
@@ -41,6 +43,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
   List<SectionInfo>? _sections;
   final Set<String> _selectedSectionIds = {};
   String? _typeFilter; // null = all, 'homework'|'classwork'|'note'
+  String? _reviewFilter; // null = all, 'reviewed'|'partial'|'not_reviewed'
 
   List<WorkLogEntry> _entries = [];
   Map<String, List<WorkLogEntry>> _grouped = {};
@@ -182,6 +185,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
           if (_tab == _Tab.custom) _buildCustomPickers(),
           _buildSectionChips(),
           _buildTypeFilter(),
+          if (_typeFilter == null || _typeFilter == 'homework') _buildReviewFilter(),
           // Scrollable list
           Expanded(
             child: RefreshIndicator(
@@ -461,14 +465,64 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     );
   }
 
-  List<WorkLogEntry> get _filteredEntries =>
-      _typeFilter == null ? _entries : _entries.where((e) => e.logType == _typeFilter).toList();
+  bool _passesFilters(WorkLogEntry e) {
+    if (_typeFilter != null && e.logType != _typeFilter) return false;
+    if (_reviewFilter != null && e.reviewStatus != _reviewFilter) return false;
+    return true;
+  }
+
+  Widget _buildReviewFilter() {
+    const statuses = [
+      (null, 'All'),
+      ('reviewed', '✅ Reviewed'),
+      ('partial', '🟡 Partially Reviewed'),
+      ('not_reviewed', '⏳ Not Reviewed'),
+    ];
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: statuses.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (_, i) {
+            final (val, label) = statuses[i];
+            final active = _reviewFilter == val;
+            return GestureDetector(
+              onTap: () => setState(() => _reviewFilter = val),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: active ? context.primary : AppColors.bg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: active ? context.primary : AppColors.border, width: 1.5),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: active ? Colors.white : AppColors.muted,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  List<WorkLogEntry> get _filteredEntries => _entries.where(_passesFilters).toList();
 
   Map<String, List<WorkLogEntry>> get _filteredGrouped {
-    if (_typeFilter == null) return _grouped;
+    if (_typeFilter == null && _reviewFilter == null) return _grouped;
     final Map<String, List<WorkLogEntry>> result = {};
     for (final entry in _grouped.entries) {
-      final filtered = entry.value.where((e) => e.logType == _typeFilter).toList();
+      final filtered = entry.value.where(_passesFilters).toList();
       if (filtered.isNotEmpty) result[entry.key] = filtered;
     }
     return result;
@@ -519,7 +573,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-              (_, i) => _WorkLogCard(entry: _filteredEntries[i]),
+              (_, i) => _WorkLogCard(entry: _filteredEntries[i], onChanged: _loadForTab),
               childCount: _filteredEntries.length,
             ),
           ),
@@ -578,7 +632,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
               if (item.isHeader) {
                 return _DateHeader(dateKey: item.dateKey!);
               }
-              return _WorkLogCard(entry: item.entry!);
+              return _WorkLogCard(entry: item.entry!, onChanged: _loadForTab);
             },
             childCount: items.length,
           ),
@@ -1401,7 +1455,8 @@ class _LogTypeChip extends StatelessWidget {
 
 class _WorkLogCard extends StatelessWidget {
   final WorkLogEntry entry;
-  const _WorkLogCard({required this.entry});
+  final VoidCallback? onChanged;
+  const _WorkLogCard({required this.entry, this.onChanged});
 
   Color get _color {
     return switch (entry.logType) {
@@ -1495,12 +1550,13 @@ class _WorkLogCard extends StatelessWidget {
                   ),
                 const Spacer(),
                 Text(
-                  fmtDate(entry.date),
+                  '${fmtDate(entry.date)} · ${fmtTime(entry.createdAt)}',
                   style: const TextStyle(fontSize: 10, color: AppColors.muted),
                 ),
                 const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: () => shareAsText(_workLogShareText(entry)),
+                  onTap: () => shareAsText(_workLogShareText(
+                    entry, context.read<AuthProvider>().user?.schoolName ?? 'EduTrack')),
                   child: const Padding(
                     padding: EdgeInsets.all(2),
                     child: Icon(Icons.share_outlined, size: 15, color: AppColors.muted),
@@ -1572,25 +1628,60 @@ class _WorkLogCard extends StatelessWidget {
             ],
             if (entry.logType == 'homework') ...[
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _HomeworkReviewSheet(workLogId: entry.id),
-                  ),
-                  icon: const Icon(Icons.fact_check_outlined, size: 16),
-                  label: const Text('Review Homework', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.primary,
-                    side: BorderSide(color: context.primary.withOpacity(0.4)),
+              if (entry.reviewStatus == 'reviewed')
+                GestureDetector(
+                  onTap: () async {
+                    await showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => _HomeworkReviewSheet(workLogId: entry.id),
+                    );
+                    onChanged?.call();
+                  },
+                  child: Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(
+                      color: AppColors.greenLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, size: 15, color: AppColors.green),
+                        SizedBox(width: 6),
+                        Text('Reviewed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.green)),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => _HomeworkReviewSheet(workLogId: entry.id),
+                      );
+                      onChanged?.call();
+                    },
+                    icon: const Icon(Icons.fact_check_outlined, size: 16),
+                    label: Text(
+                      entry.reviewStatus == 'partial' ? 'Continue Review' : 'Review Homework',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.primary,
+                      side: BorderSide(color: context.primary.withOpacity(0.4)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ),
-              ),
             ],
           ],
         ),
@@ -1671,7 +1762,7 @@ class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
     }
   }
 
-  Future<void> _markOne(String studentId, String status, {String? remarks}) async {
+  Future<void> _markOne(String studentId, String? status, {String? remarks}) async {
     setState(() => _savingIds.add(studentId));
     try {
       await ApiClient.reviewWorkLogStudent(
@@ -1685,12 +1776,20 @@ class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
     }
   }
 
-  Future<void> _markAll() async {
+  /// Tapping "Checked" again un-marks that student back to unreviewed.
+  Future<void> _toggleChecked(String studentId, String? currentStatus) =>
+      _markOne(studentId, currentStatus == 'checked' ? null : 'checked');
+
+  Future<void> _markAll({required bool clear}) async {
     setState(() => _markingAll = true);
     try {
-      final count = await ApiClient.reviewWorkLogAllStudents(widget.workLogId);
+      final count = await ApiClient.reviewWorkLogAllStudents(widget.workLogId, clear: clear);
       await _load();
-      if (mounted) showSnack(context, 'Marked $count student${count == 1 ? '' : 's'} checked ✓');
+      if (mounted) {
+        showSnack(context, clear
+            ? 'Reset $count student${count == 1 ? '' : 's'} back to unreviewed'
+            : 'Marked $count student${count == 1 ? '' : 's'} checked ✓');
+      }
     } catch (e) {
       if (mounted) showSnack(context, 'Failed: $e', error: true);
     } finally {
@@ -1736,11 +1835,11 @@ class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
                 const Expanded(child: Text('Review Homework', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
                 if (!_loading && _students.isNotEmpty)
                   TextButton.icon(
-                    onPressed: (_markingAll || allChecked) ? null : _markAll,
+                    onPressed: _markingAll ? null : () => _markAll(clear: allChecked),
                     icon: _markingAll
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.done_all, size: 16),
-                    label: Text(allChecked ? 'All checked ✓' : 'Mark whole class checked', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        : Icon(allChecked ? Icons.replay : Icons.done_all, size: 16),
+                    label: Text(allChecked ? 'Unmark all' : 'Mark whole class checked', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
               ]),
             ),
@@ -1784,8 +1883,8 @@ class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
                                       color: status == 'has_remarks' ? AppColors.amber : AppColors.muted),
                                 ),
                                 IconButton(
-                                  tooltip: 'Checked',
-                                  onPressed: () => _markOne(studentId, 'checked'),
+                                  tooltip: status == 'checked' ? 'Unmark' : 'Checked',
+                                  onPressed: () => _toggleChecked(studentId, status),
                                   icon: Icon(Icons.check_circle,
                                       color: status == 'checked' ? AppColors.green : AppColors.muted),
                                 ),

@@ -429,9 +429,32 @@ class TestAnalysisResult {
       concernAreas: (ci['concern_areas'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       recommendedAction: ci['recommended_action'] as String? ?? '',
       studentPlans: plans.map((e) => e as Map<String, dynamic>).toList(),
-      suggestedFollowup: (j['analysis'] as Map<String, dynamic>?)?['suggested_followup_test'] as String?,
+      suggestedFollowup: _parseSuggestedFollowup(
+          (j['analysis'] as Map<String, dynamic>?)?['suggested_followup_test']),
       isUpToDate: j['up_to_date'] as bool? ?? false,
     );
+  }
+
+  // Backend returns a structured object ({reason, focus_topic, question_type,
+  // difficulty, target_students}), not a plain string — build a one-line
+  // summary for display. Also accepts a bare string for backward compatibility.
+  static String? _parseSuggestedFollowup(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) return raw.isNotEmpty ? raw : null;
+    if (raw is Map) {
+      final topic = raw['focus_topic'] as String?;
+      final qType = raw['question_type'] as String?;
+      final difficulty = raw['difficulty'] as String?;
+      final reason = raw['reason'] as String?;
+      final tags = [qType, difficulty].whereType<String>().where((s) => s.isNotEmpty).join(', ');
+      final headline = [
+        if (topic != null && topic.isNotEmpty) topic,
+        if (tags.isNotEmpty) '($tags)',
+      ].join(' ');
+      if (headline.isEmpty) return (reason != null && reason.isNotEmpty) ? reason : null;
+      return (reason != null && reason.isNotEmpty) ? '$headline — $reason' : headline;
+    }
+    return null;
   }
 }
 

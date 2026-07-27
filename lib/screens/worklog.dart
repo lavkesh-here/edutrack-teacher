@@ -7,6 +7,22 @@ import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
+String _workLogShareText(WorkLogEntry entry) {
+  final typeLabel = switch (entry.logType) {
+    'homework' => 'Homework',
+    'note' => 'Note',
+    _ => 'Classwork',
+  };
+  final buf = StringBuffer('*$typeLabel* — ${entry.sectionLabel}\n');
+  if (entry.subjectName != null) buf.writeln(entry.subjectName);
+  buf.writeln();
+  buf.writeln(entry.description);
+  if (entry.chapterName != null) buf.writeln('\nChapter: ${entry.chapterName}');
+  if (entry.dueDate != null) buf.writeln('\n📅 Due: ${fmtDate(entry.dueDate!)}');
+  buf.write('\n— via EduTrack');
+  return buf.toString();
+}
+
 enum _Tab { today, week, month, custom }
 
 class WorkLogScreen extends StatefulWidget {
@@ -1481,6 +1497,14 @@ class _WorkLogCard extends StatelessWidget {
                 Text(
                   fmtDate(entry.date),
                   style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () => shareAsText(_workLogShareText(entry)),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(Icons.share_outlined, size: 15, color: AppColors.muted),
+                  ),
                 ),
               ],
             ),

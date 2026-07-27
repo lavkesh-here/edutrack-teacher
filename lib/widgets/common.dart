@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../core/theme.dart';
+
+/// Opens the OS share sheet (WhatsApp, SMS, Email, etc.) with plain text —
+/// the fallback channel for parents who haven't installed the app yet.
+Future<void> shareAsText(String text, {String? subject}) {
+  return Share.share(text, subject: subject);
+}
 
 class AppCard extends StatelessWidget {
   final Widget child;

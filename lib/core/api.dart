@@ -1801,6 +1801,14 @@ class ApiClient {
     } catch (_) {}
   }
 
+  /// Triggers a real FCM push to every device registered for this account —
+  /// used by a "Send test notification" button so push delivery can be
+  /// confirmed on-device instead of just trusting a 200 response.
+  static Future<Map<String, dynamic>> sendTestPush() async {
+    final data = await _post('/api/v1/teacher/push-token/test', {});
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   // ── Teacher notifications ──────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getTeacherNotifications() async {

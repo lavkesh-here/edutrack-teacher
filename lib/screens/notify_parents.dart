@@ -757,6 +757,15 @@ class _HistoryItem extends StatelessWidget {
               ],
             ),
           ),
+          GestureDetector(
+            onTap: () => shareAsText(
+              '${isNotif ? (_notifIcons[subType] ?? '🔔') : (_logIcons[subType] ?? '📝')} $title\n\n— via EduTrack',
+            ),
+            child: const Padding(
+              padding: EdgeInsets.only(left: 6, top: 2),
+              child: Icon(Icons.share_outlined, size: 16, color: AppColors.muted),
+            ),
+          ),
         ],
       ),
     );

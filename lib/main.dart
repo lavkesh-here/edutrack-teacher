@@ -254,6 +254,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
       switch (type) {
         case 'leave_approved':
         case 'leave_rejected':
+        case 'leave_reviewed':
           nav.push(MaterialPageRoute(builder: (_) => const LeaveScreen()));
         case 'sos':
           nav.push(MaterialPageRoute(builder: (_) => const AdminSOSScreen()));

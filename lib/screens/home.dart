@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -252,6 +253,7 @@ class _HomeTabState extends State<_HomeTab> {
   List<SpacedRepChapter> _spacedRep = [];
   bool _loadingTimetable = true;
   AdminFeatureConfig? _adminConfig;
+  bool _loadInFlight = false;
 
   @override
   void initState() {
@@ -259,22 +261,48 @@ class _HomeTabState extends State<_HomeTab> {
     _load();
   }
 
+  // Independent sections are fetched concurrently (not sequential awaits) so
+  // the screen settles in one round-trip window instead of six stacked ones —
+  // staggered arrivals is what reads as "flickering" on a slow connection.
   Future<void> _load() async {
+    if (_loadInFlight) return;
+    _loadInFlight = true;
+    try {
+      await Future.wait([
+        _loadTimetable(),
+        _loadLeaves(),
+        _loadTodos(),
+        _loadRecents(),
+        _loadSpacedRep(),
+        _loadAdminConfig(),
+      ]);
+    } finally {
+      _loadInFlight = false;
+    }
+  }
+
+  Future<void> _loadTimetable() async {
     try {
       final slots = await ApiClient.getMyTimetable();
       final today = DateTime.now().weekday;
-      setState(() {
+      if (mounted) setState(() {
         _todaySlots = slots.where((s) => s.dayOfWeek == today).toList()
           ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
         _loadingTimetable = false;
       });
     } catch (_) {
-      setState(() => _loadingTimetable = false);
+      if (mounted) setState(() => _loadingTimetable = false);
     }
+  }
+
+  Future<void> _loadLeaves() async {
     try {
       final leaves = await ApiClient.getMyLeaves();
-      setState(() => _recentLeaves = leaves.take(3).toList());
+      if (mounted) setState(() => _recentLeaves = leaves.take(3).toList());
     } catch (_) {}
+  }
+
+  Future<void> _loadTodos() async {
     try {
       final todos = await ApiClient.getTodos();
       final todayStr = _isoToday();
@@ -283,24 +311,31 @@ class _HomeTabState extends State<_HomeTab> {
         (t.status == 'in_progress' ||
          (t.dueDate != null && t.dueDate!.compareTo(todayStr) <= 0))
       ).toList();
-      setState(() => _activeTodos = relevant);
+      if (mounted) setState(() => _activeTodos = relevant);
     } catch (_) {}
+  }
+
+  Future<void> _loadRecents() async {
     try {
       final r = await RecentsManager.load();
       if (mounted) setState(() => _recents = r);
     } catch (_) {}
-    if (context.read<AuthProvider>().features.spacedRepetition) {
-      try {
-        final sr = await ApiClient.getSpacedRepetition();
-        if (mounted) setState(() => _spacedRep = sr);
-      } catch (_) {}
-    }
+  }
+
+  Future<void> _loadSpacedRep() async {
+    if (!context.read<AuthProvider>().features.spacedRepetition) return;
     try {
-      final user = context.read<AuthProvider>().user;
-      if (user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director')) {
-        final cfg = await ApiClient.getAdminFeatureConfig();
-        if (mounted) setState(() => _adminConfig = AdminFeatureConfig.fromJson(cfg));
-      }
+      final sr = await ApiClient.getSpacedRepetition();
+      if (mounted) setState(() => _spacedRep = sr);
+    } catch (_) {}
+  }
+
+  Future<void> _loadAdminConfig() async {
+    final user = context.read<AuthProvider>().user;
+    if (user == null || !(user.role == 'admin' || user.role == 'principal' || user.role == 'director')) return;
+    try {
+      final cfg = await ApiClient.getAdminFeatureConfig();
+      if (mounted) setState(() => _adminConfig = AdminFeatureConfig.fromJson(cfg));
     } catch (_) {}
   }
 
@@ -1657,8 +1692,8 @@ class _MoreTabState extends State<_MoreTab> {
           children: [
             Center(
               child: InteractiveViewer(
-                child: Image.network(photoUrl, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+                child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.contain,
+                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
               ),
             ),
             Positioned(
@@ -1956,8 +1991,8 @@ class _MoreTabState extends State<_MoreTab> {
                               child: _uploadingPhoto
                                   ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                   : user.photoUrl != null
-                                      ? Image.network(user.photoUrl!, width: 50, height: 50, fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Center(child: Text(auth.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white))))
+                                      ? CachedNetworkImage(imageUrl: user.photoUrl!, width: 50, height: 50, fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) => Center(child: Text(auth.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white))))
                                       : Center(child: Text(auth.initials, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white))),
                             ),
                           ),

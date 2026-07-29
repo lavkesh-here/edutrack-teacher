@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -83,8 +84,8 @@ class _StudentProfileDetailState extends State<StudentProfileDetail>
           children: [
             Center(
               child: InteractiveViewer(
-                child: Image.network(photoUrl, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+                child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.contain,
+                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
               ),
             ),
             Positioned(
@@ -410,10 +411,10 @@ class _HeroAvatar extends StatelessWidget {
     }
     if (photoUrl != null && photoUrl!.isNotEmpty) {
       return ClipOval(
-        child: Image.network(
-          photoUrl!,
+        child: CachedNetworkImage(
+          imageUrl: photoUrl!,
           width: size, height: size, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _initialsWidget(),
+          errorWidget: (_, __, ___) => _initialsWidget(),
         ),
       );
     }
@@ -1300,8 +1301,8 @@ class _WorkLogCard extends StatelessWidget {
                 onTap: () => _openImageViewer(context, entry.imageUrls, entry.imageUrls.indexOf(url)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(url, width: 64, height: 64, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                  child: CachedNetworkImage(imageUrl: url, width: 64, height: 64, fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
                           width: 64, height: 64, color: AppColors.border,
                           child: const Icon(Icons.broken_image_outlined, size: 20, color: AppColors.muted))),
                 ),
@@ -1325,8 +1326,8 @@ void _openImageViewer(BuildContext context, List<String> urls, int initialIndex)
             itemCount: urls.length,
             itemBuilder: (_, i) => InteractiveViewer(
               child: Center(
-                child: Image.network(urls[i], fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.muted)),
+                child: CachedNetworkImage(imageUrl: urls[i], fit: BoxFit.contain,
+                    errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.muted)),
               ),
             ),
           ),

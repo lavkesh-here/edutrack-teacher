@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
@@ -257,11 +258,11 @@ class _StudentRow extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: (student.photoUrl != null && student.photoUrl!.isNotEmpty)
-                      ? Image.network(
-                          student.photoUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: student.photoUrl!,
                           width: 44, height: 44,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
+                          errorWidget: (_, __, ___) => Center(
                             child: Text(_initials(student.name),
                               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary)),
                           ),

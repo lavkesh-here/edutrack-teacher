@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
@@ -934,12 +935,12 @@ class _StudentAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (student.photoUrl != null && student.photoUrl!.isNotEmpty) {
       return ClipOval(
-        child: Image.network(
-          student.photoUrl!,
+        child: CachedNetworkImage(
+          imageUrl: student.photoUrl!,
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _initialsAvatar(),
+          errorWidget: (_, __, ___) => _initialsAvatar(),
         ),
       );
     }
@@ -1157,11 +1158,11 @@ class _StudentCard extends StatelessWidget {
                   // Show photo if available, else initials
                   if (student.photoUrl != null && student.photoUrl!.isNotEmpty)
                     ClipOval(
-                      child: Image.network(
-                        student.photoUrl!,
+                      child: CachedNetworkImage(
+                        imageUrl: student.photoUrl!,
                         width: 52, height: 52,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorWidget: (_, __, ___) => Container(
                           width: 52, height: 52,
                           decoration: BoxDecoration(color: _avatarFg.withOpacity(0.15), shape: BoxShape.circle),
                           child: Center(child: Text(_initials, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _avatarFg))),

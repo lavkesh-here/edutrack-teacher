@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -352,8 +353,8 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                 itemCount: images.length,
                 itemBuilder: (_, i) => InteractiveViewer(
                   child: Center(
-                    child: Image.network(images[i].gcsUrl, fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+                    child: CachedNetworkImage(imageUrl: images[i].gcsUrl, fit: BoxFit.contain,
+                      errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
                   ),
                 ),
               ),
@@ -598,11 +599,12 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
                   onTap: () => _openImageFullscreen(a.images, i),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      a.images[i].gcsUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: a.images[i].gcsUrl,
                       width: 90, height: 90,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      placeholder: (_, __) => Container(width: 90, height: 90, color: AppColors.bg),
+                      errorWidget: (_, __, ___) => Container(
                         width: 90, height: 90,
                         color: AppColors.bg,
                         child: const Icon(Icons.broken_image_outlined, color: AppColors.muted),

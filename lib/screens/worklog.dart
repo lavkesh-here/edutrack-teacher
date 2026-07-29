@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -1600,8 +1601,8 @@ class _WorkLogCard extends StatelessWidget {
                     onTap: () => _openImageViewer(context, entry.imageUrls, entry.imageUrls.indexOf(url)),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(url, width: 64, height: 64, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                      child: CachedNetworkImage(imageUrl: url, width: 64, height: 64, fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Container(
                               width: 64, height: 64, color: AppColors.border,
                               child: const Icon(Icons.broken_image_outlined, size: 20, color: AppColors.muted))),
                     ),
@@ -1912,8 +1913,8 @@ void _openImageViewer(BuildContext context, List<String> urls, int initialIndex)
             itemCount: urls.length,
             itemBuilder: (_, i) => InteractiveViewer(
               child: Center(
-                child: Image.network(urls[i], fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.muted)),
+                child: CachedNetworkImage(imageUrl: urls[i], fit: BoxFit.contain,
+                    errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.muted)),
               ),
             ),
           ),

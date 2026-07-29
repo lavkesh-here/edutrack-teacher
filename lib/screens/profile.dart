@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -27,8 +28,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Center(
               child: InteractiveViewer(
-                child: Image.network(photoUrl, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
+                child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.contain,
+                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48)),
               ),
             ),
             Positioned(
@@ -309,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: _uploadingPhoto
                                       ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                       : user.photoUrl != null
-                                          ? Image.network(user.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(auth.initials, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white))))
+                                          ? CachedNetworkImage(imageUrl: user.photoUrl!, fit: BoxFit.cover, errorWidget: (_, __, ___) => Center(child: Text(auth.initials, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white))))
                                           : Center(child: Text(auth.initials, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white))),
                                 ),
                               ),

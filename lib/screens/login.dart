@@ -20,8 +20,8 @@ class _ServerEnv {
 
 const _kKnownServers = <_ServerEnv>[
   _ServerEnv('Production', ApiClient.defaultBaseUrl),
-  // Add staging here when available:
-  // _ServerEnv('Staging', 'https://edutrack-staging.run.app'),
+  _ServerEnv('Dev (Emulator)', ApiClient.devBaseUrl),
+  _ServerEnv('Dev (Phone/LAN)', ApiClient.devLanBaseUrl),
 ];
 
 // ── Step 1: Enter school code ─────────────────────────────────────────────────
@@ -77,12 +77,8 @@ class _LoginScreenState extends State<LoginScreen> {
               color: env == _selectedEnv ? AppColors.teal : AppColors.muted,
             ),
             const SizedBox(width: 10),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(env.label,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              Text(env.url,
-                  style: const TextStyle(fontSize: 10, color: AppColors.muted)),
-            ]),
+            Text(env.label,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ]),
         )).toList(),
       ),

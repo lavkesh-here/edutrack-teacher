@@ -632,6 +632,8 @@ class WorkLogEntry {
   final String? chapterId;
   final String? chapterName;
   final String? chapterStatus;
+  final String? topicId;
+  final String? topicName;
   // review_status: 'not_applicable' (non-homework) | 'not_reviewed' | 'partial' | 'reviewed'
   final String reviewStatus;
 
@@ -654,6 +656,8 @@ class WorkLogEntry {
     this.chapterId,
     this.chapterName,
     this.chapterStatus,
+    this.topicId,
+    this.topicName,
     this.reviewStatus = 'not_applicable',
   });
 
@@ -679,6 +683,8 @@ class WorkLogEntry {
         chapterId: j['chapter_id']?.toString(),
         chapterName: j['chapter_name'] as String?,
         chapterStatus: j['chapter_status'] as String?,
+        topicId: j['topic_id']?.toString(),
+        topicName: j['topic_name'] as String?,
         reviewStatus: j['review_status'] as String? ?? 'not_applicable',
       );
 }
@@ -770,7 +776,7 @@ class ApiClient {
   static const devBaseUrl = 'http://10.0.2.2:8000';
   // Physical phone on the same WiFi as this Mac — update if the Mac's LAN IP changes
   // (check with `ipconfig getifaddr en0` on the Mac running the backend).
-  static const devLanBaseUrl = 'http://192.168.1.44:8000';
+  static const devLanBaseUrl = 'http://192.168.1.6:8000';
   static const _defaultBaseUrl = defaultBaseUrl;
   static const _prefKeyUrl = 'server_url';
   static const _prefKeyToken = 'auth_token';
@@ -1343,6 +1349,7 @@ class ApiClient {
     List<String>? imageUrls,
     String? chapterId,
     bool markChapterCompleted = false,
+    String? topicId,
   }) async {
     await _post('/api/v1/teacher/work-log', {
       'class_section_id': classSectionId,
@@ -1354,6 +1361,9 @@ class ApiClient {
       if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
       if (chapterId != null) 'chapter_id': chapterId,
       if (chapterId != null) 'mark_chapter_completed': markChapterCompleted,
+      // topicId must belong to chapterId — the server validates this and
+      // rejects the request if it doesn't, so never send one without the other.
+      if (chapterId != null && topicId != null) 'topic_id': topicId,
     });
   }
 
@@ -2073,6 +2083,15 @@ class ApiClient {
   static Future<List<Map<String, dynamic>>> getSyllabus(String classSectionId) async {
     final data = await _get('/api/v1/teacher/syllabus?class_section_id=$classSectionId');
     return (data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  /// Topics for a specific chapter (optional — most chapters have none yet).
+  /// A topic belongs to exactly one chapter; never cache/reuse this list
+  /// across a different chapterId.
+  static Future<List<Map<String, dynamic>>> getTopics(String chapterId) async {
+    final data = await _get('/api/v1/ai/topics/$chapterId');
+    final topics = (data as Map<String, dynamic>)['topics'] as List<dynamic>? ?? [];
+    return topics.cast<Map<String, dynamic>>();
   }
 
   static Future<void> updateChapterStatus({

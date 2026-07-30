@@ -20,7 +20,11 @@ String _workLogShareText(WorkLogEntry entry, String schoolName) {
   if (entry.subjectName != null) buf.writeln(entry.subjectName);
   buf.writeln();
   buf.writeln(entry.description);
-  if (entry.chapterName != null) buf.writeln('\nChapter: ${entry.chapterName}');
+  if (entry.chapterName != null) {
+    buf.writeln(entry.topicName != null
+        ? '\nChapter: ${entry.chapterName} (${entry.topicName})'
+        : '\nChapter: ${entry.chapterName}');
+  }
   if (entry.dueDate != null) buf.writeln('\n📅 Due: ${fmtDate(entry.dueDate!)}');
   buf.write('\n— via $schoolName');
   return buf.toString();
@@ -686,6 +690,10 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     String? selectedChapterName;
     bool markChapterCompleted = false;
     bool loadingChapters = false;
+    List<Map<String, dynamic>> topicOptions = [];
+    String? selectedTopicId;
+    String? selectedTopicName;
+    bool loadingTopics = false;
     String? _subjectsLoadedForSectionId;
     bool subjectsLoading = true;
     bool subjectsError = false;
@@ -710,7 +718,10 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     }
 
     Future<void> loadChapters(String sectionId, String subjectId, void Function(void Function()) setSheetFn) async {
-      setSheetFn(() { loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null; markChapterCompleted = false; });
+      setSheetFn(() {
+        loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null;
+        markChapterCompleted = false; topicOptions = []; selectedTopicId = null; selectedTopicName = null;
+      });
       try {
         final syllabus = await ApiClient.getSyllabus(sectionId);
         final match = syllabus.firstWhere(
@@ -722,6 +733,18 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
         setSheetFn(() { chapterOptions = chapters; loadingChapters = false; });
       } catch (_) {
         setSheetFn(() { loadingChapters = false; });
+      }
+    }
+
+    // Topics are chapter-scoped — always re-fetched fresh for the specific
+    // chapterId just selected, never carried over from a previous chapter.
+    Future<void> loadTopics(String chapterId, void Function(void Function()) setSheetFn) async {
+      setSheetFn(() { loadingTopics = true; topicOptions = []; selectedTopicId = null; selectedTopicName = null; });
+      try {
+        final topics = await ApiClient.getTopics(chapterId);
+        setSheetFn(() { topicOptions = topics; loadingTopics = false; });
+      } catch (_) {
+        setSheetFn(() { loadingTopics = false; });
       }
     }
 
@@ -921,6 +944,9 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                                 selectedChapterId = null;
                                 selectedChapterName = null;
                                 markChapterCompleted = false;
+                                topicOptions = [];
+                                selectedTopicId = null;
+                                selectedTopicName = null;
                               }),
                             );
                           }
@@ -940,11 +966,14 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             name: chName,
                             active: active,
                             statusColor: statusColor,
-                            onTap: () => setSheet(() {
-                              selectedChapterId = chId;
-                              selectedChapterName = chName;
-                              markChapterCompleted = false;
-                            }),
+                            onTap: () {
+                              setSheet(() {
+                                selectedChapterId = chId;
+                                selectedChapterName = chName;
+                                markChapterCompleted = false;
+                              });
+                              loadTopics(chId, setSheet);
+                            },
                           );
                         },
                       ),
@@ -970,6 +999,52 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         ],
                       ),
                     ),
+                    // Topic picker — chapter-scoped, only shown when this chapter
+                    // actually has topics (most don't yet; that's fine, this whole
+                    // block just doesn't render and work logs behave as before).
+                    if (loadingTopics) ...[
+                      const SizedBox(height: 8),
+                      const SizedBox(
+                        height: 28,
+                        child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))),
+                      ),
+                    ] else if (topicOptions.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      const Text('Topic (optional)',
+                          style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 34,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: topicOptions.length + 1,
+                          separatorBuilder: (_, __) => const SizedBox(width: 6),
+                          itemBuilder: (_, i) {
+                            if (i == 0) {
+                              return _SectionChip(
+                                label: 'None',
+                                active: selectedTopicId == null,
+                                onTap: () => setSheet(() {
+                                  selectedTopicId = null;
+                                  selectedTopicName = null;
+                                }),
+                              );
+                            }
+                            final tp = topicOptions[i - 1];
+                            final tpId = tp['id'] as String? ?? '';
+                            final tpName = tp['name'] as String? ?? '';
+                            return _SectionChip(
+                              label: tpName,
+                              active: selectedTopicId == tpId,
+                              onTap: () => setSheet(() {
+                                selectedTopicId = tpId;
+                                selectedTopicName = tpName;
+                              }),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ],
                 ],
                 const SizedBox(height: 10),
@@ -1214,6 +1289,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             subjectId: selectedSubjectId,
                             chapterId: selectedChapterId,
                             markChapterCompleted: markChapterCompleted,
+                            topicId: selectedTopicId,
                           );
                         }
                         descCtrl.clear();
@@ -1573,7 +1649,10 @@ class _WorkLogCard extends StatelessWidget {
             ),
             if (entry.chapterName != null) ...[
               const SizedBox(height: 6),
-              _ChapterStatusChip(name: entry.chapterName!, status: entry.chapterStatus),
+              _ChapterStatusChip(
+                name: entry.topicName != null ? '${entry.chapterName!} · ${entry.topicName}' : entry.chapterName!,
+                status: entry.chapterStatus,
+              ),
             ],
             if (entry.dueDate != null) ...[
               const SizedBox(height: 6),

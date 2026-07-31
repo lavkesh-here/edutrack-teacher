@@ -20,6 +20,7 @@ class _ServerEnv {
 
 const _kKnownServers = <_ServerEnv>[
   _ServerEnv('Production', ApiClient.defaultBaseUrl),
+  _ServerEnv('Dev (Cloud)', ApiClient.devCloudBaseUrl),
   _ServerEnv('Dev (Emulator)', ApiClient.devBaseUrl),
   _ServerEnv('Dev (Phone/LAN)', ApiClient.devLanBaseUrl),
 ];

@@ -399,6 +399,22 @@ class AnalysisInsight {
       );
 }
 
+// ── Shared chat reply shape (Ask Vidya + EduTrack Support) ───────────────────
+
+class ChatReply {
+  final String reply;
+  final List<String> suggestedQuestions;
+  const ChatReply({required this.reply, this.suggestedQuestions = const []});
+
+  factory ChatReply.fromJson(Map<String, dynamic> j) => ChatReply(
+        reply: j['reply'] as String? ?? '',
+        suggestedQuestions: (j['suggested_questions'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
+      );
+}
+
 // ── Test analysis result (richer model for mobile Run Analysis) ──────────────
 
 class TestAnalysisResult {
@@ -1067,7 +1083,8 @@ class ApiClient {
     try {
       final data = await _get('/api/v1/tests/$testId/analysis/saved');
       if (data == null) return null;
-      final insight = (data as Map<String, dynamic>)['class_insight'];
+      final insight = ((data as Map<String, dynamic>)['analysis']
+          as Map<String, dynamic>?)?['class_insight'];
       if (insight == null) return null;
       return AnalysisInsight.fromJson(insight as Map<String, dynamic>);
     } catch (_) {
@@ -1901,7 +1918,7 @@ class ApiClient {
 
   // ── Support chat ───────────────────────────────────────────────────────────
 
-  static Future<String> supportChat({
+  static Future<ChatReply> supportChat({
     required String message,
     required List<Map<String, String>> history,
   }) async {
@@ -1909,12 +1926,12 @@ class ApiClient {
       'message': message,
       'history': history,
     });
-    return data['reply'] as String;
+    return ChatReply.fromJson(data as Map<String, dynamic>);
   }
 
   // ── Vidya copilot ──────────────────────────────────────────────────────────
 
-  static Future<String> askVidya({
+  static Future<ChatReply> askVidya({
     required String question,
     required List<Map<String, String>> history,
   }) async {
@@ -1922,7 +1939,7 @@ class ApiClient {
       'question': question,
       'history': history,
     });
-    return data['reply'] as String;
+    return ChatReply.fromJson(data as Map<String, dynamic>);
   }
 
   // ── WhatsApp parent report ─────────────────────────────────────────────────
@@ -1984,6 +2001,25 @@ class ApiClient {
   static Future<Map<String, dynamic>> generateStudentFullReport(String studentId) async {
     return (await _post('/api/v1/teacher/students/$studentId/full-report', {}))
         as Map<String, dynamic>;
+  }
+
+  /// Downloads the student's report card as PDF bytes, ready to hand to
+  /// share_plus. Two-step flow (short-lived token, then unauthenticated
+  /// download) matches the export/pdf pattern used for test papers — the
+  /// download itself carries no session JWT.
+  static Future<Uint8List> getStudentReportCardPdfBytes(String studentId) async {
+    final tokenData = await _get(
+        '/api/v1/teacher/students/$studentId/full-report/export-token');
+    final token = (tokenData as Map<String, dynamic>)['token'] as String;
+
+    final base = await getBaseUrl();
+    final uri = Uri.parse(
+        '$base/api/v1/teacher/students/$studentId/full-report/pdf?token=$token');
+    final res = await http.get(uri).timeout(const Duration(seconds: 30));
+    if (res.statusCode >= 400) {
+      throw ApiError('Could not generate PDF (${res.statusCode})', res.statusCode);
+    }
+    return res.bodyBytes;
   }
 
   // ── Group D: Spaced repetition ─────────────────────────────────────────────

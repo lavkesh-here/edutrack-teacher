@@ -134,7 +134,6 @@ class _BrainBoosterScreenState extends State<BrainBoosterScreen>
                   ),
                 ),
               ),
-              title: const Text('Brain Booster', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
               collapseMode: CollapseMode.parallax,
             ),
             leading: IconButton(

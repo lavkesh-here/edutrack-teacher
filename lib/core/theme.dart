@@ -87,7 +87,12 @@ ThemeData buildTheme([Color primary = AppColors.sun]) => ThemeData(
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          // Horizontal padding matters at least as much as vertical here — this
+          // shape is a full stadium (radius 40), so text crowds the curved
+          // ends badly without generous side padding on any button that
+          // doesn't override this itself (e.g. plain ElevatedButton(child:
+          // Text('Apply for Leave'))).
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: const TextStyle(
             fontFamily: 'Outfit',
             fontWeight: FontWeight.w700,

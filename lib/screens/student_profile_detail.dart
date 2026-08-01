@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/api.dart';
 import '../core/auth.dart';
@@ -2181,6 +2182,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
   Map<String, dynamic>? _report;
   bool _loading = true;
   bool _generating = false;
+  bool _sharing = false;
   String? _error;
 
   @override
@@ -2224,6 +2226,28 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
       if (mounted) showSnack(context, 'Generation failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  Future<void> _shareReport() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final bytes = await ApiClient.getStudentReportCardPdfBytes(widget.studentId);
+      final studentName =
+          (_report?['report'] as Map<String, dynamic>?)?['student_name'] as String? ?? 'report';
+      final file = XFile.fromData(
+        bytes,
+        mimeType: 'application/pdf',
+        name: 'report_${studentName.replaceAll(' ', '_')}.pdf',
+      );
+      if (mounted) {
+        await Share.shareXFiles([file], subject: 'Report Card — $studentName');
+      }
+    } catch (e) {
+      if (mounted) showSnack(context, 'Could not share PDF: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _sharing = false);
     }
   }
 
@@ -2282,7 +2306,17 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              if (hasReport) ...[
+                IconButton(
+                  key: const Key('share_report_card_button'),
+                  onPressed: _sharing ? null : _shareReport,
+                  tooltip: 'Share PDF',
+                  icon: _sharing
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Icon(Icons.share, color: context.primary),
+                ),
+                const SizedBox(width: 4),
+              ],
               ElevatedButton.icon(
                 onPressed: _generating ? null : _generateReport,
                 icon: _generating

@@ -261,7 +261,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
       margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      // Short labels (e.g. "All") need a floor width, otherwise this box goes
+      // nearly square and a pill-shaped border radius reads as a circle
+      // instead of matching the other, wider chips.
+      constraints: const BoxConstraints(minWidth: 64),
       decoration: BoxDecoration(
         color: selected ? context.primary : Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -269,6 +273,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       child: Text(
         label,
+        textAlign: TextAlign.center,
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? Colors.white : AppColors.muted),
       ),
     ),

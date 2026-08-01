@@ -18,6 +18,15 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   static const _maxChars = 500;
   static List<_Msg> _cache = [];
 
+  // Follow-up chips only trail the most recent reply, and disappear once a
+  // new question is in flight.
+  List<String> get _trailingSuggestions {
+    if (_loading || _messages.isEmpty) return const [];
+    final last = _messages.last;
+    if (last.role != 'model' || last.isError) return const [];
+    return last.suggestions;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -48,19 +57,19 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       final history = _messages.length > 1
           ? _messages
               .sublist(0, _messages.length - 1)
-              .takeLast(10)
+              .takeLast(5)
               .map((m) => {'role': m.role, 'text': m.text})
               .toList()
           : <Map<String, String>>[];
 
-      final reply = await ApiClient.supportChat(
+      final result = await ApiClient.supportChat(
         message: text,
         history: history,
       );
       if (mounted) {
         setState(() {
-          _messages.add(_Msg(role: 'model', text: reply));
-          _cache = _messages.takeLast(2).toList();
+          _messages.add(_Msg(role: 'model', text: result.reply, suggestions: result.suggestedQuestions));
+          _cache = _messages.takeLast(5).toList();
         });
         _scrollToBottom();
       }
@@ -153,9 +162,20 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                    itemCount: _messages.length + (_loading ? 1 : 0),
+                    itemCount: _messages.length +
+                        (_loading ? 1 : 0) +
+                        (_trailingSuggestions.isNotEmpty ? 1 : 0),
                     itemBuilder: (context, i) {
-                      if (i == _messages.length) return const _TypingBubble();
+                      if (i == _messages.length && _loading) return const _TypingBubble();
+                      if (i == _messages.length + (_loading ? 1 : 0)) {
+                        return _FollowUpChips(
+                          suggestions: _trailingSuggestions,
+                          onTap: (s) {
+                            _controller.text = s;
+                            _send();
+                          },
+                        );
+                      }
                       return _MessageBubble(msg: _messages[i]);
                     },
                   ),
@@ -174,21 +194,31 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      maxLength: _maxChars,
-                      maxLines: 4,
-                      minLines: 1,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        hintText: 'Ask anything about the app…',
-                        hintStyle: TextStyle(color: AppColors.muted, fontSize: 14),
-                        border: InputBorder.none,
-                        counterText: '',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 120),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: AppColors.border),
                       ),
-                      onSubmitted: (_) => _send(),
+                      child: TextField(
+                        controller: _controller,
+                        maxLength: _maxChars,
+                        maxLines: 4,
+                        minLines: 1,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          hintText: 'Ask anything about the app…',
+                          hintStyle: TextStyle(color: AppColors.muted, fontSize: 14),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          counterText: '',
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
+                        onSubmitted: (_) => _send(),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -226,10 +256,11 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 // ── Widgets ───────────────────────────────────────────────────────────────────
 
 class _Msg {
-  const _Msg({required this.role, required this.text, this.isError = false});
+  const _Msg({required this.role, required this.text, this.isError = false, this.suggestions = const []});
   final String role;
   final String text;
   final bool isError;
+  final List<String> suggestions;
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -462,6 +493,34 @@ class _SuggestionChip extends StatelessWidget {
           border: Border.all(color: AppColors.border, width: 1.5),
         ),
         child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.text2)),
+      ),
+    );
+  }
+}
+
+class _FollowUpChips extends StatelessWidget {
+  final List<String> suggestions;
+  final ValueChanged<String> onTap;
+  const _FollowUpChips({required this.suggestions, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 36, bottom: 10),
+      child: Wrap(
+        spacing: 8, runSpacing: 8,
+        children: suggestions.map((s) => GestureDetector(
+          onTap: () => onTap(s),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border, width: 1.5),
+            ),
+            child: Text(s, style: const TextStyle(fontSize: 13, color: AppColors.text2)),
+          ),
+        )).toList(),
       ),
     );
   }

@@ -18,6 +18,16 @@ class _VidyaScreenState extends State<VidyaScreen> {
   static const _maxChars = 400;
   static const _tealDark = Color(0xFF0C3B36);
 
+  // Follow-up chips only trail the most recent reply, and disappear once a
+  // new question is in flight — stale suggestions from an earlier turn
+  // shouldn't linger once the conversation has moved on.
+  List<String> get _trailingSuggestions {
+    if (_loading || _messages.isEmpty) return const [];
+    final last = _messages.last;
+    if (last.role != 'assistant' || last.isError) return const [];
+    return last.suggestions;
+  }
+
   // Suggested prompts for onboarding / empty state
   static const _suggestions = [
     'Who was absent today?',
@@ -45,19 +55,23 @@ class _VidyaScreenState extends State<VidyaScreen> {
     _ctrl.clear();
     _scrollToBottom();
 
-    // Build history from previous messages (last 6 turns)
+    // Build history from previous messages (last 5 turns)
     final history = _messages.length > 1
         ? _messages
             .sublist(0, _messages.length - 1)
-            .takeLast(6)
+            .takeLast(5)
             .map((m) => {'role': m.role == 'user' ? 'user' : 'assistant', 'content': m.text})
             .toList()
         : <Map<String, String>>[];
 
     try {
-      final reply = await ApiClient.askVidya(question: text, history: history);
+      final result = await ApiClient.askVidya(question: text, history: history);
       if (mounted) {
-        setState(() => _messages.add(_Msg(role: 'assistant', text: reply)));
+        setState(() => _messages.add(_Msg(
+          role: 'assistant',
+          text: result.reply,
+          suggestions: result.suggestedQuestions,
+        )));
         _scrollToBottom();
       }
     } catch (e) {
@@ -140,9 +154,14 @@ class _VidyaScreenState extends State<VidyaScreen> {
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    itemCount: _messages.length + (_loading ? 1 : 0),
+                    itemCount: _messages.length +
+                        (_loading ? 1 : 0) +
+                        (_trailingSuggestions.isNotEmpty ? 1 : 0),
                     itemBuilder: (context, i) {
-                      if (i == _messages.length) return const _TypingIndicator();
+                      if (i == _messages.length && _loading) return const _TypingIndicator();
+                      if (i == _messages.length + (_loading ? 1 : 0)) {
+                        return _FollowUpChips(suggestions: _trailingSuggestions, onTap: _send);
+                      }
                       return _Bubble(msg: _messages[i]);
                     },
                   ),
@@ -299,7 +318,8 @@ class _Msg {
   final String role; // 'user' or 'assistant'
   final String text;
   final bool isError;
-  const _Msg({required this.role, required this.text, this.isError = false});
+  final List<String> suggestions;
+  const _Msg({required this.role, required this.text, this.isError = false, this.suggestions = const []});
 }
 
 class _Bubble extends StatelessWidget {
@@ -359,6 +379,36 @@ class _Bubble extends StatelessWidget {
           ),
           if (isUser) const SizedBox(width: 8),
         ],
+      ),
+    );
+  }
+}
+
+// ── Follow-up suggestion chips (after the latest reply) ────────────────────────
+
+class _FollowUpChips extends StatelessWidget {
+  final List<String> suggestions;
+  final ValueChanged<String> onTap;
+  const _FollowUpChips({required this.suggestions, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 36, bottom: 10),
+      child: Wrap(
+        spacing: 8, runSpacing: 8,
+        children: suggestions.map((s) => GestureDetector(
+          onTap: () => onTap(s),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border, width: 1.5),
+            ),
+            child: Text(s, style: const TextStyle(fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w600)),
+          ),
+        )).toList(),
       ),
     );
   }

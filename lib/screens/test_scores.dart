@@ -454,10 +454,10 @@ class _SmartAnalysisSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A0A00), Color(0xFF3D1A08)],
+          colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.35)!],
         ),
         borderRadius: BorderRadius.circular(20),
       ),
@@ -1053,23 +1053,29 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                                                 controller: _nameControllers[i],
                                                 onChanged: (_) => setState(() {}),
                                                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                                                decoration: const InputDecoration(
+                                                decoration: InputDecoration(
                                                   hintText: 'Student name',
                                                   isDense: true,
-                                                  contentPadding: EdgeInsets.symmetric(vertical: 4),
-                                                  border: UnderlineInputBorder(),
+                                                  filled: false,
+                                                  contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                                  border: const UnderlineInputBorder(),
+                                                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border)),
+                                                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: context.primary)),
                                                 ),
                                               ),
                                               SizedBox(
-                                                width: 80,
+                                                width: 90,
                                                 child: TextField(
                                                   controller: _rollControllers[i],
                                                   style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                                                  decoration: const InputDecoration(
+                                                  decoration: InputDecoration(
                                                     hintText: 'Roll no.',
                                                     isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(vertical: 2),
-                                                    border: UnderlineInputBorder(),
+                                                    filled: false,
+                                                    contentPadding: const EdgeInsets.symmetric(vertical: 2),
+                                                    border: const UnderlineInputBorder(),
+                                                    enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border)),
+                                                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: context.primary)),
                                                   ),
                                                 ),
                                               ),

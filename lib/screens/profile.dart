@@ -268,11 +268,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               // Hero
               Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF1A0A00), Color(0xFF3D1A08)],
+                    colors: [context.primary, Color.lerp(context.primary, Colors.black, 0.35)!],
                   ),
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 28, 20, 22),

@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../core/api.dart';
+import '../core/permission_gate.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
@@ -47,28 +48,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
   }
 
   Future<void> _markAttendance() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      if (mounted) {
-        showSnack(
-          context,
-          permission == LocationPermission.deniedForever
-              ? 'Location permission permanently denied. Enable in device Settings.'
-              : 'Location permission is required to mark attendance.',
-          error: true,
-        );
-      }
-      return;
-    }
-
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) showSnack(context, 'Please enable location services on your device.', error: true);
-      return;
-    }
+    if (!await ensureLocationReady(context)) return;
 
     setState(() => _marking = true);
     try {

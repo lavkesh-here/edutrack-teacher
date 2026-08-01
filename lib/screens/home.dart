@@ -32,6 +32,8 @@ import 'admin_sos.dart';
 import 'director_dashboard.dart';
 import 'notifications_screen.dart';
 import 'todos.dart';
+import 'enquiries.dart';
+import 'permissions_screen.dart';
 import 'my_attendance.dart';
 import 'qualifications.dart';
 import 'syllabus.dart';
@@ -992,6 +994,8 @@ class _HomeTabState extends State<_HomeTab> {
       case 'qualifications':  _openScreen(context, const QualificationsScreen(), recentId: id);
       case 'syllabus':        _openScreen(context, const SyllabusScreen(), recentId: id);
       case 'circulars':       _openScreen(context, const CircularsScreen(), recentId: id);
+      case 'enquiries':       _openScreen(context, const EnquiriesScreen(), recentId: id);
+      case 'app_permissions': _openScreen(context, const PermissionsScreen(), recentId: id);
     }
   }
 
@@ -2049,6 +2053,8 @@ class _MoreTabState extends State<_MoreTab> {
                           onTap: () => _push(context, const BankAccountsScreen(), recentId: 'bank_accounts')),
                     _FeatureRow(icon: '🎓', iconBg: AppColors.violetLight, title: 'Qualifications', sub: 'Degrees & certifications',
                         onTap: () => _push(context, const QualificationsScreen(), recentId: 'qualifications')),
+                    _FeatureRow(icon: '🔐', iconBg: AppColors.skyLight, title: 'Permissions', sub: 'What the app can access, and why',
+                        onTap: () => _push(context, const PermissionsScreen(), recentId: 'app_permissions')),
 
                     const SizedBox(height: 16),
 
@@ -2065,6 +2071,8 @@ class _MoreTabState extends State<_MoreTab> {
                           onTap: () => _push(context, const CircularsScreen(), recentId: 'circulars')),
                     _FeatureRow(icon: '🤝', iconBg: AppColors.violetLight, title: 'PTM', sub: 'Parent-teacher meetings & notes',
                         onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
+                    _FeatureRow(icon: '🙋', iconBg: AppColors.amberLight, title: 'Enquiries', sub: 'Visitors who came to meet you & follow-ups',
+                        onTap: () => _push(context, const EnquiriesScreen(), recentId: 'enquiries')),
                     _FeatureRow(icon: '🏥', iconBg: AppColors.coralLight, title: 'Health Incidents', sub: 'Log & track student health events',
                         onTap: () => _push(context, const HealthIncidentsScreen(), recentId: 'health')),
                     _FeatureRow(icon: '🔄', iconBg: AppColors.tealLight, title: 'Substitutions', sub: 'Self-assign & view coverage history',

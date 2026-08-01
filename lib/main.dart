@@ -7,12 +7,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/auth.dart';
 import 'core/api.dart';
 import 'core/branding.dart';
 import 'core/device_context.dart';
 import 'core/theme.dart';
+import 'core/version_check.dart';
 import 'screens/login.dart';
 import 'screens/home.dart';
 import 'screens/force_change_password.dart';
@@ -159,6 +161,15 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     // and 401s for a fresh install — retry now that we have a valid session.
     if (justLoggedIn && _fcmToken != null) {
       _registerToken(_fcmToken!);
+    }
+    // Prime location permission right after login — a teacher who's about to
+    // mark their own attendance shouldn't hit a cold "why is this asking me
+    // for location" moment mid-task. Fire-and-forget: declining here is fine,
+    // the in-app Permissions screen (and the JIT gate on the action itself)
+    // both still work later.
+    if (justLoggedIn) {
+      Permission.locationWhenInUse.request();
+      checkForForcedUpdate(context);
     }
   }
 

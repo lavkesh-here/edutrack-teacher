@@ -1566,6 +1566,61 @@ class ApiClient {
     await _delete('/api/v1/teacher/todos/$id');
   }
 
+  // ── Force-update check ───────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> checkVersionPolicy() async {
+    final data = await _get('/api/v1/teacher/version-check');
+    return data as Map<String, dynamic>;
+  }
+
+  // ── Enquiries (visitors who came to meet the teacher) ──────────────────────
+
+  static Future<List<Map<String, dynamic>>> getEnquiries({String? status, bool? needsFollowup}) async {
+    final params = <String>[];
+    if (status != null) params.add('status=${Uri.encodeComponent(status)}');
+    if (needsFollowup != null) params.add('needs_followup=$needsFollowup');
+    final path = '/api/v1/teacher/enquiries${params.isEmpty ? '' : '?${params.join('&')}'}';
+    final data = await _get(path);
+    return ((data as Map<String, dynamic>)['enquiries'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  static Future<Map<String, dynamic>> createEnquiry({
+    required String visitorName,
+    String? visitorPhone,
+    String? purpose,
+    String? notes,
+    bool needsFollowup = false,
+    DateTime? followupAt,
+  }) async {
+    final data = await _post('/api/v1/teacher/enquiries', {
+      'visitor_name': visitorName,
+      if (visitorPhone != null && visitorPhone.isNotEmpty) 'visitor_phone': visitorPhone,
+      if (purpose != null && purpose.isNotEmpty) 'purpose': purpose,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'needs_followup': needsFollowup,
+      if (followupAt != null) 'followup_at': followupAt.toUtc().toIso8601String(),
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> updateEnquiry(
+    String id, {
+    String? notes,
+    bool? needsFollowup,
+    DateTime? followupAt,
+    bool clearFollowup = false,
+    String? status,
+  }) async {
+    final data = await _patch('/api/v1/teacher/enquiries/$id', {
+      if (notes != null) 'notes': notes,
+      if (needsFollowup != null) 'needs_followup': needsFollowup,
+      if (followupAt != null) 'followup_at': followupAt.toUtc().toIso8601String()
+      else if (clearFollowup) 'followup_at': null,
+      if (status != null) 'status': status,
+    });
+    return data as Map<String, dynamic>;
+  }
+
   // ── Notify parents history ────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getNotifyParentsHistory({String? classSectionId, String? studentId}) async {

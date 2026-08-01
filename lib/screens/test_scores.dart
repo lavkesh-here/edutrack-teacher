@@ -779,6 +779,9 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
   final Map<int, TextEditingController> _controllers = {};
   final Map<int, TextEditingController> _nameControllers = {};
   final Map<int, TextEditingController> _rollControllers = {};
+  // Only read/shown when widget.test.marksBreakdownEnabled.
+  final Map<int, TextEditingController> _practicalControllers = {};
+  final Map<int, TextEditingController> _internalControllers = {};
   final Map<int, bool> _absent = {};
   final Set<int> _manualRows = {};
   bool _loading = true;
@@ -800,6 +803,8 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
     for (final c in _controllers.values) c.dispose();
     for (final c in _nameControllers.values) c.dispose();
     for (final c in _rollControllers.values) c.dispose();
+    for (final c in _practicalControllers.values) c.dispose();
+    for (final c in _internalControllers.values) c.dispose();
     super.dispose();
   }
 
@@ -807,14 +812,22 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
     for (final c in _controllers.values) c.dispose();
     for (final c in _nameControllers.values) c.dispose();
     for (final c in _rollControllers.values) c.dispose();
+    for (final c in _practicalControllers.values) c.dispose();
+    for (final c in _internalControllers.values) c.dispose();
     _controllers.clear();
     _nameControllers.clear();
     _rollControllers.clear();
+    _practicalControllers.clear();
+    _internalControllers.clear();
     _absent.clear();
     _manualRows.clear();
     _roster = roster;
     for (int i = 0; i < roster.length; i++) {
       _controllers[i] = TextEditingController();
+      if (widget.test.marksBreakdownEnabled) {
+        _practicalControllers[i] = TextEditingController();
+        _internalControllers[i] = TextEditingController();
+      }
       _absent[i] = false;
     }
   }
@@ -868,6 +881,10 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
       _controllers[idx] = TextEditingController();
       _nameControllers[idx] = TextEditingController();
       _rollControllers[idx] = TextEditingController();
+      if (widget.test.marksBreakdownEnabled) {
+        _practicalControllers[idx] = TextEditingController();
+        _internalControllers[idx] = TextEditingController();
+      }
       _absent[idx] = false;
       _manualRows.add(idx);
     });
@@ -911,12 +928,20 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
         final isManual = _manualRows.contains(i);
         final name = isManual ? _nameControllers[i]!.text.trim() : (s['student_name'] as String? ?? '');
         final rollNo = isManual ? _rollControllers[i]!.text.trim() : (s['roll_no'] as String?);
+        double? parseOrNull(TextEditingController? c) {
+          final t = c?.text.trim();
+          return (t == null || t.isEmpty) ? null : double.tryParse(t);
+        }
         scores.add({
           'student_id': s['student_id'],
           'student_name': name,
           'roll_no': rollNo,
           'score': isAbsent ? 0.0 : double.parse(_controllers[i]!.text.trim()),
           'is_absent': isAbsent,
+          if (widget.test.marksBreakdownEnabled && !isAbsent) ...{
+            'practical_marks': parseOrNull(_practicalControllers[i]),
+            'internal_marks': parseOrNull(_internalControllers[i]),
+          },
         });
       }
       await ApiClient.submitTestScores(widget.test.id, scores);
@@ -996,7 +1021,10 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                                   border: Border.all(color: AppColors.border),
                                 ),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
                                   children: [
                                     Container(
                                       width: 36, height: 36,
@@ -1087,6 +1115,43 @@ class _MarkEntryScreenState extends State<_MarkEntryScreen> {
                                           setState(() => _absent[i] = true);
                                         },
                                         child: const Icon(Icons.person_off_outlined, color: AppColors.muted, size: 20),
+                                      ),
+                                    ],
+                                  ],
+                                    ),
+                                    if (widget.test.marksBreakdownEnabled && !isAbsent) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const SizedBox(width: 46),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _practicalControllers[i],
+                                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                              style: const TextStyle(fontSize: 13),
+                                              decoration: const InputDecoration(
+                                                labelText: 'Practical',
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                                border: OutlineInputBorder(),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _internalControllers[i],
+                                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                              style: const TextStyle(fontSize: 13),
+                                              decoration: const InputDecoration(
+                                                labelText: 'Internal',
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                                border: OutlineInputBorder(),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ],

@@ -691,8 +691,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     bool markChapterCompleted = false;
     bool loadingChapters = false;
     List<Map<String, dynamic>> topicOptions = [];
-    String? selectedTopicId;
-    String? selectedTopicName;
+    final Set<String> selectedTopicIds = {};
     bool loadingTopics = false;
     String? _subjectsLoadedForSectionId;
     bool subjectsLoading = true;
@@ -720,7 +719,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
     Future<void> loadChapters(String sectionId, String subjectId, void Function(void Function()) setSheetFn) async {
       setSheetFn(() {
         loadingChapters = true; chapterOptions = []; selectedChapterId = null; selectedChapterName = null;
-        markChapterCompleted = false; topicOptions = []; selectedTopicId = null; selectedTopicName = null;
+        markChapterCompleted = false; topicOptions = []; selectedTopicIds.clear();
       });
       try {
         final syllabus = await ApiClient.getSyllabus(sectionId);
@@ -738,10 +737,12 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
 
     // Topics are chapter-scoped — always re-fetched fresh for the specific
     // chapterId just selected, never carried over from a previous chapter.
-    Future<void> loadTopics(String chapterId, void Function(void Function()) setSheetFn) async {
-      setSheetFn(() { loadingTopics = true; topicOptions = []; selectedTopicId = null; selectedTopicName = null; });
+    // sectionId (only when a single section is selected) brings back each
+    // topic's `covered` flag so the teacher can spot what's left to teach.
+    Future<void> loadTopics(String chapterId, String? sectionId, void Function(void Function()) setSheetFn) async {
+      setSheetFn(() { loadingTopics = true; topicOptions = []; selectedTopicIds.clear(); });
       try {
-        final topics = await ApiClient.getTopics(chapterId);
+        final topics = await ApiClient.getTopics(chapterId, classSectionId: sectionId);
         setSheetFn(() { topicOptions = topics; loadingTopics = false; });
       } catch (_) {
         setSheetFn(() { loadingTopics = false; });
@@ -945,8 +946,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                                 selectedChapterName = null;
                                 markChapterCompleted = false;
                                 topicOptions = [];
-                                selectedTopicId = null;
-                                selectedTopicName = null;
+                                selectedTopicIds.clear();
                               }),
                             );
                           }
@@ -972,13 +972,61 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                                 selectedChapterName = chName;
                                 markChapterCompleted = false;
                               });
-                              loadTopics(chId, setSheet);
+                              loadTopics(chId, currentSectionId, setSheet);
                             },
                           );
                         },
                       ),
                     ),
                   if (selectedChapterId != null) ...[
+                    // Topic picker — chapter-scoped, only shown when this chapter
+                    // actually has topics (most don't yet; that's fine, this whole
+                    // block just doesn't render and work logs behave as before).
+                    // Multi-select: a teacher can cover several topics from the
+                    // same chapter in one session. Topics already logged against
+                    // this section (covered == true) get a check-mark so the
+                    // teacher can spot what's left at a glance.
+                    if (loadingTopics) ...[
+                      const SizedBox(height: 8),
+                      const SizedBox(
+                        height: 28,
+                        child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))),
+                      ),
+                    ] else if (topicOptions.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      const Text('Topics (optional, pick any that apply)',
+                          style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 34,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: topicOptions.length + 1,
+                          separatorBuilder: (_, __) => const SizedBox(width: 6),
+                          itemBuilder: (_, i) {
+                            if (i == 0) {
+                              return _SectionChip(
+                                label: 'Clear',
+                                active: selectedTopicIds.isEmpty,
+                                onTap: () => setSheet(() => selectedTopicIds.clear()),
+                              );
+                            }
+                            final tp = topicOptions[i - 1];
+                            final tpId = tp['id'] as String? ?? '';
+                            final tpName = tp['name'] as String? ?? '';
+                            final tpCovered = tp['covered'] as bool? ?? false;
+                            return _SectionChip(
+                              label: tpName,
+                              active: selectedTopicIds.contains(tpId),
+                              covered: tpCovered,
+                              onTap: () => setSheet(() {
+                                if (!selectedTopicIds.remove(tpId)) selectedTopicIds.add(tpId);
+                              }),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: () => setSheet(() => markChapterCompleted = !markChapterCompleted),
@@ -999,52 +1047,6 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                         ],
                       ),
                     ),
-                    // Topic picker — chapter-scoped, only shown when this chapter
-                    // actually has topics (most don't yet; that's fine, this whole
-                    // block just doesn't render and work logs behave as before).
-                    if (loadingTopics) ...[
-                      const SizedBox(height: 8),
-                      const SizedBox(
-                        height: 28,
-                        child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))),
-                      ),
-                    ] else if (topicOptions.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      const Text('Topic (optional)',
-                          style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 6),
-                      SizedBox(
-                        height: 34,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: topicOptions.length + 1,
-                          separatorBuilder: (_, __) => const SizedBox(width: 6),
-                          itemBuilder: (_, i) {
-                            if (i == 0) {
-                              return _SectionChip(
-                                label: 'None',
-                                active: selectedTopicId == null,
-                                onTap: () => setSheet(() {
-                                  selectedTopicId = null;
-                                  selectedTopicName = null;
-                                }),
-                              );
-                            }
-                            final tp = topicOptions[i - 1];
-                            final tpId = tp['id'] as String? ?? '';
-                            final tpName = tp['name'] as String? ?? '';
-                            return _SectionChip(
-                              label: tpName,
-                              active: selectedTopicId == tpId,
-                              onTap: () => setSheet(() {
-                                selectedTopicId = tpId;
-                                selectedTopicName = tpName;
-                              }),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
                   ],
                 ],
                 const SizedBox(height: 10),
@@ -1289,7 +1291,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             subjectId: selectedSubjectId,
                             chapterId: selectedChapterId,
                             markChapterCompleted: markChapterCompleted,
-                            topicId: selectedTopicId,
+                            topicIds: selectedTopicIds.isNotEmpty ? selectedTopicIds.toList() : null,
                           );
                         }
                         descCtrl.clear();
@@ -1401,7 +1403,10 @@ class _SectionChip extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _SectionChip({required this.label, required this.active, required this.onTap});
+  // Small check-mark shown before the label — used by the topic picker to
+  // flag topics already covered in a past work log for this section.
+  final bool covered;
+  const _SectionChip({required this.label, required this.active, required this.onTap, this.covered = false});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -1415,13 +1420,22 @@ class _SectionChip extends StatelessWidget {
             border: Border.all(
                 color: active ? context.primary : AppColors.border, width: 1.5),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: active ? Colors.white : AppColors.muted,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (covered) ...[
+                Icon(Icons.check_circle, size: 12, color: active ? Colors.white : AppColors.green),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : AppColors.muted,
+                ),
+              ),
+            ],
           ),
         ),
       );

@@ -140,6 +140,7 @@ class TestSummary {
   final String? workType;
   final int? durationMinutes;
   final String? variantLevel;
+  final bool marksBreakdownEnabled;
 
   const TestSummary({
     required this.id,
@@ -155,6 +156,7 @@ class TestSummary {
     this.workType,
     this.durationMinutes,
     this.variantLevel,
+    this.marksBreakdownEnabled = false,
   });
 
   factory TestSummary.fromJson(Map<String, dynamic> j) => TestSummary(
@@ -174,6 +176,7 @@ class TestSummary {
         workType: j['work_type'] as String?,
         durationMinutes: j['exam_duration_minutes'] as int?,
         variantLevel: j['variant_level'] as String?,
+        marksBreakdownEnabled: j['marks_breakdown_enabled'] as bool? ?? false,
       );
 }
 
@@ -1359,7 +1362,7 @@ class ApiClient {
     List<String>? imageUrls,
     String? chapterId,
     bool markChapterCompleted = false,
-    String? topicId,
+    List<String>? topicIds,
   }) async {
     await _post('/api/v1/teacher/work-log', {
       'class_section_id': classSectionId,
@@ -1371,9 +1374,9 @@ class ApiClient {
       if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
       if (chapterId != null) 'chapter_id': chapterId,
       if (chapterId != null) 'mark_chapter_completed': markChapterCompleted,
-      // topicId must belong to chapterId — the server validates this and
-      // rejects the request if it doesn't, so never send one without the other.
-      if (chapterId != null && topicId != null) 'topic_id': topicId,
+      // topicIds must belong to chapterId — the server validates this and
+      // rejects the request if none do, so never send these without a chapterId.
+      if (chapterId != null && topicIds != null && topicIds.isNotEmpty) 'topic_ids': topicIds,
     });
   }
 
@@ -2097,9 +2100,11 @@ class ApiClient {
 
   /// Topics for a specific chapter (optional — most chapters have none yet).
   /// A topic belongs to exactly one chapter; never cache/reuse this list
-  /// across a different chapterId.
-  static Future<List<Map<String, dynamic>>> getTopics(String chapterId) async {
-    final data = await _get('/api/v1/ai/topics/$chapterId');
+  /// across a different chapterId. Pass classSectionId to get each topic's
+  /// `covered` flag (already logged against this section by this teacher).
+  static Future<List<Map<String, dynamic>>> getTopics(String chapterId, {String? classSectionId}) async {
+    final qs = classSectionId != null ? '?class_section_id=$classSectionId' : '';
+    final data = await _get('/api/v1/ai/topics/$chapterId$qs');
     final topics = (data as Map<String, dynamic>)['topics'] as List<dynamic>? ?? [];
     return topics.cast<Map<String, dynamic>>();
   }

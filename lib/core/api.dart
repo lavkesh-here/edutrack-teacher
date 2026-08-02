@@ -325,6 +325,7 @@ class AttendanceStudent {
   final String rollNo;
   final String? gender;
   final String? photoUrl;
+  final String admissionNumber;
   String status; // present | absent | late | ''
 
   AttendanceStudent({
@@ -333,6 +334,7 @@ class AttendanceStudent {
     required this.rollNo,
     this.gender,
     this.photoUrl,
+    this.admissionNumber = '',
     this.status = '',
   });
 
@@ -342,6 +344,37 @@ class AttendanceStudent {
         rollNo: j['roll_no']?.toString() ?? '',
         gender: j['gender'] as String?,
         photoUrl: j['photo_url'] as String?,
+        admissionNumber: j['admission_number']?.toString() ?? '',
+      );
+}
+
+class StaffDirectoryEntry {
+  final String id;
+  final String name;
+  final String email;
+  final String? phone;
+  final String role;
+  final String? profilePhotoUrl;
+  final List<String> functionalTags;
+
+  StaffDirectoryEntry({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.phone,
+    required this.role,
+    this.profilePhotoUrl,
+    this.functionalTags = const [],
+  });
+
+  factory StaffDirectoryEntry.fromJson(Map<String, dynamic> j) => StaffDirectoryEntry(
+        id: j['id'].toString(),
+        name: j['name'] as String,
+        email: j['email'] as String,
+        phone: j['phone'] as String?,
+        role: j['role'] as String? ?? 'teacher',
+        profilePhotoUrl: j['profile_photo_url'] as String?,
+        functionalTags: (j['functional_tags'] as List<dynamic>? ?? []).cast<String>(),
       );
 }
 
@@ -2028,6 +2061,14 @@ class ApiClient {
     final path = '/api/v1/teacher/spaced-repetition${sectionId != null ? '?class_section_id=$sectionId' : ''}';
     final data = await _get(path) as List<dynamic>;
     return data.map((e) => SpacedRepChapter.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // ── Staff directory ──────────────────────────────────────────────────────
+
+  static Future<List<StaffDirectoryEntry>> getStaffDirectory({String? search}) async {
+    final qs = (search != null && search.isNotEmpty) ? '?search=${Uri.encodeQueryComponent(search)}' : '';
+    final data = await _get('/api/v1/teacher/staff-directory$qs') as List<dynamic>;
+    return data.map((e) => StaffDirectoryEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // ── Feature flags ──────────────────────────────────────────────────────────

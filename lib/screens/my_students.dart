@@ -5,6 +5,18 @@ import '../core/api.dart';
 import '../core/theme.dart';
 import 'student_profile_detail.dart';
 
+enum _SortOption {
+  rollAsc('Roll no. (low to high)'),
+  rollDesc('Roll no. (high to low)'),
+  nameAsc('Name (A–Z)'),
+  nameDesc('Name (Z–A)'),
+  admissionAsc('Admission no. (low to high)'),
+  admissionDesc('Admission no. (high to low)');
+
+  final String label;
+  const _SortOption(this.label);
+}
+
 class MyStudentsScreen extends StatefulWidget {
   const MyStudentsScreen({super.key});
 
@@ -20,6 +32,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
   bool _loadingStudents = false;
   String _search = '';
   final _searchCtrl = TextEditingController();
+  _SortOption _sortOption = _SortOption.rollAsc;
 
   @override
   void initState() {
@@ -64,11 +77,52 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
   }
 
   List<AttendanceStudent> get _filtered {
-    if (_search.isEmpty) return _students;
-    final q = _search.toLowerCase();
-    return _students.where((s) =>
-        s.name.toLowerCase().contains(q) ||
-        s.rollNo.toLowerCase().contains(q)).toList();
+    final base = _search.isEmpty
+        ? _students
+        : _students.where((s) {
+            final q = _search.toLowerCase();
+            return s.name.toLowerCase().contains(q) ||
+                s.rollNo.toLowerCase().contains(q);
+          }).toList();
+    final sorted = List<AttendanceStudent>.from(base);
+    switch (_sortOption) {
+      case _SortOption.nameAsc:
+        sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+      case _SortOption.nameDesc:
+        sorted.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+        break;
+      case _SortOption.rollAsc:
+        sorted.sort((a, b) => _naturalCompare(a.rollNo, b.rollNo));
+        break;
+      case _SortOption.rollDesc:
+        sorted.sort((a, b) => _naturalCompare(b.rollNo, a.rollNo));
+        break;
+      case _SortOption.admissionAsc:
+        sorted.sort((a, b) => _naturalCompare(a.admissionNumber, b.admissionNumber));
+        break;
+      case _SortOption.admissionDesc:
+        sorted.sort((a, b) => _naturalCompare(b.admissionNumber, a.admissionNumber));
+        break;
+    }
+    return sorted;
+  }
+
+  // Roll/admission numbers mix digits with letters (roll "1".."10", admission
+  // "DM5A001") — a plain string compare would put "10" before "2". Splits into
+  // digit/non-digit runs and compares digit runs numerically.
+  static int _naturalCompare(String a, String b) {
+    final aParts = RegExp(r'(\d+|\D+)').allMatches(a).map((m) => m.group(0)!).toList();
+    final bParts = RegExp(r'(\d+|\D+)').allMatches(b).map((m) => m.group(0)!).toList();
+    for (var i = 0; i < aParts.length && i < bParts.length; i++) {
+      final ap = aParts[i], bp = bParts[i];
+      final aNum = int.tryParse(ap), bNum = int.tryParse(bp);
+      final cmp = (aNum != null && bNum != null)
+          ? aNum.compareTo(bNum)
+          : ap.toLowerCase().compareTo(bp.toLowerCase());
+      if (cmp != 0) return cmp;
+    }
+    return aParts.length.compareTo(bParts.length);
   }
 
   @override
@@ -140,35 +194,70 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                       ),
           ),
 
-          // Search
+          // Search + sort
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextField(
-              key: const Key('student_search_field'),
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _search = v),
-              decoration: InputDecoration(
-                hintText: 'Search by name or roll...',
-                prefixIcon: const Icon(Icons.search_rounded,
-                    size: 18, color: AppColors.muted),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                hintStyle:
-                    const TextStyle(color: AppColors.muted, fontSize: 13),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: AppColors.border),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const Key('student_search_field'),
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _search = v),
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or roll...',
+                      prefixIcon: const Icon(Icons.search_rounded,
+                          size: 18, color: AppColors.muted),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      hintStyle:
+                          const TextStyle(color: AppColors.muted, fontSize: 13),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                      ),
+                    ),
+                  ),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: AppColors.border),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: PopupMenuButton<_SortOption>(
+                    key: const Key('student_sort_button'),
+                    tooltip: 'Sort',
+                    initialValue: _sortOption,
+                    onSelected: (opt) => setState(() => _sortOption = opt),
+                    icon: const Icon(Icons.sort_rounded, size: 20, color: AppColors.muted),
+                    itemBuilder: (ctx) => _SortOption.values
+                        .map((opt) => PopupMenuItem(
+                              value: opt,
+                              child: Row(
+                                children: [
+                                  if (opt == _sortOption)
+                                    Icon(Icons.check, size: 16, color: Theme.of(ctx).colorScheme.primary)
+                                  else
+                                    const SizedBox(width: 16),
+                                  const SizedBox(width: 8),
+                                  Text(opt.label, style: const TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                ),
-              ),
+              ],
             ),
           ),
 

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 
@@ -17,6 +19,56 @@ class _VidyaScreenState extends State<VidyaScreen> {
 
   static const _maxChars = 400;
   static const _tealDark = Color(0xFF0C3B36);
+  static const _maxPersistedMessages = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  // Keyed by teacher_id (matches vidya_screen.dart's per-child key in
+  // parent_app) so a different account logging in on the same device never
+  // sees a previous teacher's conversation.
+  String _prefsKey(SharedPreferences prefs) =>
+      'vidya_history_${prefs.getString('teacher_id') ?? 'unknown'}';
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsKey(prefs));
+      if (raw != null && mounted) {
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+        setState(() {
+          _messages.addAll(list.map((m) => _Msg(
+            role: m['role'] as String,
+            text: m['text'] as String,
+            suggestions: (m['suggestions'] as List?)?.cast<String>() ?? const [],
+          )));
+        });
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final toSave = _messages.length > _maxPersistedMessages
+          ? _messages.sublist(_messages.length - _maxPersistedMessages)
+          : _messages;
+      await prefs.setString(_prefsKey(prefs), jsonEncode(
+        toSave.map((m) => {'role': m.role, 'text': m.text, 'suggestions': m.suggestions}).toList(),
+      ));
+    } catch (_) {}
+  }
+
+  Future<void> _clearHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsKey(prefs));
+    } catch (_) {}
+  }
 
   // Follow-up chips only trail the most recent reply, and disappear once a
   // new question is in flight — stale suggestions from an earlier turn
@@ -73,6 +125,7 @@ class _VidyaScreenState extends State<VidyaScreen> {
           suggestions: result.suggestedQuestions,
         )));
         _scrollToBottom();
+        _saveHistory();
       }
     } catch (e) {
       if (mounted) {
@@ -140,7 +193,10 @@ class _VidyaScreenState extends State<VidyaScreen> {
         actions: [
           if (_messages.isNotEmpty)
             TextButton(
-              onPressed: () => setState(() => _messages.clear()),
+              onPressed: () {
+                setState(() => _messages.clear());
+                _clearHistory();
+              },
               child: const Text('Clear', style: TextStyle(color: AppColors.muted, fontSize: 13)),
             ),
         ],

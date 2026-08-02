@@ -63,6 +63,12 @@ jobs:
         run: |
           sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
           sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle
+          # minifyEnabled/shrinkResources alone don't stop R8 full-mode class
+          # verification, which crashes share_plus (and other plugins) with
+          # IncompatibleClassChangeError on XmlBlock$Parser on Flutter 3.27.x
+          # with AGP 8.1-8.4 (flutter/flutter#146266, #161478) — confirmed fix
+          # from multiple reporters on 3.27.3 is disabling R8 full mode too.
+          echo 'android.enableR8.fullMode=false' >> android/gradle.properties
 
       - name: Add INTERNET permission
         run: |
@@ -218,6 +224,12 @@ jobs:
         run: |
           sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
           sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle
+          # minifyEnabled/shrinkResources alone don't stop R8 full-mode class
+          # verification, which crashes share_plus (and other plugins) with
+          # IncompatibleClassChangeError on XmlBlock$Parser on Flutter 3.27.x
+          # with AGP 8.1-8.4 (flutter/flutter#146266, #161478) — confirmed fix
+          # from multiple reporters on 3.27.3 is disabling R8 full mode too.
+          echo 'android.enableR8.fullMode=false' >> android/gradle.properties
 
       - name: Add INTERNET permission
         run: |

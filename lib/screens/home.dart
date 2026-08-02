@@ -43,6 +43,7 @@ import 'faq_screen.dart';
 import 'support_chat_screen.dart';
 import 'vidya_screen.dart';
 import 'teacher_search.dart';
+import 'staff_directory.dart';
 import 'ptm.dart';
 import 'substitutes.dart';
 import 'library_screen.dart';
@@ -2093,6 +2094,8 @@ class _MoreTabState extends State<_MoreTab> {
                           onTap: () => _push(context, const LibraryScreen(), recentId: 'library')),
                     _FeatureRow(icon: '✨', iconBg: AppColors.tealLight, title: 'Ask Vidya', sub: 'School copilot — ask anything about your data',
                         onTap: () => _push(context, const VidyaScreen(), recentId: 'vidya')),
+                    _FeatureRow(icon: '📇', iconBg: AppColors.violetLight, title: 'Staff Directory', sub: 'Look up colleagues — role, tags & contact info',
+                        onTap: () => _push(context, const StaffDirectoryScreen(), recentId: 'staff_directory')),
                     _FeatureRow(icon: '❓', iconBg: AppColors.skyLight, title: 'Help & FAQ', sub: 'Browse common questions',
                         onTap: () => _push(context, const FaqScreen())),
 

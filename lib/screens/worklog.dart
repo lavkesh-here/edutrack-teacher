@@ -966,6 +966,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                             name: chName,
                             active: active,
                             statusColor: statusColor,
+                            completed: status == 'completed',
                             onTap: () {
                               setSheet(() {
                                 selectedChapterId = chId;
@@ -1446,6 +1447,10 @@ class _ChapterChip extends StatelessWidget {
   final String name;
   final bool active;
   final Color statusColor;
+  // A completed chapter gets an actual check-mark, not just a colored dot —
+  // matches _SectionChip's `covered` treatment in the topic picker below,
+  // so "done" reads the same way in both pickers.
+  final bool completed;
   final VoidCallback onTap;
 
   const _ChapterChip({
@@ -1454,6 +1459,7 @@ class _ChapterChip extends StatelessWidget {
     required this.active,
     required this.statusColor,
     required this.onTap,
+    this.completed = false,
   });
 
   @override
@@ -1471,14 +1477,18 @@ class _ChapterChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: active ? Colors.white.withOpacity(0.8) : statusColor,
-                  shape: BoxShape.circle,
+              if (completed)
+                Icon(Icons.check_circle,
+                    size: 12, color: active ? Colors.white : AppColors.green)
+              else
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: active ? Colors.white.withOpacity(0.8) : statusColor,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
               const SizedBox(width: 5),
               Text(
                 'Ch $number · $name',
@@ -1960,7 +1970,10 @@ class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text(rollNo != null ? '$name · Roll $rollNo' : name,
                                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                                  if (status == 'has_remarks' && remarks != null && remarks.isNotEmpty)
+                                  // Shown whenever a remark exists, independent of teacher_status —
+                                  // marking "Checked" afterward must not hide (or, per the backend
+                                  // fix, no longer wipe) a remark already left for this student.
+                                  if (remarks != null && remarks.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text('💬 $remarks', style: const TextStyle(fontSize: 11, color: AppColors.amber)),
@@ -1974,7 +1987,7 @@ class _HomeworkReviewSheetState extends State<_HomeworkReviewSheet> {
                                   tooltip: 'Has remarks',
                                   onPressed: () => _addRemarks(studentId, remarks),
                                   icon: Icon(Icons.edit_note,
-                                      color: status == 'has_remarks' ? AppColors.amber : AppColors.muted),
+                                      color: remarks != null && remarks.isNotEmpty ? AppColors.amber : AppColors.muted),
                                 ),
                                 IconButton(
                                   tooltip: status == 'checked' ? 'Unmark' : 'Checked',

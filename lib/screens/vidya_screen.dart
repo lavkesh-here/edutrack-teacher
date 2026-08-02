@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
+import '../widgets/chat_feedback_bar.dart';
 
 class VidyaScreen extends StatefulWidget {
   const VidyaScreen({super.key});
@@ -218,7 +219,16 @@ class _VidyaScreenState extends State<VidyaScreen> {
                       if (i == _messages.length + (_loading ? 1 : 0)) {
                         return _FollowUpChips(suggestions: _trailingSuggestions, onTap: _send);
                       }
-                      return _Bubble(msg: _messages[i]);
+                      final msg = _messages[i];
+                      final showFeedback = msg.role == 'assistant' && !msg.isError && i > 0;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _Bubble(msg: msg),
+                          if (showFeedback)
+                            ChatFeedbackBar(bot: 'vidya', question: _messages[i - 1].text, reply: msg.text),
+                        ],
+                      );
                     },
                   ),
           ),
@@ -249,7 +259,10 @@ class _VidyaScreenState extends State<VidyaScreen> {
                         decoration: const InputDecoration(
                           hintText: 'Ask Vidya anything...',
                           hintStyle: TextStyle(fontSize: 14, color: AppColors.muted),
+                          filled: false,
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           counterText: '',
                         ),

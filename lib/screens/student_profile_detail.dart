@@ -2184,6 +2184,7 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
   bool _generating = false;
   bool _sharing = false;
   String? _error;
+  final _remarksCtrl = TextEditingController();
 
   @override
   bool get wantKeepAlive => true;
@@ -2192,6 +2193,12 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
   void initState() {
     super.initState();
     _loadReport();
+  }
+
+  @override
+  void dispose() {
+    _remarksCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadReport() async {
@@ -2217,10 +2224,20 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
   Future<void> _generateReport() async {
     setState(() => _generating = true);
     try {
-      final r = await ApiClient.generateStudentFullReport(widget.studentId);
+      final remarks = _remarksCtrl.text.trim();
+      final r = await ApiClient.generateStudentFullReport(
+        widget.studentId,
+        remarks: remarks.isNotEmpty ? remarks : null,
+      );
       if (mounted) {
         setState(() { _report = r; });
-        showSnack(context, 'Report card generated');
+        if (remarks.isNotEmpty) _remarksCtrl.clear();
+        showSnack(
+          context,
+          r['from_cache'] == true
+              ? 'No new scores since the last report — showing the existing one'
+              : 'Report card generated',
+        );
       }
     } catch (e) {
       if (mounted) showSnack(context, 'Generation failed: $e', error: true);
@@ -2332,6 +2349,40 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
               ),
             ],
           ),
+
+          if (hasReport && (_report?['from_cache'] as bool? ?? false)) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Add a remark to regenerate anyway',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.amber)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _remarksCtrl,
+                    maxLines: 2,
+                    maxLength: 2000,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. Kabir has been struggling to focus in class this week…',
+                      hintStyle: TextStyle(fontSize: 12, color: AppColors.muted),
+                      isDense: true,
+                      counterText: '',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           if (!hasReport) ...[
             const SizedBox(height: 32),
@@ -2487,6 +2538,23 @@ class _FullReportCardTabState extends State<_FullReportCardTab>
                   border: Border.all(color: AppColors.amber.withOpacity(0.3)),
                 ),
                 child: Text(reportJson['teacher_note'] as String,
+                    style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2)),
+              ),
+            ],
+
+            // Remark used for this report
+            if ((reportJson['teacher_remarks'] as String?)?.isNotEmpty == true) ...[
+              const SizedBox(height: 12),
+              const Text('Remark Used for This Report', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.amberLight,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+                ),
+                child: Text(reportJson['teacher_remarks'] as String,
                     style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text2)),
               ),
             ],

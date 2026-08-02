@@ -1975,6 +1975,24 @@ class ApiClient {
     return ChatReply.fromJson(data as Map<String, dynamic>);
   }
 
+  // ── Chat feedback (Vidya + Support) ────────────────────────────────────────
+
+  static Future<void> submitChatFeedback({
+    required String bot,
+    required String question,
+    required String reply,
+    required String rating,
+    String? reason,
+  }) async {
+    await _post('/api/v1/teacher/chat-feedback', {
+      'bot': bot,
+      'question': question,
+      'reply': reply,
+      'rating': rating,
+      if (reason != null) 'reason': reason,
+    });
+  }
+
   // ── WhatsApp parent report ─────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> generateWhatsAppReport(String studentId) async {
@@ -2031,8 +2049,9 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
-  static Future<Map<String, dynamic>> generateStudentFullReport(String studentId) async {
-    return (await _post('/api/v1/teacher/students/$studentId/full-report', {}))
+  static Future<Map<String, dynamic>> generateStudentFullReport(String studentId, {String? remarks}) async {
+    return (await _post('/api/v1/teacher/students/$studentId/full-report',
+            {if (remarks != null && remarks.isNotEmpty) 'remarks': remarks}))
         as Map<String, dynamic>;
   }
 

@@ -327,10 +327,16 @@ class _CredentialsScreenState extends State<_CredentialsScreen> {
       );
       if (!mounted) return;
 
-      // Offer biometric enrollment after first successful password login
+      // Offer biometric enrollment after first successful password login --
+      // but not when a forced password change is still pending: ForceChangePasswordScreen
+      // disables biometric on submit (old enrollment shouldn't outlive a forced
+      // credential reset), which previously ran seconds after this dialog enabled
+      // it, silently wiping the toggle before the user ever saw it as "on" in
+      // More. The enrollment offer is shown after the forced change succeeds
+      // instead (see force_change_password.dart), not here.
       final canUseBio = await auth.isBiometricAvailable;
       final alreadyEnabled = await auth.isBiometricEnabled;
-      if (canUseBio && !alreadyEnabled && mounted) {
+      if (canUseBio && !alreadyEnabled && !mustChange && mounted) {
         final enable = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(

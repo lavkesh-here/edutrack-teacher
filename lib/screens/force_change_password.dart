@@ -49,7 +49,32 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
         newPassword: _newCtrl.text,
       );
       if (!mounted) return;
-      await context.read<AuthProvider>().disableBiometric();
+      final auth = context.read<AuthProvider>();
+      // Any biometric enrollment made before this forced reset is stale --
+      // clear it first, then offer a fresh enrollment now that the real,
+      // final password is set (login.dart deliberately skips its own offer
+      // while a forced change is pending, to avoid enabling here just to
+      // have this disable() immediately undo it).
+      await auth.disableBiometric();
+      if (!mounted) return;
+      final canUseBio = await auth.isBiometricAvailable;
+      if (canUseBio && mounted) {
+        final enable = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Quick unlock', style: TextStyle(fontWeight: FontWeight.w800)),
+            content: const Text('Use Face ID or fingerprint to unlock EduTrack when you come back to the app.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enable')),
+            ],
+          ),
+        );
+        if (enable == true && mounted) {
+          final confirmed = await auth.authenticateBiometric('Confirm your biometric to enable quick unlock');
+          if (confirmed) await auth.enableBiometric();
+        }
+      }
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
     } on ApiError catch (e) {

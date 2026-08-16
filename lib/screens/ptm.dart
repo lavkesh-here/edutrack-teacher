@@ -14,6 +14,8 @@ class PTMScreen extends StatefulWidget {
 class _PTMScreenState extends State<PTMScreen> {
   List<Map<String, dynamic>>? _events;
   bool _loading = true;
+  String _search = '';
+  String? _monthFilter; // 'YYYY-MM', or null for "All months"
 
   @override
   void initState() {
@@ -24,10 +26,65 @@ class _PTMScreenState extends State<PTMScreen> {
   Future<void> _load() async {
     try {
       final events = await ApiClient.getPTMEvents();
-      if (mounted) setState(() { _events = events; _loading = false; });
+      if (mounted)
+        setState(() {
+          _events = events;
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _events = []; _loading = false; });
+      if (mounted)
+        setState(() {
+          _events = [];
+          _loading = false;
+        });
     }
+  }
+
+  /// Distinct 'YYYY-MM' keys present in the loaded events, newest first --
+  /// used to populate the month filter with only months that actually have data.
+  List<String> get _availableMonths {
+    final keys = <String>{};
+    for (final e in _events ?? const []) {
+      final iso = e['event_date'] as String?;
+      if (iso == null || iso.length < 7) continue;
+      keys.add(iso.substring(0, 7));
+    }
+    final list = keys.toList()..sort((a, b) => b.compareTo(a));
+    return list;
+  }
+
+  String _monthLabel(String key) {
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    final parts = key.split('-');
+    final monthIdx = int.tryParse(parts[1]) ?? 1;
+    return '${m[monthIdx - 1]} ${parts[0]}';
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    final q = _search.trim().toLowerCase();
+    return (_events ?? const []).where((e) {
+      if (_monthFilter != null) {
+        final iso = e['event_date'] as String?;
+        if (iso == null || !iso.startsWith(_monthFilter!)) return false;
+      }
+      if (q.isEmpty) return true;
+      final name = (e['name'] as String? ?? '').toLowerCase();
+      final desc = (e['description'] as String? ?? '').toLowerCase();
+      return name.contains(q) || desc.contains(q);
+    }).toList();
   }
 
   void _showCreateDialog() {
@@ -39,65 +96,83 @@ class _PTMScreenState extends State<PTMScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setDlg) => AlertDialog(
-          title: const Text('Create PTM Event', style: TextStyle(fontWeight: FontWeight.w800)),
+          title: const Text('Create PTM Event',
+              style: TextStyle(fontWeight: FontWeight.w800)),
           content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Event Name', hintText: 'e.g. Parent Teacher Meeting Q1'),
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Description (optional)'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              const Text('Date', style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: ctx2,
-                    initialDate: selectedDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (picked != null) setDlg(() => selectedDate = picked);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(10),
-                    color: AppColors.bg,
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Event Name',
+                        hintText: 'e.g. Parent Teacher Meeting Q1'),
+                    textCapitalization: TextCapitalization.words,
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today, size: 16, color: AppColors.muted),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Description (optional)'),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Date',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx2,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) setDlg(() => selectedDate = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                        color: AppColors.bg,
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.calendar_today,
+                            size: 16, color: AppColors.muted),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ]),
                     ),
-                  ]),
-                ),
-              ),
-            ]),
+                  ),
+                ]),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () async {
                 final name = nameCtrl.text.trim();
                 if (name.isEmpty) return;
                 Navigator.pop(ctx);
                 try {
-                  final dateStr = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2,'0')}-${selectedDate.day.toString().padLeft(2,'0')}';
+                  final dateStr =
+                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
                   await ApiClient.createPTMEvent(
                     name: name,
                     eventDate: dateStr,
-                    description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                    description: descCtrl.text.trim().isEmpty
+                        ? null
+                        : descCtrl.text.trim(),
                   );
                   if (mounted) showSnack(context, 'PTM event created ✓');
                   _load();
@@ -116,14 +191,23 @@ class _PTMScreenState extends State<PTMScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final isAdmin = user != null && (user.role == 'admin' || user.role == 'principal' || user.role == 'director');
+    final isAdmin = user != null &&
+        (user.role == 'admin' ||
+            user.role == 'principal' ||
+            user.role == 'director');
+    final filtered = _filtered;
+    final months = _availableMonths;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Parent-Teacher Meetings', style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+        title: const Text('Parent-Teacher Meetings',
+            style: TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w700,
+                fontSize: 16)),
         iconTheme: const IconThemeData(color: AppColors.text),
       ),
       floatingActionButton: isAdmin
@@ -132,7 +216,8 @@ class _PTMScreenState extends State<PTMScreen> {
               backgroundColor: null,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('New PTM', style: TextStyle(fontWeight: FontWeight.w700)),
+              label: const Text('New PTM',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             )
           : null,
       body: _loading
@@ -144,23 +229,114 @@ class _PTMScreenState extends State<PTMScreen> {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       const Text('📅', style: TextStyle(fontSize: 48)),
                       const SizedBox(height: 12),
-                      const Text('No PTM events scheduled', style: TextStyle(color: AppColors.muted, fontSize: 15, fontWeight: FontWeight.w600)),
+                      const Text('No PTM events scheduled',
+                          style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text(
-                        isAdmin ? 'Tap + to create the first PTM event' : 'Admin will schedule PTM events',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        isAdmin
+                            ? 'Tap + to create the first PTM event'
+                            : 'Admin will schedule PTM events',
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 12),
                       ),
                     ]),
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _events!.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _EventCard(event: _events![i]),
-                  ),
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              key: const Key('ptm_search_field'),
+                              onChanged: (v) => setState(() => _search = v),
+                              decoration: InputDecoration(
+                                hintText: 'Search PTM events…',
+                                prefixIcon: const Icon(Icons.search, size: 20),
+                                filled: true,
+                                fillColor: AppColors.card,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                      const BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (months.isNotEmpty) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  key: const Key('ptm_month_filter'),
+                                  value: _monthFilter,
+                                  hint: const Text('Month',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.muted)),
+                                  icon: const Icon(Icons.expand_more,
+                                      size: 18, color: AppColors.muted),
+                                  items: [
+                                    const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text('All months',
+                                            style: TextStyle(fontSize: 13))),
+                                    ...months
+                                        .map((m) => DropdownMenuItem<String?>(
+                                              value: m,
+                                              child: Text(_monthLabel(m),
+                                                  style: const TextStyle(
+                                                      fontSize: 13)),
+                                            )),
+                                  ],
+                                  onChanged: (v) =>
+                                      setState(() => _monthFilter = v),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Text('No PTM events match your search.',
+                                  style: TextStyle(
+                                      color: AppColors.muted, fontSize: 13)))
+                          : RefreshIndicator(
+                              onRefresh: _load,
+                              child: ListView.separated(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (_, i) =>
+                                    _EventCard(event: filtered[i]),
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
     );
   }
@@ -179,26 +355,37 @@ class _EventCard extends StatelessWidget {
     final pending = myMeetings - done - noShow;
 
     return AppCard(
-      onTap: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => PTMEventDetail(
-          eventId: event['id'] as String,
-          eventName: event['name'] as String? ?? 'PTM',
-          eventDate: event['event_date'] as String? ?? '',
-        ),
-      )),
+      onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PTMEventDetail(
+              eventId: event['id'] as String,
+              eventName: event['name'] as String? ?? 'PTM',
+              eventDate: event['event_date'] as String? ?? '',
+            ),
+          )),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(event['name'] as String? ?? 'PTM',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
+          Expanded(
+              child: Text(event['name'] as String? ?? 'PTM',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(20)),
-            child: Text(date, style: TextStyle(fontSize: 11, color: context.primary, fontWeight: FontWeight.w600)),
+            decoration: BoxDecoration(
+                color: context.primaryLight,
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(date,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: context.primary,
+                    fontWeight: FontWeight.w600)),
           ),
         ]),
         if ((event['description'] as String?)?.isNotEmpty == true) ...[
           const SizedBox(height: 4),
-          Text(event['description'] as String, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(event['description'] as String,
+              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
         ],
         if (myMeetings > 0) ...[
           const SizedBox(height: 10),
@@ -207,7 +394,8 @@ class _EventCard extends StatelessWidget {
             const SizedBox(width: 6),
             _StatChip(label: '$done Done', color: AppColors.green),
             const SizedBox(width: 6),
-            if (noShow > 0) _StatChip(label: '$noShow No-show', color: AppColors.muted),
+            if (noShow > 0)
+              _StatChip(label: '$noShow No-show', color: AppColors.muted),
             if (pending > 0) ...[
               const SizedBox(width: 6),
               _StatChip(label: '$pending Pending', color: AppColors.amber),
@@ -217,7 +405,8 @@ class _EventCard extends StatelessWidget {
         const SizedBox(height: 6),
         Row(children: [
           const Spacer(),
-          Text('Tap to view & log meetings →', style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+          Text('Tap to view & log meetings →',
+              style: const TextStyle(fontSize: 11, color: AppColors.muted)),
         ]),
       ]),
     );
@@ -231,13 +420,15 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.12),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      );
 }
 
 // ── PTM Event Detail — log meetings per student ───────────────────────────────
@@ -246,7 +437,11 @@ class PTMEventDetail extends StatefulWidget {
   final String eventId;
   final String eventName;
   final String eventDate;
-  const PTMEventDetail({super.key, required this.eventId, required this.eventName, required this.eventDate});
+  const PTMEventDetail(
+      {super.key,
+      required this.eventId,
+      required this.eventName,
+      required this.eventDate});
   @override
   State<PTMEventDetail> createState() => _PTMEventDetailState();
 }
@@ -255,11 +450,38 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
   List<Map<String, dynamic>>? _meetings;
   List<Map<String, dynamic>> _registrations = [];
   bool _loading = true;
+  String _studentSearch = '';
+  String? _sectionFilter; // a section_label value, or null for "All sections"
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// Distinct section labels across both registrations and logged meetings,
+  /// sorted for a stable dropdown order.
+  List<String> get _availableSections {
+    final labels = <String>{};
+    for (final r in _registrations) {
+      final s = r['section_label'] as String?;
+      if (s != null && s.isNotEmpty) labels.add(s);
+    }
+    for (final m in _meetings ?? const []) {
+      final s = m['section_label'] as String?;
+      if (s != null && s.isNotEmpty) labels.add(s);
+    }
+    final list = labels.toList()..sort();
+    return list;
+  }
+
+  bool _matchesFilters(Map<String, dynamic> row) {
+    if (_sectionFilter != null && row['section_label'] != _sectionFilter)
+      return false;
+    final q = _studentSearch.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final name = (row['student_name'] as String? ?? '').toLowerCase();
+    return name.contains(q);
   }
 
   Future<void> _load() async {
@@ -268,17 +490,26 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
         ApiClient.getPTMMeetings(widget.eventId),
         ApiClient.getPTMRegistrations(widget.eventId),
       ]);
-      if (mounted) setState(() {
-        _meetings = results[0];
-        _registrations = results[1];
-        _loading = false;
-      });
+      if (mounted)
+        setState(() {
+          _meetings = results[0];
+          _registrations = results[1];
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _meetings = []; _registrations = []; _loading = false; });
+      if (mounted)
+        setState(() {
+          _meetings = [];
+          _registrations = [];
+          _loading = false;
+        });
     }
   }
 
-  void _addMeeting({String? prefilledStudentId, String? prefilledStudentName, String? parentRemarks}) {
+  void _addMeeting(
+      {String? prefilledStudentId,
+      String? prefilledStudentName,
+      String? parentRemarks}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -296,7 +527,15 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
   @override
   Widget build(BuildContext context) {
     // Registered students who don't yet have a meeting logged
-    final pending = _registrations.where((r) => !(r['meeting_logged'] as bool? ?? false)).toList();
+    final pending = _registrations
+        .where((r) => !(r['meeting_logged'] as bool? ?? false))
+        .where(_matchesFilters)
+        .toList();
+    final filteredMeetings =
+        (_meetings ?? const []).where(_matchesFilters).toList();
+    final sections = _availableSections;
+    final hasAnyData =
+        _registrations.isNotEmpty || (_meetings?.isNotEmpty ?? false);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -304,8 +543,13 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.eventName, style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
-          Text(_fmtDate(widget.eventDate), style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          Text(widget.eventName,
+              style: const TextStyle(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15)),
+          Text(_fmtDate(widget.eventDate),
+              style: const TextStyle(color: AppColors.muted, fontSize: 11)),
         ]),
         iconTheme: const IconThemeData(color: AppColors.text),
         actions: [
@@ -323,54 +567,143 @@ class _PTMEventDetailState extends State<PTMEventDetail> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (hasAnyData) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            key: const Key('ptm_student_search_field'),
+                            onChanged: (v) =>
+                                setState(() => _studentSearch = v),
+                            decoration: InputDecoration(
+                              hintText: 'Search student name…',
+                              prefixIcon: const Icon(Icons.search, size: 20),
+                              filled: true,
+                              fillColor: AppColors.card,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: AppColors.border),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: AppColors.border),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (sections.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String?>(
+                                key: const Key('ptm_section_filter'),
+                                value: _sectionFilter,
+                                hint: const Text('Class',
+                                    style: TextStyle(
+                                        fontSize: 13, color: AppColors.muted)),
+                                icon: const Icon(Icons.expand_more,
+                                    size: 18, color: AppColors.muted),
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                      value: null,
+                                      child: Text('All classes',
+                                          style: TextStyle(fontSize: 13))),
+                                  ...sections.map((s) =>
+                                      DropdownMenuItem<String?>(
+                                          value: s,
+                                          child: Text(s,
+                                              style: const TextStyle(
+                                                  fontSize: 13)))),
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _sectionFilter = v),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // Registered parents section
                   if (pending.isNotEmpty) ...[
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: context.primaryLight,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text('${pending.length} Registered',
-                              style: TextStyle(fontSize: 11, color: context.primary, fontWeight: FontWeight.w700)),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: context.primary,
+                                  fontWeight: FontWeight.w700)),
                         ),
                         const SizedBox(width: 8),
                         const Text('Parents waiting to meet you',
-                            style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.muted)),
                       ]),
                     ),
                     ...pending.map((r) => _RegisteredStudentCard(
-                      reg: r,
-                      onLog: () => _addMeeting(
-                        prefilledStudentId: r['student_id'] as String,
-                        prefilledStudentName: r['student_name'] as String,
-                        parentRemarks: r['parent_remarks'] as String?,
-                      ),
-                    )),
+                          reg: r,
+                          onLog: () => _addMeeting(
+                            prefilledStudentId: r['student_id'] as String,
+                            prefilledStudentName: r['student_name'] as String,
+                            parentRemarks: r['parent_remarks'] as String?,
+                          ),
+                        )),
                     const SizedBox(height: 16),
                     const Divider(),
                     const SizedBox(height: 8),
                   ],
                   // Logged meetings
-                  if (_meetings == null || _meetings!.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
+                  if (filteredMeetings.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text('📝', style: TextStyle(fontSize: 48)),
-                        SizedBox(height: 12),
-                        Text('No meetings logged yet', style: TextStyle(color: AppColors.muted, fontSize: 15)),
-                        SizedBox(height: 4),
-                        Text('Tap "+ Log Meeting" to add one', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                        const Text('📝', style: TextStyle(fontSize: 48)),
+                        const SizedBox(height: 12),
+                        Text(
+                          (_meetings?.isEmpty ?? true)
+                              ? 'No meetings logged yet'
+                              : 'No meetings match your search',
+                          style: const TextStyle(
+                              color: AppColors.muted, fontSize: 15),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          (_meetings?.isEmpty ?? true)
+                              ? 'Tap "+ Log Meeting" to add one'
+                              : 'Try a different name or class',
+                          style: const TextStyle(
+                              color: AppColors.muted, fontSize: 12),
+                        ),
                       ]),
                     )
                   else
-                    ...List.generate(_meetings!.length, (i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _MeetingCard(meeting: _meetings![i], onUpdated: _load),
-                    )),
+                    ...List.generate(
+                        filteredMeetings.length,
+                        (i) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _MeetingCard(
+                                  meeting: filteredMeetings[i],
+                                  onUpdated: _load),
+                            )),
                 ],
               ),
             ),
@@ -396,29 +729,42 @@ class _RegisteredStudentCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(children: [
           Container(
-            width: 38, height: 38,
-            decoration: BoxDecoration(color: context.primaryLight, borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: TextStyle(fontWeight: FontWeight.w800, color: context.primary))),
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+                color: context.primaryLight,
+                borderRadius: BorderRadius.circular(10)),
+            child: Center(
+                child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, color: context.primary))),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(rollNo != null ? '$name · Roll $rollNo' : name,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            Text(section, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
-            if (remarks != null && remarks.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.amberLight,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('💬 $remarks',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF92400E))),
-              ),
-            ],
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(rollNo != null ? '$name · Roll $rollNo' : name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(section,
+                    style:
+                        const TextStyle(fontSize: 11, color: AppColors.muted)),
+                if (remarks != null && remarks.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.amberLight,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('💬 $remarks',
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF92400E))),
+                  ),
+                ],
+              ])),
           const SizedBox(width: 8),
           TextButton(
             onPressed: onLog,
@@ -426,7 +772,8 @@ class _RegisteredStudentCard extends StatelessWidget {
               foregroundColor: context.primary,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             ),
-            child: const Text('Log', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            child: const Text('Log',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           ),
         ]),
       ),
@@ -441,17 +788,23 @@ class _MeetingCard extends StatelessWidget {
 
   Color get _statusColor {
     switch (meeting['status'] as String? ?? '') {
-      case 'done': return AppColors.green;
-      case 'no_show': return AppColors.muted;
-      default: return AppColors.amber;
+      case 'done':
+        return AppColors.green;
+      case 'no_show':
+        return AppColors.muted;
+      default:
+        return AppColors.amber;
     }
   }
 
   String get _statusLabel {
     switch (meeting['status'] as String? ?? '') {
-      case 'done': return 'Done';
-      case 'no_show': return 'No-show';
-      default: return 'Pending';
+      case 'done':
+        return 'Done';
+      case 'no_show':
+        return 'No-show';
+      default:
+        return 'Pending';
     }
   }
 
@@ -468,47 +821,70 @@ class _MeetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actionItems = (meeting['action_items'] as List?)?.cast<String>() ?? [];
+    final actionItems =
+        (meeting['action_items'] as List?)?.cast<String>() ?? [];
     return AppCard(
       onTap: () => showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => _UpdateMeetingSheet(meeting: meeting, onUpdated: onUpdated),
+        builder: (_) =>
+            _UpdateMeetingSheet(meeting: meeting, onUpdated: onUpdated),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_studentTitle(meeting),
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            if (_sectionLabel != null)
-              Text(_sectionLabel!, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
-            if ((meeting['subject_name'] as String?)?.isNotEmpty == true)
-              Text(meeting['subject_name'] as String, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(_studentTitle(meeting),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
+                if (_sectionLabel != null)
+                  Text(_sectionLabel!,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.muted)),
+                if ((meeting['subject_name'] as String?)?.isNotEmpty == true)
+                  Text(meeting['subject_name'] as String,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.muted)),
+              ])),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: _statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-            child: Text(_statusLabel, style: TextStyle(fontSize: 11, color: _statusColor, fontWeight: FontWeight.w700)),
+            decoration: BoxDecoration(
+                color: _statusColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20)),
+            child: Text(_statusLabel,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: _statusColor,
+                    fontWeight: FontWeight.w700)),
           ),
         ]),
         if ((meeting['remarks'] as String?)?.isNotEmpty == true) ...[
           const SizedBox(height: 8),
-          Text(meeting['remarks'] as String, style: const TextStyle(fontSize: 13, color: AppColors.text2, height: 1.4)),
+          Text(meeting['remarks'] as String,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.text2, height: 1.4)),
         ],
         if (actionItems.isNotEmpty) ...[
           const SizedBox(height: 8),
           ...actionItems.map((a) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(children: [
-              const Icon(Icons.check_circle_outline, size: 14, color: AppColors.teal),
-              const SizedBox(width: 6),
-              Expanded(child: Text(a, style: const TextStyle(fontSize: 12, color: AppColors.text2))),
-            ]),
-          )),
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(children: [
+                  const Icon(Icons.check_circle_outline,
+                      size: 14, color: AppColors.teal),
+                  const SizedBox(width: 6),
+                  Expanded(
+                      child: Text(a,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.text2))),
+                ]),
+              )),
         ],
         const SizedBox(height: 4),
-        Text('Tap to edit', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+        Text('Tap to edit',
+            style: const TextStyle(fontSize: 10, color: AppColors.muted)),
       ]),
     );
   }
@@ -545,18 +921,30 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
   @override
   void initState() {
     super.initState();
-    _studentCtrl = TextEditingController(text: widget.prefilledStudentName ?? '');
-    _studentIdCtrl = TextEditingController(text: widget.prefilledStudentId ?? '');
+    _studentCtrl =
+        TextEditingController(text: widget.prefilledStudentName ?? '');
+    _studentIdCtrl =
+        TextEditingController(text: widget.prefilledStudentId ?? '');
   }
 
   Future<void> _search(String q) async {
-    if (q.length < 2) { setState(() => _searchResults = []); return; }
+    if (q.length < 2) {
+      setState(() => _searchResults = []);
+      return;
+    }
     setState(() => _searching = true);
     try {
       final res = await ApiClient.searchStudents(q, classScoped: true);
-      if (mounted) setState(() { _searchResults = res.take(5).toList(); _searching = false; });
+      if (mounted)
+        setState(() {
+          _searchResults = res.take(5).toList();
+          _searching = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _searching = false; });
+      if (mounted)
+        setState(() {
+          _searching = false;
+        });
     }
   }
 
@@ -577,7 +965,12 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
       }
     } catch (e) {
       if (mounted) {
-        showSnack(context, e is ApiError ? e.message : 'Failed to save meeting. Please try again.', error: true);
+        showSnack(
+            context,
+            e is ApiError
+                ? e.message
+                : 'Failed to save meeting. Please try again.',
+            error: true);
         setState(() => _saving = false);
       }
     }
@@ -595,149 +988,239 @@ class _AddMeetingSheetState extends State<_AddMeetingSheet> {
         ),
         child: Column(children: [
           const SizedBox(height: 8),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+          Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('Log PTM Meeting', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            child: Text('Log PTM Meeting',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 16),
           Expanded(
             child: SingleChildScrollView(
               controller: sc,
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Student search
-                const Text('Student', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _studentCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Search by name or admission number',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    suffixIcon: _searching ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))) : null,
-                  ),
-                  onChanged: _search,
-                ),
-                if (_searchResults.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(10)),
-                    child: Column(children: _searchResults.map((s) => ListTile(
-                      dense: true,
-                      title: Text(s.name, style: const TextStyle(fontSize: 13)),
-                      subtitle: Text('${s.admissionNumber}${s.classLabel != null ? ' · ${s.classLabel}' : ''}',
-                          style: const TextStyle(fontSize: 11)),
-                      onTap: () {
-                        setState(() {
-                          _studentCtrl.text = s.name;
-                          _studentIdCtrl.text = s.id;
-                          _searchResults = [];
-                        });
-                      },
-                    )).toList()),
-                  ),
-                ],
-                // Parent's pre-meeting remarks (if any)
-                if (widget.parentRemarks != null && widget.parentRemarks!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.amberLight,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Student search
+                    const Text('Student',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _studentCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Search by name or admission number',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: AppColors.border)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        suffixIcon: _searching
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2)))
+                            : null,
+                      ),
+                      onChanged: _search,
                     ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Parent\'s concerns', style: TextStyle(fontSize: 10,
-                          fontWeight: FontWeight.w700, color: Color(0xFF92400E))),
-                      const SizedBox(height: 3),
-                      Text(widget.parentRemarks!,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF92400E))),
+                    if (_searchResults.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Column(
+                            children: _searchResults
+                                .map((s) => ListTile(
+                                      dense: true,
+                                      title: Text(s.name,
+                                          style: const TextStyle(fontSize: 13)),
+                                      subtitle: Text(
+                                          '${s.admissionNumber}${s.classLabel != null ? ' · ${s.classLabel}' : ''}',
+                                          style: const TextStyle(fontSize: 11)),
+                                      onTap: () {
+                                        setState(() {
+                                          _studentCtrl.text = s.name;
+                                          _studentIdCtrl.text = s.id;
+                                          _searchResults = [];
+                                        });
+                                      },
+                                    ))
+                                .toList()),
+                      ),
+                    ],
+                    // Parent's pre-meeting remarks (if any)
+                    if (widget.parentRemarks != null &&
+                        widget.parentRemarks!.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.amberLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppColors.amber.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Parent\'s concerns',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF92400E))),
+                              const SizedBox(height: 3),
+                              Text(widget.parentRemarks!,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Color(0xFF92400E))),
+                            ]),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    // Status
+                    const Text('Meeting Status',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted)),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 8, children: [
+                      for (final s in ['done', 'no_show', 'scheduled'])
+                        ChoiceChip(
+                          label: Text(
+                              s == 'done'
+                                  ? 'Done ✅'
+                                  : s == 'no_show'
+                                      ? 'No-show 🚫'
+                                      : 'Pending ⏳',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: _status == s
+                                      ? Colors.white
+                                      : AppColors.text2)),
+                          selected: _status == s,
+                          selectedColor: s == 'done'
+                              ? AppColors.green
+                              : s == 'no_show'
+                                  ? AppColors.muted
+                                  : AppColors.amber,
+                          onSelected: (_) => setState(() => _status = s),
+                        ),
                     ]),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                // Status
-                const Text('Meeting Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
-                const SizedBox(height: 6),
-                Wrap(spacing: 8, children: [
-                  for (final s in ['done', 'no_show', 'scheduled'])
-                    ChoiceChip(
-                      label: Text(s == 'done' ? 'Done ✅' : s == 'no_show' ? 'No-show 🚫' : 'Pending ⏳',
-                        style: TextStyle(fontSize: 12, color: _status == s ? Colors.white : AppColors.text2)),
-                      selected: _status == s,
-                      selectedColor: s == 'done' ? AppColors.green : s == 'no_show' ? AppColors.muted : AppColors.amber,
-                      onSelected: (_) => setState(() => _status = s),
+                    const SizedBox(height: 14),
+                    // Remarks
+                    const Text('Remarks',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _remarksCtrl,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Meeting notes, observations…',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: AppColors.border)),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
                     ),
-                ]),
-                const SizedBox(height: 14),
-                // Remarks
-                const Text('Remarks', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _remarksCtrl,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Meeting notes, observations…',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
-                    contentPadding: const EdgeInsets.all(12),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Action items
-                const Text('Action Items', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
-                const SizedBox(height: 6),
-                Row(children: [
-                  Expanded(child: TextField(
-                    controller: _actionCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Practice fractions daily',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  )),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(Icons.add_circle, color: context.primary),
-                    onPressed: () {
-                      final text = _actionCtrl.text.trim();
-                      if (text.isNotEmpty) {
-                        setState(() { _actions.add(text); _actionCtrl.clear(); });
-                      }
-                    },
-                  ),
-                ]),
-                if (_actions.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ..._actions.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(children: [
-                      const Icon(Icons.check_circle_outline, size: 14, color: AppColors.teal),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(e.value, style: const TextStyle(fontSize: 13))),
-                      GestureDetector(
-                        onTap: () => setState(() => _actions.removeAt(e.key)),
-                        child: const Icon(Icons.close, size: 16, color: AppColors.muted),
+                    const SizedBox(height: 14),
+                    // Action items
+                    const Text('Action Items',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted)),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Expanded(
+                          child: TextField(
+                        controller: _actionCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Practice fractions daily',
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: AppColors.border)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                      )),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(Icons.add_circle, color: context.primary),
+                        onPressed: () {
+                          final text = _actionCtrl.text.trim();
+                          if (text.isNotEmpty) {
+                            setState(() {
+                              _actions.add(text);
+                              _actionCtrl.clear();
+                            });
+                          }
+                        },
                       ),
                     ]),
-                  )),
-                ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_saving || _studentIdCtrl.text.isEmpty) ? null : _save,
-                    style: ElevatedButton.styleFrom(backgroundColor: context.primary, foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Save Meeting', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ]),
+                    if (_actions.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ..._actions.asMap().entries.map((e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(children: [
+                              const Icon(Icons.check_circle_outline,
+                                  size: 14, color: AppColors.teal),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                  child: Text(e.value,
+                                      style: const TextStyle(fontSize: 13))),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _actions.removeAt(e.key)),
+                                child: const Icon(Icons.close,
+                                    size: 16, color: AppColors.muted),
+                              ),
+                            ]),
+                          )),
+                    ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: (_saving || _studentIdCtrl.text.isEmpty)
+                            ? null
+                            : _save,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: context.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12))),
+                        child: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Save Meeting',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 15)),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ]),
             ),
           ),
         ]),
@@ -765,8 +1248,11 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
   void initState() {
     super.initState();
     _status = widget.meeting['status'] as String? ?? 'scheduled';
-    _remarksCtrl = TextEditingController(text: widget.meeting['remarks'] as String? ?? '');
-    _actions = (widget.meeting['action_items'] as List?)?.cast<String>().toList() ?? [];
+    _remarksCtrl =
+        TextEditingController(text: widget.meeting['remarks'] as String? ?? '');
+    _actions =
+        (widget.meeting['action_items'] as List?)?.cast<String>().toList() ??
+            [];
   }
 
   Future<void> _save() async {
@@ -778,10 +1264,18 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
         remarks: _remarksCtrl.text.isEmpty ? null : _remarksCtrl.text,
         actionItems: _actions,
       );
-      if (mounted) { Navigator.pop(context); widget.onUpdated(); }
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onUpdated();
+      }
     } catch (e) {
       if (mounted) {
-        showSnack(context, e is ApiError ? e.message : 'Failed to save meeting. Please try again.', error: true);
+        showSnack(
+            context,
+            e is ApiError
+                ? e.message
+                : 'Failed to save meeting. Please try again.',
+            error: true);
         setState(() => _saving = false);
       }
     }
@@ -790,77 +1284,135 @@ class _UpdateMeetingSheetState extends State<_UpdateMeetingSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
+          Center(
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
           Text(
-            widget.meeting['student_roll_no'] != null
-                ? '${widget.meeting['student_name'] ?? 'Meeting'} · Roll ${widget.meeting['student_roll_no']}'
-                : widget.meeting['student_name'] as String? ?? 'Meeting',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              widget.meeting['student_roll_no'] != null
+                  ? '${widget.meeting['student_name'] ?? 'Meeting'} · Roll ${widget.meeting['student_roll_no']}'
+                  : widget.meeting['student_name'] as String? ?? 'Meeting',
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
-          const Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+          const Text('Status',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.muted)),
           const SizedBox(height: 6),
           Wrap(spacing: 8, children: [
             for (final s in ['done', 'no_show', 'scheduled'])
               ChoiceChip(
-                label: Text(s == 'done' ? 'Done ✅' : s == 'no_show' ? 'No-show 🚫' : 'Pending ⏳',
-                  style: TextStyle(fontSize: 12, color: _status == s ? Colors.white : AppColors.text2)),
+                label: Text(
+                    s == 'done'
+                        ? 'Done ✅'
+                        : s == 'no_show'
+                            ? 'No-show 🚫'
+                            : 'Pending ⏳',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: _status == s ? Colors.white : AppColors.text2)),
                 selected: _status == s,
-                selectedColor: s == 'done' ? AppColors.green : s == 'no_show' ? AppColors.muted : AppColors.amber,
+                selectedColor: s == 'done'
+                    ? AppColors.green
+                    : s == 'no_show'
+                        ? AppColors.muted
+                        : AppColors.amber,
                 onSelected: (_) => setState(() => _status = s),
               ),
           ]),
           const SizedBox(height: 14),
-          const Text('Remarks', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+          const Text('Remarks',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.muted)),
           const SizedBox(height: 6),
           TextField(
             controller: _remarksCtrl,
             maxLines: 3,
             decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppColors.border)),
               contentPadding: const EdgeInsets.all(12),
             ),
           ),
           const SizedBox(height: 14),
-          const Text('Action Items', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+          const Text('Action Items',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.muted)),
           const SizedBox(height: 6),
           Row(children: [
-            Expanded(child: TextField(
+            Expanded(
+                child: TextField(
               controller: _actionCtrl,
               decoration: InputDecoration(
                 hintText: 'Add action item…',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.border)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.border)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             )),
             const SizedBox(width: 8),
-            IconButton(icon: Icon(Icons.add_circle, color: context.primary), onPressed: () {
-              final t = _actionCtrl.text.trim();
-              if (t.isNotEmpty) setState(() { _actions.add(t); _actionCtrl.clear(); });
-            }),
+            IconButton(
+                icon: Icon(Icons.add_circle, color: context.primary),
+                onPressed: () {
+                  final t = _actionCtrl.text.trim();
+                  if (t.isNotEmpty)
+                    setState(() {
+                      _actions.add(t);
+                      _actionCtrl.clear();
+                    });
+                }),
           ]),
           ..._actions.asMap().entries.map((e) => ListTile(
-            dense: true,
-            leading: const Icon(Icons.check_circle_outline, size: 16, color: AppColors.teal),
-            title: Text(e.value, style: const TextStyle(fontSize: 13)),
-            trailing: IconButton(icon: const Icon(Icons.close, size: 16, color: AppColors.muted),
-              onPressed: () => setState(() => _actions.removeAt(e.key))),
-          )),
+                dense: true,
+                leading: const Icon(Icons.check_circle_outline,
+                    size: 16, color: AppColors.teal),
+                title: Text(e.value, style: const TextStyle(fontSize: 13)),
+                trailing: IconButton(
+                    icon: const Icon(Icons.close,
+                        size: 16, color: AppColors.muted),
+                    onPressed: () => setState(() => _actions.removeAt(e.key))),
+              )),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(backgroundColor: context.primary, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: context.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
               child: _saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Update', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Update',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             ),
           ),
           const SizedBox(height: 16),
@@ -874,7 +1426,22 @@ String _fmtDate(String? iso) {
   if (iso == null) return '';
   try {
     final d = DateTime.parse(iso);
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${d.day} ${m[d.month-1]} ${d.year}';
-  } catch (_) { return iso; }
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
+  } catch (_) {
+    return iso;
+  }
 }

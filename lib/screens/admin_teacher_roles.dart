@@ -7,7 +7,8 @@ class AdminTeacherRolesScreen extends StatefulWidget {
   const AdminTeacherRolesScreen({super.key});
 
   @override
-  State<AdminTeacherRolesScreen> createState() => _AdminTeacherRolesScreenState();
+  State<AdminTeacherRolesScreen> createState() =>
+      _AdminTeacherRolesScreenState();
 }
 
 class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
@@ -50,7 +51,10 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final teachers = await ApiClient.adminListTeachers(pageSize: 200);
       if (mounted) {
@@ -60,9 +64,17 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
         });
       }
     } on ApiError catch (e) {
-      if (mounted) setState(() { _error = e.message; _loading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
     }
   }
 
@@ -80,13 +92,16 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
     final teacherId = teacher['id']?.toString() ?? '';
     final teacherName = teacher['name'] as String? ?? '—';
     final currentTags = List<String>.from(
-      (teacher['functional_tags'] as List<dynamic>? ?? []).map((e) => e.toString()),
+      (teacher['functional_tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString()),
     );
     final currentIsNurse = teacher['is_nurse'] == true;
     final currentDisabledFeatures = List<String>.from(
-      (teacher['disabled_features'] as List<dynamic>? ?? []).map((e) => e.toString()),
+      (teacher['disabled_features'] as List<dynamic>? ?? [])
+          .map((e) => e.toString()),
     );
-    final isRestrictable = (teacher['role'] as String? ?? 'teacher') == 'teacher';
+    final isRestrictable =
+        (teacher['role'] as String? ?? 'teacher') == 'teacher';
 
     showModalBottomSheet(
       context: context,
@@ -105,7 +120,8 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
         isRestrictable: isRestrictable,
         onSaved: (newTags, newDisabledFeatures) {
           setState(() {
-            final idx = _teachers.indexWhere((t) => t['id']?.toString() == teacherId);
+            final idx =
+                _teachers.indexWhere((t) => t['id']?.toString() == teacherId);
             if (idx >= 0) {
               _teachers[idx] = {
                 ..._teachers[idx],
@@ -117,7 +133,8 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
         },
         onNurseToggled: (isNurse) {
           setState(() {
-            final idx = _teachers.indexWhere((t) => t['id']?.toString() == teacherId);
+            final idx =
+                _teachers.indexWhere((t) => t['id']?.toString() == teacherId);
             if (idx >= 0) {
               _teachers[idx] = {..._teachers[idx], 'is_nurse': isNurse};
             }
@@ -150,7 +167,8 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
                 prefixIcon: const Icon(Icons.search, size: 20),
                 filled: true,
                 fillColor: AppColors.card,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.border),
@@ -206,9 +224,11 @@ class _TeacherRoleCard extends StatelessWidget {
     final role = teacher['role'] as String? ?? 'teacher';
     final isNurse = teacher['is_nurse'] == true;
     final tags = List<String>.from(
-      (teacher['functional_tags'] as List<dynamic>? ?? []).map((e) => e.toString()),
+      (teacher['functional_tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString()),
     );
-    final disabledCount = (teacher['disabled_features'] as List<dynamic>? ?? []).length;
+    final disabledCount =
+        (teacher['disabled_features'] as List<dynamic>? ?? []).length;
 
     return GestureDetector(
       onTap: onTap,
@@ -231,7 +251,8 @@ class _TeacherRoleCard extends StatelessWidget {
                           fontWeight: FontWeight.w700, fontSize: 14)),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.skyLight,
                     borderRadius: BorderRadius.circular(20),
@@ -245,7 +266,8 @@ class _TeacherRoleCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.edit_outlined, size: 16, color: AppColors.muted),
+                const Icon(Icons.edit_outlined,
+                    size: 16, color: AppColors.muted),
               ],
             ),
             if (tags.isNotEmpty || isNurse || disabledCount > 0) ...[
@@ -256,39 +278,52 @@ class _TeacherRoleCard extends StatelessWidget {
                 children: [
                   if (disabledCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.rose.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.rose.withOpacity(0.3)),
+                        border:
+                            Border.all(color: AppColors.rose.withOpacity(0.3)),
                       ),
                       child: Text(
                         '🚫 $disabledCount restricted',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.rose),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.rose),
                       ),
                     ),
                   if (isNurse)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.coralLight,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.coral.withOpacity(0.3)),
+                        border:
+                            Border.all(color: AppColors.coral.withOpacity(0.3)),
                       ),
                       child: const Text(
                         '🏥 Nurse — Health Incidents',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.coral),
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.coral),
                       ),
                     ),
                   ...tags.map((tag) {
-                    final tagInfo = allTags.where((t) => t.$1 == tag).firstOrNull;
+                    final tagInfo =
+                        allTags.where((t) => t.$1 == tag).firstOrNull;
                     final label = tagInfo?.$2 ?? tag;
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.tealLight,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.teal.withOpacity(0.3)),
+                        border:
+                            Border.all(color: AppColors.teal.withOpacity(0.3)),
                       ),
                       child: Text(
                         label,
@@ -364,11 +399,16 @@ class TagEditorSheetState extends State<TagEditorSheet> {
     try {
       final newValue = await ApiClient.adminToggleNurse(widget.teacherId);
       if (mounted) {
-        setState(() { _isNurse = newValue; _togglingNurse = false; });
+        setState(() {
+          _isNurse = newValue;
+          _togglingNurse = false;
+        });
         widget.onNurseToggled(newValue);
-        showSnack(context, newValue
-            ? '${widget.teacherName} can now log & view health incidents for any student'
-            : '${widget.teacherName} is no longer a nurse');
+        showSnack(
+            context,
+            newValue
+                ? '${widget.teacherName} can now log & view health incidents for any student'
+                : '${widget.teacherName} is no longer a nurse');
       }
     } on ApiError catch (e) {
       if (mounted) {
@@ -412,205 +452,299 @@ class TagEditorSheetState extends State<TagEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // isScrollControlled:true (see _showTagEditor) lets this sheet grow up to
-    // the full screen height, but that alone doesn't make its own content
-    // scrollable -- with 4 tags + 7 restrict-access items + Save button, the
-    // unscrolled Column previously overflowed past the visible height on a
-    // real phone, making Save Roles physically unreachable. Wrapping in
-    // SingleChildScrollView is the fix.
-    return SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
-        child: Column(
+    // Previously the drag handle, "Functional Roles — {name}" header, every
+    // tag, the restrict-access list, AND the Save button all lived inside one
+    // SingleChildScrollView -- so scrolling down to reach Save also scrolled
+    // the teacher-name header off-screen, leaving the admin unable to see
+    // which staff member they were editing. Fixed by pinning the header and
+    // the Save button outside the scrollable region (DraggableScrollableSheet
+    // gives the middle section a bounded, scrollable height instead).
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                  color: AppColors.border, borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text('Functional Roles — ${widget.teacherName}',
-              style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.text)),
-          const SizedBox(height: 4),
-          const Text('Select the functional responsibilities for this staff member.',
-              style: TextStyle(color: AppColors.muted, fontSize: 12)),
-          const SizedBox(height: 16),
-          // Nurse is a dedicated backend flag (not a functional tag) — it grants
-          // school-wide health-incident access, not just the teacher's own
-          // assigned sections, so it's saved immediately on toggle rather than
-          // batched with the tags below.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: _isNurse ? AppColors.coralLight : AppColors.card,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _isNurse ? AppColors.coral.withOpacity(0.5) : AppColors.border,
+            // ── Fixed header: stays visible the whole time the sheet is open ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Functional Roles — ${widget.teacherName}',
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text)),
+                  const SizedBox(height: 4),
+                  const Text(
+                      'Select the functional responsibilities for this staff member.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                const Text('🏥', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Nurse', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.text)),
-                      Text('Can log & view health incidents for any student, school-wide',
-                          style: TextStyle(color: AppColors.muted, fontSize: 11)),
-                    ],
-                  ),
-                ),
-                _togglingNurse
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5))
-                    : Switch(
-                        key: const Key('nurse_toggle'),
-                        value: _isNurse,
-                        onChanged: (_) => _toggleNurse(),
-                        activeColor: AppColors.coral,
-                      ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...widget.allTags.map(((String val, String label, String sub) t) {
-            final isSelected = _selected.contains(t.$1);
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selected.remove(t.$1);
-                  } else {
-                    _selected.add(t.$1);
-                  }
-                });
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.tealLight : AppColors.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.teal.withOpacity(0.5)
-                        : AppColors.border,
-                  ),
-                ),
-                child: Row(
+            // ── Scrollable middle: nurse toggle, tags, restrict-access ──
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(t.$2.substring(0, t.$2.contains(' ') ? t.$2.indexOf(' ') : t.$2.length),
-                        style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    // Nurse is a dedicated backend flag (not a functional tag) — it grants
+                    // school-wide health-incident access, not just the teacher's own
+                    // assigned sections, so it's saved immediately on toggle rather than
+                    // batched with the tags below.
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _isNurse ? AppColors.coralLight : AppColors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _isNurse
+                              ? AppColors.coral.withOpacity(0.5)
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Row(
                         children: [
-                          Text(
-                            t.$2.contains(' ') ? t.$2.substring(t.$2.indexOf(' ') + 1) : t.$2,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: isSelected ? AppColors.teal : AppColors.text,
+                          const Text('🏥', style: TextStyle(fontSize: 20)),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Nurse',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: AppColors.text)),
+                                Text(
+                                    'Can log & view health incidents for any student, school-wide',
+                                    style: TextStyle(
+                                        color: AppColors.muted, fontSize: 11)),
+                              ],
                             ),
                           ),
-                          Text(t.$3,
-                              style: const TextStyle(
-                                  color: AppColors.muted, fontSize: 11)),
+                          _togglingNurse
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5))
+                              : Switch(
+                                  key: const Key('nurse_toggle'),
+                                  value: _isNurse,
+                                  onChanged: (_) => _toggleNurse(),
+                                  activeColor: AppColors.coral,
+                                ),
                         ],
                       ),
                     ),
-                    Icon(
-                      isSelected ? Icons.check_circle : Icons.circle_outlined,
-                      color: isSelected ? AppColors.teal : AppColors.border,
-                      size: 22,
-                    ),
+                    const SizedBox(height: 16),
+                    ...widget.allTags
+                        .map(((String val, String label, String sub) t) {
+                      final isSelected = _selected.contains(t.$1);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selected.remove(t.$1);
+                            } else {
+                              _selected.add(t.$1);
+                            }
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.tealLight
+                                : AppColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.teal.withOpacity(0.5)
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                  t.$2.substring(
+                                      0,
+                                      t.$2.contains(' ')
+                                          ? t.$2.indexOf(' ')
+                                          : t.$2.length),
+                                  style: const TextStyle(fontSize: 20)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t.$2.contains(' ')
+                                          ? t.$2
+                                              .substring(t.$2.indexOf(' ') + 1)
+                                          : t.$2,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isSelected
+                                            ? AppColors.teal
+                                            : AppColors.text,
+                                      ),
+                                    ),
+                                    Text(t.$3,
+                                        style: const TextStyle(
+                                            color: AppColors.muted,
+                                            fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                color: isSelected
+                                    ? AppColors.teal
+                                    : AppColors.border,
+                                size: 22,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    if (widget.isRestrictable) ...[
+                      const SizedBox(height: 16),
+                      const Text('Restrict Access',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text)),
+                      const SizedBox(height: 2),
+                      const Text(
+                          'Hide these sections for this staff member — e.g. a front-desk role that doesn\'t teach.',
+                          style:
+                              TextStyle(color: AppColors.muted, fontSize: 11)),
+                      const SizedBox(height: 10),
+                      ...widget.restrictableFeatures
+                          .map(((String val, String label, String sub) t) {
+                        final isDisabled = _disabled.contains(t.$1);
+                        return GestureDetector(
+                          key: Key('restrict_${t.$1}'),
+                          onTap: () {
+                            setState(() {
+                              if (isDisabled) {
+                                _disabled.remove(t.$1);
+                              } else {
+                                _disabled.add(t.$1);
+                              }
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isDisabled
+                                  ? AppColors.rose.withOpacity(0.1)
+                                  : AppColors.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDisabled
+                                    ? AppColors.rose.withOpacity(0.5)
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(t.$2,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: isDisabled
+                                                ? AppColors.rose
+                                                : AppColors.text,
+                                            decoration: isDisabled
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                          )),
+                                      Text(t.$3,
+                                          style: const TextStyle(
+                                              color: AppColors.muted,
+                                              fontSize: 11)),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  isDisabled
+                                      ? Icons.visibility_off
+                                      : Icons.visibility_outlined,
+                                  color: isDisabled
+                                      ? AppColors.rose
+                                      : AppColors.border,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ],
                 ),
               ),
-            );
-          }),
-          if (widget.isRestrictable) ...[
-            const SizedBox(height: 16),
-            const Text('Restrict Access', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.text)),
-            const SizedBox(height: 2),
-            const Text('Hide these sections for this staff member — e.g. a front-desk role that doesn\'t teach.',
-                style: TextStyle(color: AppColors.muted, fontSize: 11)),
-            const SizedBox(height: 10),
-            ...widget.restrictableFeatures.map(((String val, String label, String sub) t) {
-              final isDisabled = _disabled.contains(t.$1);
-              return GestureDetector(
-                key: Key('restrict_${t.$1}'),
-                onTap: () {
-                  setState(() {
-                    if (isDisabled) {
-                      _disabled.remove(t.$1);
-                    } else {
-                      _disabled.add(t.$1);
-                    }
-                  });
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isDisabled ? AppColors.rose.withOpacity(0.1) : AppColors.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDisabled ? AppColors.rose.withOpacity(0.5) : AppColors.border,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(t.$2,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: isDisabled ? AppColors.rose : AppColors.text,
-                                  decoration: isDisabled ? TextDecoration.lineThrough : null,
-                                )),
-                            Text(t.$3, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        isDisabled ? Icons.visibility_off : Icons.visibility_outlined,
-                        color: isDisabled ? AppColors.rose : AppColors.border,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              key: const Key('save_roles_button'),
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                  : const Text('Save Roles'),
             ),
-          ),
-        ],
-        ),
-      ),
+            // ── Fixed footer: Save is always reachable and the header above
+            // it never scrolls out of view while getting there. ──
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                  20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  key: const Key('save_roles_button'),
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5))
+                      : const Text('Save Roles'),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

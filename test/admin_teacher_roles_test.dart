@@ -97,6 +97,30 @@ void main() {
     );
 
     testWidgets(
+      'the teacher-name header stays visible while scrolling to reach Save Roles',
+      (tester) async {
+        // Real bug report (live device testing): scrolling down to reach Save
+        // Roles also scrolled the "Functional Roles — {name}" header off
+        // screen, so the admin lost track of which staff member they were
+        // editing. The header must now be pinned outside the scrollable
+        // region, so it stays on screen both before and after scrolling.
+        await tester.pumpWidget(_harness(height: 560));
+        await tester.pump();
+
+        final header = find.text('Functional Roles — Anjali Verma');
+        expect(header, findsOneWidget, reason: 'header visible before scrolling');
+
+        final saveButton = find.byKey(const Key('save_roles_button'));
+        await tester.scrollUntilVisible(saveButton, 200, scrollable: find.byType(Scrollable).first);
+        await tester.pumpAndSettle();
+
+        expect(saveButton, findsOneWidget, reason: 'Save Roles reachable after scrolling');
+        expect(header, findsOneWidget, reason: 'header still visible after scrolling to Save Roles');
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'on an even shorter viewport (small/older device), Save Roles is still reachable',
       (tester) async {
         await tester.pumpWidget(_harness(height: 560));

@@ -2643,6 +2643,15 @@ class ApiClient {
     await _patch('/api/v1/admin/teachers/$teacherId/disabled-features', {'features': features});
   }
 
+  /// Which teacher is mapped to which class/section (+ subject) this
+  /// academic year, plus active staff with zero assignments -- admin-tier
+  /// roles and nurses show up there by design (see is_nurse/_ADMIN_ROLES),
+  /// a plain teacher showing up is a real coverage gap.
+  static Future<Map<String, dynamic>> adminGetTeacherSectionMapping() async {
+    final data = await _get('/api/v1/admin/sections/teacher-mapping');
+    return data as Map<String, dynamic>;
+  }
+
   // ── Library Management ─────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> libraryListBooks({

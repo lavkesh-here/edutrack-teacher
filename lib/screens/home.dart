@@ -51,6 +51,7 @@ import 'brain_booster_screen.dart';
 import 'alerts.dart';
 import 'visitor_log.dart';
 import 'admin_teacher_roles.dart';
+import 'admin_teacher_section_mapping.dart';
 import '../core/branding.dart';
 import '../core/recents.dart';
 import '../core/features.dart';
@@ -996,6 +997,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'leave_config':         _openScreen(context, const AdminLeaveConfigScreen(), recentId: id);
       case 'director_analytics':   _openScreen(context, const DirectorDashboardScreen(), recentId: id);
       case 'staff_roles':     _openScreen(context, const AdminTeacherRolesScreen(), recentId: id);
+      case 'teacher_section_mapping': _openScreen(context, const AdminTeacherSectionMappingScreen(), recentId: id);
       case 'visitor_log':     _openScreen(context, const VisitorLogScreen(), recentId: id);
       case 'vidya':           _openScreen(context, const VidyaScreen(), recentId: id);
       case 'leaves':          _openScreen(context, const LeaveScreen(), recentId: id);
@@ -2139,6 +2141,8 @@ class _MoreTabState extends State<_MoreTab> {
                             onTap: () => _push(context, const AdminLeaveConfigScreen(), recentId: 'leave_config')),
                       _FeatureRow(icon: '🏷️', iconBg: AppColors.tealLight, title: 'Staff Roles', sub: 'Assign functional tags to staff',
                           onTap: () => _push(context, const AdminTeacherRolesScreen(), recentId: 'staff_roles')),
+                      _FeatureRow(icon: '🗺️', iconBg: AppColors.skyLight, title: 'Teacher ↔ Class Mapping', sub: 'See which teacher covers which class/section',
+                          onTap: () => _push(context, const AdminTeacherSectionMappingScreen(), recentId: 'teacher_section_mapping')),
                       _FeatureRow(icon: '🏠', iconBg: AppColors.skyLight, title: 'Visitor Log', sub: 'Log and manage school visitors',
                           onTap: () => _push(context, const VisitorLogScreen(), recentId: 'visitor_log')),
                     ],

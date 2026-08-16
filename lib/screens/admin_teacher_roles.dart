@@ -94,7 +94,7 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _TagEditorSheet(
+      builder: (_) => TagEditorSheet(
         teacherId: teacherId,
         teacherName: teacherName,
         currentTags: currentTags,
@@ -315,8 +315,9 @@ class _TeacherRoleCard extends StatelessWidget {
 
 // ── Tag Editor Sheet ──────────────────────────────────────────────────────────
 
-class _TagEditorSheet extends StatefulWidget {
-  const _TagEditorSheet({
+class TagEditorSheet extends StatefulWidget {
+  const TagEditorSheet({
+    super.key,
     required this.teacherId,
     required this.teacherName,
     required this.currentTags,
@@ -340,10 +341,10 @@ class _TagEditorSheet extends StatefulWidget {
   final void Function(bool) onNurseToggled;
 
   @override
-  State<_TagEditorSheet> createState() => _TagEditorSheetState();
+  State<TagEditorSheet> createState() => TagEditorSheetState();
 }
 
-class _TagEditorSheetState extends State<_TagEditorSheet> {
+class TagEditorSheetState extends State<TagEditorSheet> {
   late Set<String> _selected;
   late Set<String> _disabled;
   late bool _isNurse;
@@ -411,12 +412,19 @@ class _TagEditorSheetState extends State<_TagEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    // isScrollControlled:true (see _showTagEditor) lets this sheet grow up to
+    // the full screen height, but that alone doesn't make its own content
+    // scrollable -- with 4 tags + 7 restrict-access items + Save button, the
+    // unscrolled Column previously overflowed past the visible height on a
+    // real phone, making Save Roles physically unreachable. Wrapping in
+    // SingleChildScrollView is the fix.
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Center(
             child: Container(
               width: 36, height: 4,
@@ -591,6 +599,7 @@ class _TagEditorSheetState extends State<_TagEditorSheet> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
+              key: const Key('save_roles_button'),
               onPressed: _saving ? null : _save,
               child: _saving
                   ? const SizedBox(
@@ -600,6 +609,7 @@ class _TagEditorSheetState extends State<_TagEditorSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

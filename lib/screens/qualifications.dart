@@ -458,7 +458,7 @@ class _AddQualificationSheetState extends State<_AddQualificationSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return _BottomSheet(
+    return QualificationsFormSheet(
       title: 'Add Education',
       saving: _saving,
       onSave: _save,
@@ -571,7 +571,7 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return _BottomSheet(
+    return QualificationsFormSheet(
       title: 'Add Work Experience',
       saving: _saving,
       onSave: _save,
@@ -652,13 +652,14 @@ class _AddExperienceSheetState extends State<_AddExperienceSheet> {
 
 // ── Shared sheet wrapper ──────────────────────────────────────────────────────
 
-class _BottomSheet extends StatelessWidget {
+class QualificationsFormSheet extends StatelessWidget {
   final String title;
   final bool saving;
   final VoidCallback onSave;
   final List<Widget> children;
 
-  const _BottomSheet({
+  const QualificationsFormSheet({
+    super.key,
     required this.title,
     required this.saving,
     required this.onSave,
@@ -669,6 +670,13 @@ class _BottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      // Demo-17 D5-class fix: both callers of this shared sheet (Add
+      // Education, Add Work Experience) have enough fields -- including a
+      // From/To-year row and a checkbox -- to plausibly push Save below the
+      // visible viewport once the keyboard is open on a real phone. Same
+      // defect already found and fixed in admin_teacher_roles.dart and
+      // worklog.dart; same fix here.
+      child: SingleChildScrollView(
       child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -698,6 +706,7 @@ class _BottomSheet extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
+                key: const Key('qualifications_sheet_save_button'),
                 onPressed: saving ? null : onSave,
                 child: saving
                     ? const SizedBox(width: 20, height: 20,
@@ -707,6 +716,7 @@ class _BottomSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

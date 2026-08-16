@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as dev;
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,7 @@ class AuthResponse {
   final String teacherId;
   final bool mustChangePassword;
   final List<String> functionalTags;
+  final List<String> disabledFeatures;
 
   const AuthResponse({
     required this.token,
@@ -41,6 +43,7 @@ class AuthResponse {
     required this.teacherId,
     this.mustChangePassword = false,
     this.functionalTags = const [],
+    this.disabledFeatures = const [],
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> j) => AuthResponse(
@@ -51,6 +54,10 @@ class AuthResponse {
         teacherId: j['teacher_id'].toString(),
         mustChangePassword: j['must_change_password'] as bool? ?? false,
         functionalTags: (j['functional_tags'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
+        disabledFeatures: (j['disabled_features'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
@@ -680,6 +687,7 @@ class WorkLogEntry {
   final String? studentName;
   final String? studentRollNo;
   final String? studentClassLabel;
+  final String? teacherName;
   final List<String> imageUrls;
   final String? chapterId;
   final String? chapterName;
@@ -704,6 +712,7 @@ class WorkLogEntry {
     this.studentName,
     this.studentRollNo,
     this.studentClassLabel,
+    this.teacherName,
     this.imageUrls = const [],
     this.chapterId,
     this.chapterName,
@@ -728,6 +737,7 @@ class WorkLogEntry {
         studentName: j['student_name'] as String?,
         studentRollNo: j['student_roll_no']?.toString(),
         studentClassLabel: j['student_class_label'] as String?,
+        teacherName: j['teacher_name'] as String?,
         imageUrls: (j['image_urls'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -897,6 +907,22 @@ class ApiClient {
   }
 
   static void _log(String method, String path, int status, int ms, {String? requestId, String? error}) {
+    if (error != null) {
+      // Record to Crashlytics regardless of build mode — this is what makes a
+      // backend error correlatable to a support report after the fact. The
+      // request_id round-trips from the backend's X-Request-ID header all the
+      // way to a queryable Crashlytics record instead of dead-ending in a
+      // debug-only console line (see backend/docs/OBSERVABILITY.md).
+      try {
+        FirebaseCrashlytics.instance.setCustomKey('last_request_id', requestId ?? 'none');
+        FirebaseCrashlytics.instance.recordError(
+          'API error: $method $path -> $status',
+          null,
+          reason: error,
+          fatal: false,
+        );
+      } catch (_) {}
+    }
     if (!kDebugMode) return;
     final rid = requestId != null ? ' [rid=$requestId]' : '';
     if (error != null) {
@@ -918,12 +944,12 @@ class ApiClient {
     if (res.statusCode == 401) {
       _log('GET', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
-      throw ApiError('Session expired. Please log in again.', 401);
+      throw ApiError('Session expired. Please log in again.', 401, requestId: rid);
     }
     if (res.statusCode >= 400) {
       final detail = _errorDetail(res);
       _log('GET', path, res.statusCode, ms, requestId: rid, error: detail);
-      throw ApiError(detail, res.statusCode);
+      throw ApiError(detail, res.statusCode, requestId: rid);
     }
     _log('GET', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
@@ -942,12 +968,12 @@ class ApiClient {
     if (res.statusCode == 401) {
       _log('POST', path, 401, ms, requestId: rid, error: 'session expired');
       if (handleUnauthorized) await onUnauthorized?.call();
-      throw ApiError(handleUnauthorized ? 'Session expired. Please log in again.' : 'Invalid credentials', 401);
+      throw ApiError(handleUnauthorized ? 'Session expired. Please log in again.' : 'Invalid credentials', 401, requestId: rid);
     }
     if (res.statusCode >= 400) {
       final detail = _errorDetail(res);
       _log('POST', path, res.statusCode, ms, requestId: rid, error: detail);
-      throw ApiError(detail, res.statusCode);
+      throw ApiError(detail, res.statusCode, requestId: rid);
     }
     _log('POST', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
@@ -966,12 +992,12 @@ class ApiClient {
     if (res.statusCode == 401) {
       _log('PATCH', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
-      throw ApiError('Session expired. Please log in again.', 401);
+      throw ApiError('Session expired. Please log in again.', 401, requestId: rid);
     }
     if (res.statusCode >= 400) {
       final detail = _errorDetail(res);
       _log('PATCH', path, res.statusCode, ms, requestId: rid, error: detail);
-      throw ApiError(detail, res.statusCode);
+      throw ApiError(detail, res.statusCode, requestId: rid);
     }
     _log('PATCH', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
@@ -989,12 +1015,12 @@ class ApiClient {
     if (res.statusCode == 401) {
       _log('DELETE', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
-      throw ApiError('Session expired. Please log in again.', 401);
+      throw ApiError('Session expired. Please log in again.', 401, requestId: rid);
     }
     if (res.statusCode >= 400) {
       final detail = _errorDetail(res);
       _log('DELETE', path, res.statusCode, ms, requestId: rid, error: detail);
-      throw ApiError(detail, res.statusCode);
+      throw ApiError(detail, res.statusCode, requestId: rid);
     }
     _log('DELETE', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
@@ -1013,12 +1039,12 @@ class ApiClient {
     if (res.statusCode == 401) {
       _log('PUT', path, 401, ms, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
-      throw ApiError('Session expired. Please log in again.', 401);
+      throw ApiError('Session expired. Please log in again.', 401, requestId: rid);
     }
     if (res.statusCode >= 400) {
       final detail = _errorDetail(res);
       _log('PUT', path, res.statusCode, ms, requestId: rid, error: detail);
-      throw ApiError(detail, res.statusCode);
+      throw ApiError(detail, res.statusCode, requestId: rid);
     }
     _log('PUT', path, res.statusCode, ms, requestId: rid);
     return jsonDecode(utf8.decode(res.bodyBytes));
@@ -1133,11 +1159,16 @@ class ApiClient {
     final res = await http.get(uri, headers: {
       if (token != null) 'Authorization': 'Bearer $token',
     }).timeout(const Duration(seconds: 20));
+    final rid = res.headers['x-request-id'];
     if (res.statusCode == 401) {
+      _log('GET', 'export/preview', 401, 0, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
-      throw ApiError('Session expired. Please log in again.', 401);
+      throw ApiError('Session expired. Please log in again.', 401, requestId: rid);
     }
-    if (res.statusCode >= 400) throw ApiError('Preview failed (${res.statusCode})', res.statusCode);
+    if (res.statusCode >= 400) {
+      _log('GET', 'export/preview', res.statusCode, 0, requestId: rid, error: 'Preview failed');
+      throw ApiError('Preview failed (${res.statusCode})', res.statusCode, requestId: rid);
+    }
     return utf8.decode(res.bodyBytes);
   }
 
@@ -1372,6 +1403,7 @@ class ApiClient {
     String? dateTo,
     List<String>? sectionIds,
     String? studentId,
+    bool allTeachers = false,
   }) async {
     final params = <String>[];
     if (date != null) params.add('date=$date');
@@ -1381,6 +1413,7 @@ class ApiClient {
       params.add('section_ids=${sectionIds.join(',')}');
     }
     if (studentId != null) params.add('student_id=$studentId');
+    if (allTeachers) params.add('all_teachers=true');
     final path = '/api/v1/teacher/work-log${params.isEmpty ? '' : '?${params.join('&')}'}';
     final data = await _get(path);
     final list = data as List<dynamic>;
@@ -1868,6 +1901,19 @@ class ApiClient {
     return data as Map<String, dynamic>;
   }
 
+  // Admin: leave request review (list + approve/reject) — the backend has had
+  // this since before this session, but no screen ever called it, so pending
+  // leave requests had no in-app way to be approved or rejected.
+  static Future<Map<String, dynamic>> adminListLeaveRequests({String? status}) async {
+    final q = status != null ? '?status=$status' : '';
+    final data = await _get('/api/v1/admin/leaves$q');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> adminReviewLeaveRequest(String leaveId, String action) async {
+    await _patch('/api/v1/admin/leaves/$leaveId/review?action=$action', {});
+  }
+
   // ── Teacher profile ────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getMyProfile() async {
@@ -2036,11 +2082,17 @@ class ApiClient {
       if (token != null) 'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     }).timeout(const Duration(seconds: 10));
+    final rid = res.headers['x-request-id'];
     if (res.statusCode == 401) {
+      _log('GET', 'teacher/search', 401, 0, requestId: rid, error: 'session expired');
       await onUnauthorized?.call();
-      throw ApiError('Session expired', 401);
+      throw ApiError('Session expired', 401, requestId: rid);
     }
-    if (res.statusCode >= 400) throw ApiError(_errorDetail(res), res.statusCode);
+    if (res.statusCode >= 400) {
+      final detail = _errorDetail(res);
+      _log('GET', 'teacher/search', res.statusCode, 0, requestId: rid, error: detail);
+      throw ApiError(detail, res.statusCode, requestId: rid);
+    }
     return TeacherSearchResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -2069,7 +2121,9 @@ class ApiClient {
         '$base/api/v1/teacher/students/$studentId/full-report/pdf?token=$token');
     final res = await http.get(uri).timeout(const Duration(seconds: 30));
     if (res.statusCode >= 400) {
-      throw ApiError('Could not generate PDF (${res.statusCode})', res.statusCode);
+      final rid = res.headers['x-request-id'];
+      _log('GET', 'full-report/pdf', res.statusCode, 0, requestId: rid, error: 'PDF generation failed');
+      throw ApiError('Could not generate PDF (${res.statusCode})', res.statusCode, requestId: rid);
     }
     return res.bodyBytes;
   }
@@ -2577,6 +2631,18 @@ class ApiClient {
     await _patch('/api/v1/admin/teachers/$teacherId/functional-tags', {'tags': tags});
   }
 
+  /// Flips is_nurse; returns the new value. A nurse can log/view health
+  /// incidents for any student school-wide, not just their own assigned
+  /// sections (see backend `_can_access_student` / `_teacher_student_scope`).
+  static Future<bool> adminToggleNurse(String teacherId) async {
+    final data = await _patch('/api/v1/admin/teachers/$teacherId/toggle-nurse', {});
+    return (data as Map<String, dynamic>)['is_nurse'] as bool;
+  }
+
+  static Future<void> adminUpdateDisabledFeatures(String teacherId, List<String> features) async {
+    await _patch('/api/v1/admin/teachers/$teacherId/disabled-features', {'features': features});
+  }
+
   // ── Library Management ─────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> libraryListBooks({
@@ -2671,7 +2737,8 @@ class ApiClient {
 class ApiError implements Exception {
   final String message;
   final int statusCode;
-  const ApiError(this.message, this.statusCode);
+  final String? requestId;
+  const ApiError(this.message, this.statusCode, {this.requestId});
 
   @override
   String toString() => message;

@@ -17,7 +17,7 @@ class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -39,6 +39,7 @@ class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen>
           unselectedLabelColor: AppColors.muted,
           indicatorColor: null,
           tabs: const [
+            Tab(text: 'Requests'),
             Tab(text: 'School Defaults'),
             Tab(text: 'Per Teacher'),
           ],
@@ -47,6 +48,7 @@ class _AdminLeaveConfigScreenState extends State<AdminLeaveConfigScreen>
       body: TabBarView(
         controller: _tabs,
         children: const [
+          _RequestsTab(),
           _GlobalConfigTab(),
           _PerTeacherTab(),
         ],
@@ -499,6 +501,178 @@ class _ProbationChip extends StatelessWidget {
           ),
         ),
       );
+}
+
+// ── Tab 0: Pending leave requests (approve / reject) ─────────────────────────
+//
+// The backend has supported GET /admin/leaves and PATCH /admin/leaves/{id}/
+// review since before this file existed, with full test coverage
+// (tests/test_leaves.py, test_e2e_flows.py, test_race_conditions.py) -- but no
+// screen in this app ever called either endpoint. A teacher could apply for
+// leave (leave.dart) with no in-app way for a director/principal/admin to
+// approve or reject it. This tab is that missing piece.
+
+class _RequestsTab extends StatefulWidget {
+  const _RequestsTab();
+
+  @override
+  State<_RequestsTab> createState() => _RequestsTabState();
+}
+
+class _RequestsTabState extends State<_RequestsTab> {
+  List<Map<String, dynamic>> _requests = [];
+  bool _loading = true;
+  String _statusFilter = 'pending';
+  final Set<String> _reviewing = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await ApiClient.adminListLeaveRequests(status: _statusFilter);
+      final leaves = (data['leaves'] as List<dynamic>? ?? [])
+          .map((e) => e as Map<String, dynamic>)
+          .toList();
+      if (mounted) setState(() { _requests = leaves; _loading = false; });
+    } on ApiError catch (e) {
+      if (mounted) { showSnack(context, e.message, error: true); setState(() => _loading = false); }
+    } catch (_) {
+      if (mounted) { showSnack(context, 'Failed to load. Try again.', error: true); setState(() => _loading = false); }
+    }
+  }
+
+  Future<void> _review(String leaveId, String action) async {
+    setState(() => _reviewing.add(leaveId));
+    try {
+      await ApiClient.adminReviewLeaveRequest(leaveId, action);
+      if (!mounted) return;
+      showSnack(context, action == 'approved' ? 'Leave approved ✓' : 'Leave rejected');
+      // Re-fetch from the server rather than just removing the row locally --
+      // this is the real create/update -> DB -> reload proof, not an
+      // optimistic UI update that could drift from what actually persisted.
+      await _load();
+    } on ApiError catch (e) {
+      if (mounted) showSnack(context, e.message, error: true);
+    } finally {
+      if (mounted) setState(() => _reviewing.remove(leaveId));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              for (final s in const ['pending', 'approved', 'rejected'])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _ProbationChip(
+                    label: s[0].toUpperCase() + s.substring(1),
+                    selected: _statusFilter == s,
+                    color: s == 'pending' ? AppColors.amber : (s == 'approved' ? AppColors.teal : AppColors.coral),
+                    onTap: () {
+                      setState(() => _statusFilter = s);
+                      _load();
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _requests.isEmpty
+              ? Center(
+                  child: Text('No $_statusFilter leave requests',
+                      style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                )
+              : RefreshIndicator(
+                  color: context.primary,
+                  onRefresh: _load,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    itemCount: _requests.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final r = _requests[i];
+                      final id = r['id'] as String;
+                      final isReviewing = _reviewing.contains(id);
+                      return Container(
+                        key: Key('leave_request_$id'),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(r['teacher_name'] as String? ?? 'Teacher',
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+                                ),
+                                _OverrideChip((r['leave_type'] as String? ?? '').toUpperCase()),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${r['start_date']} → ${r['end_date']}  (${r['days_count']} day${r['days_count'] == 1 ? '' : 's'})',
+                              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                            ),
+                            if ((r['reason'] as String?)?.isNotEmpty == true) ...[
+                              const SizedBox(height: 4),
+                              Text(r['reason'] as String, style: const TextStyle(fontSize: 12, color: AppColors.text2)),
+                            ],
+                            if (_statusFilter == 'pending') ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      key: Key('reject_leave_$id'),
+                                      onPressed: isReviewing ? null : () => _review(id, 'rejected'),
+                                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.coral),
+                                      child: const Text('Reject'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      key: Key('approve_leave_$id'),
+                                      onPressed: isReviewing ? null : () => _review(id, 'approved'),
+                                      child: isReviewing
+                                          ? const SizedBox(
+                                              width: 16, height: 16,
+                                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                            )
+                                          : const Text('Approve'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class _ConfigField extends StatelessWidget {

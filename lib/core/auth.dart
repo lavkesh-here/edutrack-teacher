@@ -18,6 +18,7 @@ class AuthUser {
   final String? phone;
   final String? photoUrl;
   final List<String> tags;
+  final List<String> disabledFeatures;
 
   const AuthUser({
     required this.teacherName,
@@ -28,9 +29,17 @@ class AuthUser {
     this.phone,
     this.photoUrl,
     this.tags = const [],
+    this.disabledFeatures = const [],
   });
 
   bool hasTag(String tag) => tags.contains(tag);
+
+  /// True if an admin has hidden this core-teaching section for this
+  /// teacher (see backend ALLOWED_DISABLABLE_FEATURES). Admins/principals/
+  /// directors are never restricted this way -- the setting only applies to
+  /// plain teacher-role staff.
+  bool isFeatureDisabled(String feature) =>
+      role == 'teacher' && disabledFeatures.contains(feature);
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -145,6 +154,8 @@ class AuthProvider extends ChangeNotifier {
       if (name.isNotEmpty) {
         final tagsStr = prefs.getString('teacher_tags') ?? '';
         final tags = tagsStr.isEmpty ? <String>[] : tagsStr.split(',');
+        final disabledStr = prefs.getString('teacher_disabled_features') ?? '';
+        final disabled = disabledStr.isEmpty ? <String>[] : disabledStr.split(',');
         _user = AuthUser(
           teacherName: name,
           schoolName: school,
@@ -154,6 +165,7 @@ class AuthProvider extends ChangeNotifier {
           phone: prefs.getString('teacher_phone'),
           photoUrl: prefs.getString('teacher_photo_url'),
           tags: tags,
+          disabledFeatures: disabled,
         );
       }
     }
@@ -183,12 +195,15 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('teacher_email', email);
     final tags = res.functionalTags;
     await prefs.setString('teacher_tags', tags.join(','));
+    final disabledFeatures = res.disabledFeatures;
+    await prefs.setString('teacher_disabled_features', disabledFeatures.join(','));
     _user = AuthUser(
       teacherName: res.teacherName,
       schoolName: res.schoolName,
       role: res.role,
       teacherId: res.teacherId,
       tags: tags,
+      disabledFeatures: disabledFeatures,
     );
     // Load feature flags after login (non-blocking)
     _loadFeatureFlags();
@@ -225,6 +240,7 @@ class AuthProvider extends ChangeNotifier {
       phone: phone ?? _user!.phone,
       photoUrl: _user!.photoUrl,
       tags: _user!.tags,
+      disabledFeatures: _user!.disabledFeatures,
     );
     notifyListeners();
   }
@@ -242,6 +258,7 @@ class AuthProvider extends ChangeNotifier {
       phone: _user!.phone,
       photoUrl: url,
       tags: _user!.tags,
+      disabledFeatures: _user!.disabledFeatures,
     );
     notifyListeners();
   }
@@ -265,6 +282,7 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('teacher_phone');
     await prefs.remove('teacher_photo_url');
     await prefs.remove('teacher_tags');
+    await prefs.remove('teacher_disabled_features');
     _user = null;
     _features = FeatureFlags.defaults();
     await CacheService.clearAll();

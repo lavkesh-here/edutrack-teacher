@@ -970,6 +970,31 @@ void main() {
     });
   });
 
+  // ── "Already submitted" must come from real server data, not just a local
+  // session cache (regression: the cache is always empty on a fresh app
+  // session even for a day that really was submitted earlier, which used to
+  // silently skip the "you'll lose your marks" warning before swipe-mode reset)
+  group('Attendance already-submitted derivation', () {
+    test('any non-empty status means the day was already submitted', () {
+      final ss = [
+        _AttendanceStudent(id: '1', name: 'A', rollNo: '1', status: 'present'),
+        _AttendanceStudent(id: '2', name: 'B', rollNo: '2', status: ''),
+      ];
+      expect(ss.any((s) => s.status.isNotEmpty), isTrue);
+    });
+    test('all-empty statuses means the day was never submitted', () {
+      final ss = [
+        _AttendanceStudent(id: '1', name: 'A', rollNo: '1', status: ''),
+        _AttendanceStudent(id: '2', name: 'B', rollNo: '2', status: ''),
+      ];
+      expect(ss.any((s) => s.status.isNotEmpty), isFalse);
+    });
+    test('empty roster means the day was never submitted', () {
+      final ss = <_AttendanceStudent>[];
+      expect(ss.any((s) => s.status.isNotEmpty), isFalse);
+    });
+  });
+
   // ── LeaveRequest.fromJson ─────────────────────────────────────────────────
   group('LeaveRequest.fromJson', () {
     test('parses full request', () {

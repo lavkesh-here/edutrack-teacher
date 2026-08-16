@@ -75,9 +75,19 @@ class AttendanceScreenState extends State<AttendanceScreen> {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_date);
       final students = await ApiClient.getAttendance(_selectedSection!.id, dateStr);
+      // _submittedCache only knows about days visited earlier in this same app
+      // session — on a fresh session it's always empty, even for a day that was
+      // genuinely already submitted. The server-returned statuses are the real
+      // source of truth: if any student already has a status, this day was
+      // submitted before, regardless of what the local cache says.
+      final reallySubmitted = students.any((s) => s.status.isNotEmpty);
       setState(() {
         _students = students;
         _loadingStudents = false;
+        if (reallySubmitted) {
+          _isSubmitted = true;
+          _submittedCache[cacheKey] = true;
+        }
       });
     } catch (_) {
       setState(() => _loadingStudents = false);

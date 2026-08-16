@@ -63,14 +63,24 @@ import '../core/features.dart';
 /// screen the backend would now reject with a 403. Recent IDs not covered
 /// below ('schedule', 'leaves', 'payroll', 'todos') are open to every
 /// teacher regardless of role, so they always return true.
+// Core-teaching features an admin can individually disable for a teacher
+// (see backend ALLOWED_DISABLABLE_FEATURES / AuthUser.isFeatureDisabled) —
+// kept in sync with that list. A stale recent chip for one of these must
+// stop working the same way an admin-only chip does after a role downgrade.
+const _restrictableFeatureIds = {'worklog', 'notify', 'results', 'syllabus', 'ptm', 'enquiries', 'health'};
+
 bool canAccessRecent(String id, {
   required String role,
   required bool transportFlag,
   required bool workLogsFlag,
   required bool feesFlag,
+  List<String> disabledFeatures = const [],
 }) {
   final isAdminOrAbove = role == 'admin' || role == 'principal' || role == 'director';
   final isAdmin = role == 'admin';
+  if (role == 'teacher' && _restrictableFeatureIds.contains(id) && disabledFeatures.contains(id)) {
+    return false;
+  }
   switch (id) {
     case 'parents':
     case 'school_settings':
@@ -357,6 +367,7 @@ class _HomeTabState extends State<_HomeTab> {
       transportFlag: auth.features.transport,
       workLogsFlag: auth.features.workLogs,
       feesFlag: auth.features.fees,
+      disabledFeatures: user.disabledFeatures,
     )).toList();
     final now = DateTime.now();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -661,18 +672,19 @@ class _HomeTabState extends State<_HomeTab> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    if (auth.features.workLogs)
+                    if (auth.features.workLogs && !user.isFeatureDisabled('worklog'))
                       _QuickPill(
                         label: '📚 Add Homework',
                         color: AppColors.coral,
                         onTap: () => _openScreen(context, const WorkLogScreen(), recentId: 'worklog'),
                       ),
-                    _QuickPill(
-                      label: '🔔 Notify Parents',
-                      color: AppColors.teal,
-                      onTap: () => _openScreen(context, const NotifyParentsScreen(), recentId: 'notify'),
-                    ),
-                    if (auth.features.tests)
+                    if (!user.isFeatureDisabled('notify'))
+                      _QuickPill(
+                        label: '🔔 Notify Parents',
+                        color: AppColors.teal,
+                        onTap: () => _openScreen(context, const NotifyParentsScreen(), recentId: 'notify'),
+                      ),
+                    if (auth.features.tests && !user.isFeatureDisabled('results'))
                       _QuickPill(
                         label: '📊 Post Results',
                         color: AppColors.amber,
@@ -2064,18 +2076,21 @@ class _MoreTabState extends State<_MoreTab> {
                     const SizedBox(height: 8),
                     _FeatureRow(icon: '🕐', iconBg: context.primaryLight, title: 'My Schedule', sub: 'Weekly timetable',
                         onTap: () => _push(context, const TimetableScreen(), recentId: 'schedule')),
-                    if (flags.syllabus)
+                    if (flags.syllabus && !user.isFeatureDisabled('syllabus'))
                       _FeatureRow(icon: '📖', iconBg: AppColors.greenLight, title: 'Syllabus Progress', sub: 'Chapters completed, in progress & pending',
                           onTap: () => _push(context, const SyllabusScreen(), recentId: 'syllabus')),
                     if (flags.circulars)
                       _FeatureRow(icon: '📋', iconBg: AppColors.skyLight, title: 'Circulars', sub: 'School-wide notices from admin',
                           onTap: () => _push(context, const CircularsScreen(), recentId: 'circulars')),
-                    _FeatureRow(icon: '🤝', iconBg: AppColors.violetLight, title: 'PTM', sub: 'Parent-teacher meetings & notes',
-                        onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
-                    _FeatureRow(icon: '🙋', iconBg: AppColors.amberLight, title: 'Enquiries', sub: 'Visitors who came to meet you & follow-ups',
-                        onTap: () => _push(context, const EnquiriesScreen(), recentId: 'enquiries')),
-                    _FeatureRow(icon: '🏥', iconBg: AppColors.coralLight, title: 'Health Incidents', sub: 'Log & track student health events',
-                        onTap: () => _push(context, const HealthIncidentsScreen(), recentId: 'health')),
+                    if (!user.isFeatureDisabled('ptm'))
+                      _FeatureRow(icon: '🤝', iconBg: AppColors.violetLight, title: 'PTM', sub: 'Parent-teacher meetings & notes',
+                          onTap: () => _push(context, const PTMScreen(), recentId: 'ptm')),
+                    if (!user.isFeatureDisabled('enquiries'))
+                      _FeatureRow(icon: '🙋', iconBg: AppColors.amberLight, title: 'Enquiries', sub: 'Visitors who came to meet you & follow-ups',
+                          onTap: () => _push(context, const EnquiriesScreen(), recentId: 'enquiries')),
+                    if (!user.isFeatureDisabled('health'))
+                      _FeatureRow(icon: '🏥', iconBg: AppColors.coralLight, title: 'Health Incidents', sub: 'Log & track student health events',
+                          onTap: () => _push(context, const HealthIncidentsScreen(), recentId: 'health')),
                     _FeatureRow(icon: '🔄', iconBg: AppColors.tealLight, title: 'Substitutions', sub: 'Self-assign & view coverage history',
                         onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
                     _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by smart rules',

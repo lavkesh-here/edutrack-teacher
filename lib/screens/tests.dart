@@ -129,12 +129,20 @@ class _TestsScreenState extends State<TestsScreen> {
                           itemCount: filtered.length,
                           itemBuilder: (_, i) => _TestCard(
                             test: filtered[i],
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TestScoresScreen(test: filtered[i]),
-                              ),
-                            ),
+                            onTap: () async {
+                              // TestScoresScreen pops with `true` after a
+                              // successful save (status moves draft ->
+                              // finalized) -- without awaiting and reloading
+                              // here, this list kept showing the stale
+                              // "Draft" badge until a manual pull-to-refresh.
+                              final saved = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TestScoresScreen(test: filtered[i]),
+                                ),
+                              );
+                              if (saved == true) _load();
+                            },
                           ),
                         ),
                       );

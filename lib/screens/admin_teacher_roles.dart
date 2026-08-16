@@ -16,12 +16,31 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
   List<Map<String, dynamic>> _teachers = [];
   String _search = '';
 
+  // 'medical_supervisor' used to be listed here, but it's not checked
+  // anywhere on the backend -- selecting it silently did nothing. The real
+  // mechanism for health-incident access is the dedicated is_nurse flag
+  // (PATCH .../toggle-nurse), surfaced as its own switch below instead.
   static const _allTags = [
     ('attender', '🏠 Attender', 'Records visitors'),
-    ('medical_supervisor', '🏥 Medical Supervisor', 'Manages health incidents'),
     ('sports_teacher', '🏆 Sports Teacher', 'Sports activities'),
     ('hostel_warden', '🏨 Hostel Warden', 'Manages hostel'),
     ('librarian', '📚 Librarian', 'Manages library'),
+  ];
+
+  // Core-teaching sections that can be individually hidden for a plain
+  // teacher whose role in the school is really front-office/support (e.g. a
+  // receptionist built as role=teacher + 'attender' tag). Basic staff
+  // features (Forum, My Leaves, My Attendance, Substitutions, Staff
+  // Directory, Ask Vidya, Help) are intentionally never in this list — see
+  // backend ALLOWED_DISABLABLE_FEATURES for the matching source of truth.
+  static const _restrictableFeatures = [
+    ('worklog', '📚 Homework / Classwork', 'Create & view work log entries'),
+    ('notify', '🔔 Notify Parents', 'Send messages to parents'),
+    ('results', '📊 Tests & Results', 'Post exam scores'),
+    ('syllabus', '📖 Syllabus Progress', 'Update chapter completion status'),
+    ('ptm', '🤝 PTM', 'Parent-teacher meetings & notes'),
+    ('enquiries', '🙋 Enquiries', 'Visitor follow-ups'),
+    ('health', '🏥 Health Incidents', 'Log student health events'),
   ];
 
   @override
@@ -63,6 +82,11 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
     final currentTags = List<String>.from(
       (teacher['functional_tags'] as List<dynamic>? ?? []).map((e) => e.toString()),
     );
+    final currentIsNurse = teacher['is_nurse'] == true;
+    final currentDisabledFeatures = List<String>.from(
+      (teacher['disabled_features'] as List<dynamic>? ?? []).map((e) => e.toString()),
+    );
+    final isRestrictable = (teacher['role'] as String? ?? 'teacher') == 'teacher';
 
     showModalBottomSheet(
       context: context,
@@ -75,11 +99,27 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
         teacherName: teacherName,
         currentTags: currentTags,
         allTags: _allTags,
-        onSaved: (newTags) {
+        currentIsNurse: currentIsNurse,
+        currentDisabledFeatures: currentDisabledFeatures,
+        restrictableFeatures: _restrictableFeatures,
+        isRestrictable: isRestrictable,
+        onSaved: (newTags, newDisabledFeatures) {
           setState(() {
             final idx = _teachers.indexWhere((t) => t['id']?.toString() == teacherId);
             if (idx >= 0) {
-              _teachers[idx] = {..._teachers[idx], 'functional_tags': newTags};
+              _teachers[idx] = {
+                ..._teachers[idx],
+                'functional_tags': newTags,
+                'disabled_features': newDisabledFeatures,
+              };
+            }
+          });
+        },
+        onNurseToggled: (isNurse) {
+          setState(() {
+            final idx = _teachers.indexWhere((t) => t['id']?.toString() == teacherId);
+            if (idx >= 0) {
+              _teachers[idx] = {..._teachers[idx], 'is_nurse': isNurse};
             }
           });
         },
@@ -164,9 +204,11 @@ class _TeacherRoleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = teacher['name'] as String? ?? '—';
     final role = teacher['role'] as String? ?? 'teacher';
+    final isNurse = teacher['is_nurse'] == true;
     final tags = List<String>.from(
       (teacher['functional_tags'] as List<dynamic>? ?? []).map((e) => e.toString()),
     );
+    final disabledCount = (teacher['disabled_features'] as List<dynamic>? ?? []).length;
 
     return GestureDetector(
       onTap: onTap,
@@ -206,30 +248,58 @@ class _TeacherRoleCard extends StatelessWidget {
                 const Icon(Icons.edit_outlined, size: 16, color: AppColors.muted),
               ],
             ),
-            if (tags.isNotEmpty) ...[
+            if (tags.isNotEmpty || isNurse || disabledCount > 0) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
                 runSpacing: 4,
-                children: tags.map((tag) {
-                  final tagInfo = allTags.where((t) => t.$1 == tag).firstOrNull;
-                  final label = tagInfo?.$2 ?? tag;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.tealLight,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.teal.withOpacity(0.3)),
+                children: [
+                  if (disabledCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.rose.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.rose.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        '🚫 $disabledCount restricted',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.rose),
+                      ),
                     ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.teal),
+                  if (isNurse)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.coralLight,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.coral.withOpacity(0.3)),
+                      ),
+                      child: const Text(
+                        '🏥 Nurse — Health Incidents',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.coral),
+                      ),
                     ),
-                  );
-                }).toList(),
+                  ...tags.map((tag) {
+                    final tagInfo = allTags.where((t) => t.$1 == tag).firstOrNull;
+                    final label = tagInfo?.$2 ?? tag;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.tealLight,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.teal.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.teal),
+                      ),
+                    );
+                  }),
+                ],
               ),
             ] else ...[
               const SizedBox(height: 4),
@@ -251,13 +321,23 @@ class _TagEditorSheet extends StatefulWidget {
     required this.teacherName,
     required this.currentTags,
     required this.allTags,
+    required this.currentIsNurse,
+    required this.currentDisabledFeatures,
+    required this.restrictableFeatures,
+    required this.isRestrictable,
     required this.onSaved,
+    required this.onNurseToggled,
   });
   final String teacherId;
   final String teacherName;
   final List<String> currentTags;
   final List<(String, String, String)> allTags;
-  final void Function(List<String>) onSaved;
+  final bool currentIsNurse;
+  final List<String> currentDisabledFeatures;
+  final List<(String, String, String)> restrictableFeatures;
+  final bool isRestrictable;
+  final void Function(List<String>, List<String>) onSaved;
+  final void Function(bool) onNurseToggled;
 
   @override
   State<_TagEditorSheet> createState() => _TagEditorSheetState();
@@ -265,21 +345,54 @@ class _TagEditorSheet extends StatefulWidget {
 
 class _TagEditorSheetState extends State<_TagEditorSheet> {
   late Set<String> _selected;
+  late Set<String> _disabled;
+  late bool _isNurse;
   bool _saving = false;
+  bool _togglingNurse = false;
 
   @override
   void initState() {
     super.initState();
     _selected = Set<String>.from(widget.currentTags);
+    _disabled = Set<String>.from(widget.currentDisabledFeatures);
+    _isNurse = widget.currentIsNurse;
+  }
+
+  Future<void> _toggleNurse() async {
+    setState(() => _togglingNurse = true);
+    try {
+      final newValue = await ApiClient.adminToggleNurse(widget.teacherId);
+      if (mounted) {
+        setState(() { _isNurse = newValue; _togglingNurse = false; });
+        widget.onNurseToggled(newValue);
+        showSnack(context, newValue
+            ? '${widget.teacherName} can now log & view health incidents for any student'
+            : '${widget.teacherName} is no longer a nurse');
+      }
+    } on ApiError catch (e) {
+      if (mounted) {
+        setState(() => _togglingNurse = false);
+        showSnack(context, e.message, error: true);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _togglingNurse = false);
+        showSnack(context, 'Failed to update nurse status', error: true);
+      }
+    }
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
       final tags = _selected.toList();
+      final disabled = widget.isRestrictable ? _disabled.toList() : <String>[];
       await ApiClient.updateTeacherFunctionalTags(widget.teacherId, tags);
+      if (widget.isRestrictable) {
+        await ApiClient.adminUpdateDisabledFeatures(widget.teacherId, disabled);
+      }
       if (mounted) {
-        widget.onSaved(tags);
+        widget.onSaved(tags, disabled);
         Navigator.pop(context);
         showSnack(context, 'Roles updated for ${widget.teacherName}');
       }
@@ -318,6 +431,45 @@ class _TagEditorSheetState extends State<_TagEditorSheet> {
           const SizedBox(height: 4),
           const Text('Select the functional responsibilities for this staff member.',
               style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          const SizedBox(height: 16),
+          // Nurse is a dedicated backend flag (not a functional tag) — it grants
+          // school-wide health-incident access, not just the teacher's own
+          // assigned sections, so it's saved immediately on toggle rather than
+          // batched with the tags below.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: _isNurse ? AppColors.coralLight : AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isNurse ? AppColors.coral.withOpacity(0.5) : AppColors.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Text('🏥', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nurse', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.text)),
+                      Text('Can log & view health incidents for any student, school-wide',
+                          style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                _togglingNurse
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5))
+                    : Switch(
+                        key: const Key('nurse_toggle'),
+                        value: _isNurse,
+                        onChanged: (_) => _toggleNurse(),
+                        activeThumbColor: AppColors.coral,
+                      ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           ...widget.allTags.map(((String val, String label, String sub) t) {
             final isSelected = _selected.contains(t.$1);
@@ -376,6 +528,64 @@ class _TagEditorSheetState extends State<_TagEditorSheet> {
               ),
             );
           }),
+          if (widget.isRestrictable) ...[
+            const SizedBox(height: 16),
+            const Text('Restrict Access', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.text)),
+            const SizedBox(height: 2),
+            const Text('Hide these sections for this staff member — e.g. a front-desk role that doesn\'t teach.',
+                style: TextStyle(color: AppColors.muted, fontSize: 11)),
+            const SizedBox(height: 10),
+            ...widget.restrictableFeatures.map(((String val, String label, String sub) t) {
+              final isDisabled = _disabled.contains(t.$1);
+              return GestureDetector(
+                key: Key('restrict_${t.$1}'),
+                onTap: () {
+                  setState(() {
+                    if (isDisabled) {
+                      _disabled.remove(t.$1);
+                    } else {
+                      _disabled.add(t.$1);
+                    }
+                  });
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDisabled ? AppColors.rose.withOpacity(0.1) : AppColors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDisabled ? AppColors.rose.withOpacity(0.5) : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t.$2,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: isDisabled ? AppColors.rose : AppColors.text,
+                                  decoration: isDisabled ? TextDecoration.lineThrough : null,
+                                )),
+                            Text(t.$3, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        isDisabled ? Icons.visibility_off : Icons.visibility_outlined,
+                        color: isDisabled ? AppColors.rose : AppColors.border,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,

@@ -11,14 +11,20 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+const _restrictableFeatureIds = {'worklog', 'notify', 'results', 'syllabus', 'ptm', 'enquiries', 'health'};
+
 bool canAccessRecent(String id, {
   required String role,
   required bool transportFlag,
   required bool workLogsFlag,
   required bool feesFlag,
+  List<String> disabledFeatures = const [],
 }) {
   final isAdminOrAbove = role == 'admin' || role == 'principal' || role == 'director';
   final isAdmin = role == 'admin';
+  if (role == 'teacher' && _restrictableFeatureIds.contains(id) && disabledFeatures.contains(id)) {
+    return false;
+  }
   switch (id) {
     case 'parents':
     case 'school_settings':
@@ -95,6 +101,49 @@ void main() {
         final stillAccessible = canAccessRecent(id, role: 'teacher', transportFlag: true, workLogsFlag: true, feesFlag: true);
         expect(stillAccessible, false, reason: '$id should be hidden after demotion to plain teacher');
       }
+    });
+  });
+
+  group('canAccessRecent — per-teacher disabled features', () {
+    test('a restricted feature\'s stale recent chip stops working, same as an admin demotion', () {
+      for (final id in _restrictableFeatureIds) {
+        expect(
+          canAccessRecent(id, role: 'teacher', transportFlag: true, workLogsFlag: true, feesFlag: true,
+              disabledFeatures: [id]),
+          false,
+          reason: '$id should be hidden once disabled for this teacher',
+        );
+      }
+    });
+
+    test('a non-disabled restrictable feature stays accessible', () {
+      expect(
+        canAccessRecent('worklog', role: 'teacher', transportFlag: true, workLogsFlag: true, feesFlag: true,
+            disabledFeatures: ['results']),
+        true,
+      );
+    });
+
+    test('admin/principal/director are never restricted by disabled_features', () {
+      for (final role in ['admin', 'principal', 'director']) {
+        for (final id in _restrictableFeatureIds) {
+          expect(
+            canAccessRecent(id, role: role, transportFlag: true, workLogsFlag: true, feesFlag: true,
+                disabledFeatures: [id]),
+            true,
+            reason: '$role should bypass disabled_features restriction on $id',
+          );
+        }
+      }
+    });
+
+    test('an id outside the restrictable set ignores disabled_features entirely', () {
+      expect(
+        canAccessRecent('schedule', role: 'teacher', transportFlag: true, workLogsFlag: true, feesFlag: true,
+            disabledFeatures: ['schedule']),
+        true,
+        reason: 'schedule is not in the restrictable set, so it cannot be disabled this way',
+      );
     });
   });
 }

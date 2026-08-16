@@ -1211,7 +1211,10 @@ class _StudentWorkLogsTabState extends State<_StudentWorkLogsTab>
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ApiClient.getWorkLogs(studentId: widget.studentId);
+      // allTeachers: true -- a student's profile should show their complete
+      // work log across every subject/teacher, not just entries created by
+      // whichever teacher happens to be viewing this screen.
+      final data = await ApiClient.getWorkLogs(studentId: widget.studentId, allTeachers: true);
       if (mounted) setState(() { _logs = data; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
@@ -1286,10 +1289,14 @@ class _WorkLogCard extends StatelessWidget {
           Text('Due: ${entry.dueDate}',
               style: const TextStyle(fontSize: 12, color: AppColors.coral, fontWeight: FontWeight.w500)),
         ],
-        if (entry.subjectName != null || entry.sectionLabel.isNotEmpty) ...[
+        if (entry.subjectName != null || entry.sectionLabel.isNotEmpty || entry.teacherName != null) ...[
           const SizedBox(height: 6),
           Text(
-            [if (entry.subjectName != null) entry.subjectName!, if (entry.sectionLabel.isNotEmpty) entry.sectionLabel].join(' · '),
+            [
+              if (entry.subjectName != null) entry.subjectName!,
+              if (entry.sectionLabel.isNotEmpty) entry.sectionLabel,
+              if (entry.teacherName != null) 'by ${entry.teacherName}',
+            ].join(' · '),
             style: const TextStyle(fontSize: 11, color: AppColors.muted),
           ),
         ],

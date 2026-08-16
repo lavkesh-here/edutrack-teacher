@@ -762,6 +762,13 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
           }
           return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx2).viewInsets.bottom),
+          // This form (class/section, subject, log type, whole-class-or-student,
+          // description, due date, attachments, save) is long enough to overflow
+          // past the visible height on a real phone -- especially with the keyboard
+          // open while typing the description -- making Save Work Log physically
+          // unreachable. Same defect class already fixed in admin_teacher_roles.dart's
+          // Staff Roles sheet; same fix (SingleChildScrollView).
+          child: SingleChildScrollView(
           child: Container(
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -1309,6 +1316,7 @@ class _WorkLogScreenState extends State<WorkLogScreen> {
                 ),
               ],
             ),
+          ),
           ),
         );
         },

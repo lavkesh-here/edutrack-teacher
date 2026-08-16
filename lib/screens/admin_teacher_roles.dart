@@ -465,7 +465,7 @@ class _TagEditorSheetState extends State<_TagEditorSheet> {
                         key: const Key('nurse_toggle'),
                         value: _isNurse,
                         onChanged: (_) => _toggleNurse(),
-                        activeThumbColor: AppColors.coral,
+                        activeColor: AppColors.coral,
                       ),
               ],
             ),

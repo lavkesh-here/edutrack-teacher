@@ -54,9 +54,9 @@ jobs:
           # Fallback: older template uses build.gradle classpath
           sed -i 's/com\.android\.tools\.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.1.1/' android/build.gradle || true
 
-      - name: Set app label to Teacher (Dev)
+      - name: Set app label to Edtrack Teacher (Dev)
         run: |
-          sed -i 's/android:label="edutrack_teacher"/android:label="Teacher (Dev)"/' \
+          sed -i 's/android:label="edutrack_teacher"/android:label="Edtrack Teacher (Dev)"/' \
             android/app/src/main/AndroidManifest.xml
 
       - name: Disable minify/shrink
@@ -215,9 +215,9 @@ jobs:
           sed -i 's/id "com.android.application" version "[0-9.]*" apply false/id "com.android.application" version "8.1.1" apply false/' android/settings.gradle || true
           sed -i 's/com\.android\.tools\.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.1.1/' android/build.gradle || true
 
-      - name: Set app label to Teacher
+      - name: Set app label to Edtrack Teacher
         run: |
-          sed -i 's/android:label="edutrack_teacher"/android:label="Teacher"/' \
+          sed -i 's/android:label="edutrack_teacher"/android:label="Edtrack Teacher"/' \
             android/app/src/main/AndroidManifest.xml
 
       - name: Disable minify/shrink

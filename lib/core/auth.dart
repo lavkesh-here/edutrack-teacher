@@ -81,7 +81,7 @@ class AuthProvider extends ChangeNotifier {
   Future<String?> unlockApp() async {
     try {
       final authed = await _localAuth.authenticate(
-        localizedReason: 'Unlock EduTrack',
+        localizedReason: 'Unlock Edtrack',
         options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
       );
       if (!authed) return 'Authentication cancelled.';

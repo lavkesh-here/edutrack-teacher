@@ -1665,7 +1665,7 @@ class _WorkLogCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () => shareAsText(_workLogShareText(
-                    entry, context.read<AuthProvider>().user?.schoolName ?? 'EduTrack')),
+                    entry, context.read<AuthProvider>().user?.schoolName ?? 'Edtrack')),
                   child: const Padding(
                     padding: EdgeInsets.all(2),
                     child: Icon(Icons.share_outlined, size: 15, color: AppColors.muted),

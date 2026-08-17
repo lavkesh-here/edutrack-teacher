@@ -1442,7 +1442,7 @@ class _UpgradePlanSheet extends StatelessWidget {
           ],
           const SizedBox(height: 24),
           const Text(
-            'To upgrade your plan, please contact EduTrack support:',
+            'To upgrade your plan, please contact Edtrack support:',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: AppColors.muted),
           ),
@@ -2247,7 +2247,7 @@ class _MoreTabState extends State<_MoreTab> {
 
                     Center(
                       child: Text(
-                        _appVersion.isEmpty ? 'EduTrack Teacher' : 'EduTrack Teacher v$_appVersion',
+                        _appVersion.isEmpty ? 'Edtrack Teacher' : 'Edtrack Teacher v$_appVersion',
                         style: const TextStyle(fontSize: 11, color: AppColors.muted),
                       ),
                     ),

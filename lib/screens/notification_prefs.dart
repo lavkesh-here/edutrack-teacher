@@ -117,7 +117,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Control which notifications you receive from EduTrack.',
+                  'Control which notifications you receive from Edtrack.',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.sky),
                 ),
               ),

@@ -320,7 +320,7 @@ const _faqSections = <_FaqSection>[
       ),
       _FaqItem(
         'How do parents see their child\'s progress?',
-        'Parents use the separate EduTrack Parent app. '
+        'Parents use the separate Edtrack Parent app. '
             'An admin must first create a parent account and link it to the student. '
             'Parents can then view attendance, test scores, and school announcements.',
       ),

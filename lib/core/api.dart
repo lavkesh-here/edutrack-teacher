@@ -439,7 +439,7 @@ class AnalysisInsight {
       );
 }
 
-// ── Shared chat reply shape (Ask Vidya + EduTrack Support) ───────────────────
+// ── Shared chat reply shape (Ask Vidya + Edtrack Support) ───────────────────
 
 class ChatReply {
   final String reply;

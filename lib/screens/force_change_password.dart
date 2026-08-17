@@ -63,7 +63,7 @@ class _ForceChangePasswordState extends State<ForceChangePasswordScreen> {
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Quick unlock', style: TextStyle(fontWeight: FontWeight.w800)),
-            content: const Text('Use Face ID or fingerprint to unlock EduTrack when you come back to the app.'),
+            content: const Text('Use Face ID or fingerprint to unlock Edtrack when you come back to the app.'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
               TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enable')),

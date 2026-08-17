@@ -1,5 +1,5 @@
 // Pure logic test for ChatReply.fromJson — the shared response shape for
-// Ask Vidya and EduTrack Support, added 2026-08-02 alongside the new
+// Ask Vidya and Edtrack Support, added 2026-08-02 alongside the new
 // "suggested follow-up questions after every reply" feature.
 
 import 'package:flutter_test/flutter_test.dart';

@@ -36,7 +36,7 @@ final _localNotifications = FlutterLocalNotificationsPlugin();
 const _fcmChannel = AndroidNotificationChannel(
   'fcm_default_channel',
   'Notifications',
-  description: 'Push notifications from EduTrack',
+  description: 'Push notifications from Edtrack',
   importance: Importance.high,
 );
 
@@ -80,7 +80,7 @@ class EduTrackApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final branding = context.watch<BrandingProvider>();
     return MaterialApp(
-      title: 'EduTrack Teacher',
+      title: 'Edtrack Teacher',
       theme: buildTheme(branding.primaryColor),
       debugShowCheckedModeBanner: false,
       // Clamp system font scale to 1.2× max — prevents layout overflow on large
@@ -586,7 +586,7 @@ class _BiometricLockScreenState extends State<_BiometricLockScreen> {
                 ] else ...[
                   // ── Biometric unlock mode ─────────────────────────────
                   const Text(
-                    'EduTrack is locked',
+                    'Edtrack is locked',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1C1917)),
                   ),
                   const SizedBox(height: 8),

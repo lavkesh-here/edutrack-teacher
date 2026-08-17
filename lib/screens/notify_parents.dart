@@ -761,7 +761,7 @@ class _HistoryItem extends StatelessWidget {
           ),
           GestureDetector(
             onTap: () {
-              final schoolName = context.read<AuthProvider>().user?.schoolName ?? 'EduTrack';
+              final schoolName = context.read<AuthProvider>().user?.schoolName ?? 'Edtrack';
               shareAsText(
                 '${isNotif ? (_notifIcons[subType] ?? '🔔') : (_logIcons[subType] ?? '📝')} $title\n\n— via $schoolName',
               );

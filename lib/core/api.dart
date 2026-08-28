@@ -1778,6 +1778,62 @@ class ApiClient {
     await _delete('/api/v1/admin/transport/assignments/$studentId');
   }
 
+  // ── Bus dispatch (EDR-0020) ───────────────────────────────────────────────
+  //
+  // A plain teacher assigned as a route's dispatch_teacher_id can call these
+  // same /admin/transport/routes/{route_id}/... endpoints directly with
+  // their own JWT — the backend's dispatch dependencies accept either an
+  // admin-tier account or that specific teacher (see
+  // backend/tests/modules/test_transport_dispatch.py). Only
+  // getMyDispatchRoutes is genuinely teacher-only plumbing (route
+  // discovery); everything else below reuses the admin-tier endpoints.
+
+  static Future<List<Map<String, dynamic>>> getMyDispatchRoutes() async {
+    final data = await _get('/api/v1/teacher/transport/my-dispatch-routes');
+    return ((data as Map<String, dynamic>)['routes'] as List<dynamic>)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> getDispatchStatus(String routeId) async {
+    final data = await _get('/api/v1/admin/transport/routes/$routeId/dispatch-status');
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> recordDispatchStaffAttendance(String routeId, {required String transportStaffId, required String status}) async {
+    await _post('/api/v1/admin/transport/routes/$routeId/staff-attendance',
+        {'transport_staff_id': transportStaffId, 'status': status});
+  }
+
+  static Future<void> recordDispatchTripEvent(String routeId, {required String direction, required String eventType, String? notes}) async {
+    final body = <String, dynamic>{'direction': direction, 'event_type': eventType};
+    if (notes != null && notes.isNotEmpty) body['notes'] = notes;
+    await _post('/api/v1/admin/transport/routes/$routeId/trip-log', body);
+  }
+
+  static Future<List<Map<String, dynamic>>> getDispatchRouteStudents(String routeId, {required String direction}) async {
+    final data = await _get('/api/v1/admin/transport/routes/$routeId/events?direction=$direction');
+    return ((data as Map<String, dynamic>)['students'] as List<dynamic>)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  /// statusByStudentId maps student_id -> 'completed' | 'missed' | 'cancelled'
+  /// (matches _VALID_TARGET_STATUSES on the backend; 'pending' students are
+  /// simply omitted — never sent as an explicit no-op event).
+  static Future<Map<String, dynamic>> recordDispatchRouteEventsBatch(
+    String routeId, {
+    required String direction,
+    required Map<String, String> statusByStudentId,
+  }) async {
+    final events = statusByStudentId.entries
+        .map((e) => {'student_id': e.key, 'status': e.value})
+        .toList();
+    final data = await _post('/api/v1/admin/transport/routes/$routeId/events/batch',
+        {'direction': direction, 'events': events});
+    return data as Map<String, dynamic>;
+  }
+
   // ── Admin: School Settings ─────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> adminGetSchool() async {

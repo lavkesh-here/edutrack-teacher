@@ -23,6 +23,7 @@ import 'bank_accounts.dart';
 import 'my_students.dart';
 import 'admin_parents.dart';
 import 'admin_transport.dart';
+import 'dispatch.dart';
 import 'admin_school_settings.dart';
 import 'admin_work_logs.dart';
 import 'admin_attenders.dart';
@@ -1011,6 +1012,7 @@ class _HomeTabState extends State<_HomeTab> {
       case 'circulars':       _openScreen(context, const CircularsScreen(), recentId: id);
       case 'enquiries':       _openScreen(context, const EnquiriesScreen(), recentId: id);
       case 'app_permissions': _openScreen(context, const PermissionsScreen(), recentId: id);
+      case 'dispatch':        _openScreen(context, const DispatchListScreen(), recentId: id);
     }
   }
 
@@ -2097,6 +2099,9 @@ class _MoreTabState extends State<_MoreTab> {
                         onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
                     _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by smart rules',
                         onTap: () => _push(context, const AlertsScreen(), recentId: 'alerts')),
+                    if (flags.transport)
+                      _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Bus Dispatch', sub: 'Only shown if you have a dispatch assignment',
+                          onTap: () => _push(context, const DispatchListScreen(), recentId: 'dispatch')),
                     if (!isAdminOrAbove && (user.hasTag('attender')))
                       _FeatureRow(icon: '🏠', iconBg: AppColors.skyLight, title: 'Visitor Log', sub: 'Log and manage school visitors',
                           onTap: () => _push(context, const VisitorLogScreen(), recentId: 'visitor_log')),

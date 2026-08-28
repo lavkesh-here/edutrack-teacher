@@ -101,7 +101,6 @@ class EduTrackApp extends StatelessWidget {
         '/': (_) => const _Root(),
         '/force-change-password': (_) => const ForceChangePasswordScreen(),
       },
-      home: const _Root(),
     );
   }
 }

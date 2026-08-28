@@ -91,13 +91,6 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         title: const Text('Messages'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
-            color: AppColors.muted,
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [

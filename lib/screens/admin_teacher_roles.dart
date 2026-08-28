@@ -26,6 +26,7 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
     ('sports_teacher', '🏆 Sports Teacher', 'Sports activities'),
     ('hostel_warden', '🏨 Hostel Warden', 'Manages hostel'),
     ('librarian', '📚 Librarian', 'Manages library'),
+    ('transport_coordinator', '🚌 Transport Coordinator', 'Read-only view of every bus, route, GPS status, and dispatch across the school'),
   ];
 
   // Core-teaching sections that can be individually hidden for a plain

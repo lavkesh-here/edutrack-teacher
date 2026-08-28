@@ -1778,6 +1778,32 @@ class ApiClient {
     await _delete('/api/v1/admin/transport/assignments/$studentId');
   }
 
+  // ── Transport Coordinator (school-wide, read-only) ──────────────────────
+  //
+  // A teacher tagged 'transport_coordinator' (see AdminTeacherRolesScreen)
+  // can call these same admin-tier GET endpoints directly with their own
+  // JWT — get_transport_coordinator_read_access accepts either an
+  // admin-tier account or that tag (see
+  // backend/tests/modules/test_transport_dispatch.py). Every method here is
+  // read-only; no write method is added for this persona by design.
+
+  static Future<List<Map<String, dynamic>>> getTransportVehicles() async {
+    final data = await _get('/api/v1/admin/transport/vehicles');
+    return ((data as Map<String, dynamic>)['vehicles'] as List<dynamic>)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  static Future<List<Map<String, dynamic>>> getTransportStaff() async {
+    final data = await _get('/api/v1/admin/transport/staff');
+    return (data as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<Map<String, dynamic>> getTransportExceptions() async {
+    final data = await _get('/api/v1/admin/transport/exceptions');
+    return data as Map<String, dynamic>;
+  }
+
   // ── Bus dispatch (EDR-0020) ───────────────────────────────────────────────
   //
   // A plain teacher assigned as a route's dispatch_teacher_id can call these

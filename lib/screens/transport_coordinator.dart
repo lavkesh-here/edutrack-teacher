@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import '../widgets/bus_map.dart';
 
 /// School-wide, read-only transport/GPS monitoring for a teacher tagged
 /// 'transport_coordinator' (see AdminTeacherRolesScreen) — every route,
@@ -209,23 +210,41 @@ class _RoutesTab extends StatelessWidget {
   }
 }
 
-class _GpsTab extends StatelessWidget {
+class _GpsTab extends StatefulWidget {
   final List<Map<String, dynamic>> vehicles;
   const _GpsTab({required this.vehicles});
 
   @override
+  State<_GpsTab> createState() => _GpsTabState();
+}
+
+class _GpsTabState extends State<_GpsTab> {
+  String? _selectedRegNumber;
+
+  @override
   Widget build(BuildContext context) {
+    final vehicles = widget.vehicles;
     if (vehicles.isEmpty) return const _EmptyTab(icon: '📡', message: 'No vehicles added yet.');
-    return ListView.separated(
+    final hasAnyPosition = vehicles.any((v) => v['latitude'] != null && v['longitude'] != null);
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: vehicles.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, i) {
-        final v = vehicles[i];
+      children: [
+        // issue-4/10: the multi-bus live map -- this tab used to be a plain
+        // list with no visual position at all.
+        if (hasAnyPosition) ...[
+          BusMap(vehicles: vehicles, selectedId: _selectedRegNumber),
+          const SizedBox(height: 12),
+        ],
+        ...vehicles.map((v) {
         final isStale = v['is_stale'] == true;
         final hasFix = v['last_update'] != null;
-        return AppCard(
-          child: Row(
+        final regNumber = v['registration_number']?.toString();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GestureDetector(
+          onTap: hasFix ? () => setState(() => _selectedRegNumber = regNumber) : null,
+          child: AppCard(
+            child: Row(
             children: [
               Container(
                 width: 36, height: 36,
@@ -253,9 +272,12 @@ class _GpsTab extends StatelessWidget {
                 ),
               ),
             ],
+            ),
+          ),
           ),
         );
-      },
+        }),
+      ],
     );
   }
 }

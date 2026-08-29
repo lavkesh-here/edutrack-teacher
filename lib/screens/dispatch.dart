@@ -193,6 +193,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
   Map<String, dynamic>? _status; // dispatch-status response (both directions + gps + staff)
   List<Map<String, dynamic>> _students = [];
   final Map<String, String> _pendingBoarding = {}; // student_id -> chosen status this session
+  final Map<String, String> _pendingReasons = {}; // student_id -> correction reason, only when required
   bool _loadingStatus = true;
   bool _loadingStudents = true;
   bool _saving = false;
@@ -223,7 +224,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
     setState(() => _loadingStudents = true);
     try {
       final data = await ApiClient.getDispatchRouteStudents(_routeId, direction: _direction);
-      if (mounted) setState(() { _students = data; _loadingStudents = false; _pendingBoarding.clear(); });
+      if (mounted) setState(() { _students = data; _loadingStudents = false; _pendingBoarding.clear(); _pendingReasons.clear(); });
     } on ApiError catch (e) {
       if (mounted) setState(() { _error = e.message; _loadingStudents = false; });
     } catch (_) {
@@ -235,6 +236,73 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
     if (d == _direction) return;
     setState(() => _direction = d);
     _loadStudents();
+  }
+
+  /// Mirrors the backend's own validate_transition() (app/services/
+  /// transport_events.py): a status change away from an already-recorded,
+  /// non-pending status requires a correction_reason -- except re-confirming
+  /// the same status, or the missed->completed "picked up after all" case.
+  /// Without this check, tapping a different status for an already-recorded
+  /// student silently failed on save with no way to explain why (this was
+  /// the "Saved with 1 issue - check the roster" bug: the mobile UI had no
+  /// path to supply a reason at all, so every real correction failed).
+  bool _statusChangeNeedsReason(String serverStatus, String newStatus) {
+    if (serverStatus == 'pending') return false;
+    if (serverStatus == newStatus) return false;
+    if (serverStatus == 'missed' && newStatus == 'completed') return false;
+    return true;
+  }
+
+  Future<void> _setBoardingStatus(String studentId, String serverStatus, String newStatus) async {
+    if (!_statusChangeNeedsReason(serverStatus, newStatus)) {
+      setState(() {
+        _pendingBoarding[studentId] = newStatus;
+        _pendingReasons.remove(studentId);
+      });
+      return;
+    }
+    final reason = await _promptForCorrectionReason(context, from: serverStatus, to: newStatus);
+    if (reason == null) return; // cancelled -- leave the student's status untouched
+    setState(() {
+      _pendingBoarding[studentId] = newStatus;
+      _pendingReasons[studentId] = reason;
+    });
+  }
+
+  Future<String?> _promptForCorrectionReason(BuildContext context, {required String from, required String to}) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reason for correction'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This student is already marked "$from" -- changing it to "$to" needs a short reason.',
+                style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 200,
+              decoration: const InputDecoration(hintText: 'e.g. marked by mistake, parent confirmed pickup'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              Navigator.pop(ctx, text);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _markStaffAttendance(String transportStaffId, String status) async {
@@ -266,6 +334,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
     try {
       final result = await ApiClient.recordDispatchRouteEventsBatch(
         _routeId, direction: _direction, statusByStudentId: _pendingBoarding,
+        reasonByStudentId: _pendingReasons,
       );
       final results = (result['results'] as List<dynamic>? ?? []);
       final failed = results.where((r) => (r as Map)['ok'] != true).length;
@@ -339,13 +408,14 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
                         child: Column(
                           children: _students.map((s) {
                             final studentId = s['student_id'].toString();
-                            final chosen = _pendingBoarding[studentId] ?? s['status']?.toString() ?? 'pending';
+                            final serverStatus = s['status']?.toString() ?? 'pending';
+                            final chosen = _pendingBoarding[studentId] ?? serverStatus;
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: _StudentRow(
                                 student: s,
                                 current: chosen,
-                                onSet: (status) => setState(() => _pendingBoarding[studentId] = status),
+                                onSet: (status) => _setBoardingStatus(studentId, serverStatus, status),
                               ),
                             );
                           }).toList(),

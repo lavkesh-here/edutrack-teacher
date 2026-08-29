@@ -1851,9 +1851,15 @@ class ApiClient {
     String routeId, {
     required String direction,
     required Map<String, String> statusByStudentId,
+    Map<String, String> reasonByStudentId = const {},
   }) async {
     final events = statusByStudentId.entries
-        .map((e) => {'student_id': e.key, 'status': e.value})
+        .map((e) => {
+              'student_id': e.key,
+              'status': e.value,
+              if (reasonByStudentId[e.key]?.trim().isNotEmpty == true)
+                'correction_reason': reasonByStudentId[e.key]!.trim(),
+            })
         .toList();
     final data = await _post('/api/v1/admin/transport/routes/$routeId/events/batch',
         {'direction': direction, 'events': events});

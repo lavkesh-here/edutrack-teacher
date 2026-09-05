@@ -1804,6 +1804,24 @@ class ApiClient {
     return data as Map<String, dynamic>;
   }
 
+  // ── GPS simulate/tick (admin/principal/director only) ────────────────────
+  //
+  // Unlike every other method in this Transport Coordinator section, this is
+  // NOT part of the read-only coordinator persona above — the backend
+  // dependency here is get_write_access (real admin-tier role required), no
+  // transport_coordinator tag carve-out exists for it. Also gated server-side
+  // by the feature.gps_simulate flag (independent kill switch). Never assume
+  // a successful earlier tick means this one will also succeed — a caller
+  // must always handle the ApiError case (role or flag disabled → 403).
+  static Future<Map<String, dynamic>> simulateVehicleTick(String vehicleId, {bool reset = false, bool sessionStart = false}) async {
+    final params = <String>[];
+    if (reset) params.add('reset=true');
+    if (sessionStart) params.add('session_start=true');
+    final query = params.isEmpty ? '' : '?${params.join('&')}';
+    final data = await _post('/api/v1/admin/transport/vehicles/$vehicleId/simulate/tick$query', {});
+    return data as Map<String, dynamic>;
+  }
+
   // ── Bus dispatch (EDR-0020) ───────────────────────────────────────────────
   //
   // A plain teacher assigned as a route's dispatch_teacher_id can call these

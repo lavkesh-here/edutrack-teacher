@@ -1,17 +1,36 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/api.dart';
+import '../core/auth.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import '../widgets/bus_map.dart';
 
-/// School-wide, read-only transport/GPS monitoring for a teacher tagged
+/// School-wide transport/GPS monitoring for a teacher tagged
 /// 'transport_coordinator' (see AdminTeacherRolesScreen) — every route,
 /// vehicle, and exception in the school, never scoped to just one route
-/// the way the dispatch-teacher screen (dispatch.dart) is. No write
-/// actions anywhere on this screen by design: the backend enforces this
-/// (get_transport_coordinator_read_access has no write counterpart), the
-/// UI simply never offers one, matching the mission's own scope for this
-/// persona ("monitor", "see", "investigate" — never "create"/"mark").
+/// the way the dispatch-teacher screen (dispatch.dart) is. Read-only for
+/// that persona: the backend enforces this (get_transport_coordinator_
+/// read_access has no write counterpart), the UI simply never offers one.
+///
+/// One exception, added for the GPS mobile-operator mission (2026-09-06):
+/// the GPS tab's Start/Stop Simulation control is real admin/principal/
+/// director-tier-only (get_write_access, not the coordinator tag — see
+/// _GpsTab below), gated by both the client-side role check AND the
+/// server's own feature.gps_simulate flag + get_write_access check. Client
+/// hiding is never the real authorization boundary.
+
+/// GPS mobile-operator mission (2026-09-06): pulled out as a public, pure
+/// function -- same pattern as home.dart's canAccessRecent -- so the role
+/// gate for the Start/Stop Simulation button is directly unit-testable
+/// without needing to construct a widget tree around the private _GpsTab.
+/// This is a client-side convenience only; the real authorization boundary
+/// is the backend's get_write_access + feature.gps_simulate check, which
+/// this function does not and cannot replace.
+bool canOperateGpsSimulation(String? role) {
+  return role == 'admin' || role == 'principal' || role == 'director';
+}
 
 class TransportCoordinatorScreen extends StatefulWidget {
   const TransportCoordinatorScreen({super.key});
@@ -221,9 +240,77 @@ class _GpsTab extends StatefulWidget {
 class _GpsTabState extends State<_GpsTab> {
   String? _selectedRegNumber;
 
+  // GPS mobile-operator mission (2026-09-06): live-tick state, scoped to
+  // this tab's own State so it survives tab switches within this screen but
+  // is torn down (dispose below) the moment this screen itself is left --
+  // the tick endpoint is deliberately stateless server-side (its own
+  // docstring: "no server-side simulation process to track, kill, or leak"),
+  // so the client interval below is the ONLY thing driving movement.
+  final Set<String> _simulatingIds = {};
+  final Map<String, Timer> _timers = {};
+  final Map<String, Map<String, dynamic>> _liveOverrides = {};
+  static const _tickInterval = Duration(seconds: 3); // matches Admin Web's real SIM_TICK_MS
+
+  @override
+  void dispose() {
+    for (final t in _timers.values) {
+      t.cancel();
+    }
+    _timers.clear();
+    super.dispose();
+  }
+
+  void _startSimulation(String vehicleId) {
+    if (_timers.containsKey(vehicleId)) return; // never a duplicate timer for the same vehicle
+    setState(() => _simulatingIds.add(vehicleId));
+    _tick(vehicleId, sessionStart: true);
+    _timers[vehicleId] = Timer.periodic(_tickInterval, (_) => _tick(vehicleId));
+  }
+
+  void _stopSimulation(String vehicleId) {
+    _timers.remove(vehicleId)?.cancel();
+    if (mounted) setState(() => _simulatingIds.remove(vehicleId));
+  }
+
+  Future<void> _tick(String vehicleId, {bool sessionStart = false}) async {
+    try {
+      final step = await ApiClient.simulateVehicleTick(vehicleId, sessionStart: sessionStart);
+      if (!mounted) return;
+      setState(() {
+        _liveOverrides[vehicleId] = {
+          'latitude': step['latitude'],
+          'longitude': step['longitude'],
+          'speed_kmh': step['speed_kmh'],
+          'ignition_on': step['ignition_on'],
+          'is_stale': false,
+          'last_update': step['fix_time'],
+        };
+      });
+    } catch (_) {
+      // Role/flag disabled mid-session, network failure, etc. — never keep
+      // polling silently after a failure; stop and let the user retry.
+      _stopSimulation(vehicleId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Simulation unavailable — stopping')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final vehicles = widget.vehicles;
+    final user = context.watch<AuthProvider>().user;
+    final isAdminOrAbove = user != null && canOperateGpsSimulation(user.role);
+
+    // Merge live-tick overrides over the polled/loaded vehicle list — never a
+    // separate client-side simulation model, just a display-layer overlay of
+    // the same backend state this same endpoint already wrote.
+    final vehicles = widget.vehicles.map((v) {
+      final override = _liveOverrides[v['id']?.toString()];
+      return override == null ? v : {...v, ...override};
+    }).toList();
+
     if (vehicles.isEmpty) return const _EmptyTab(icon: '📡', message: 'No vehicles added yet.');
     final hasAnyPosition = vehicles.any((v) => v['latitude'] != null && v['longitude'] != null);
     return ListView(
@@ -239,38 +326,60 @@ class _GpsTabState extends State<_GpsTab> {
         final isStale = v['is_stale'] == true;
         final hasFix = v['last_update'] != null;
         final regNumber = v['registration_number']?.toString();
+        final vehicleId = v['id']?.toString();
+        final isSimulating = vehicleId != null && _simulatingIds.contains(vehicleId);
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: GestureDetector(
           onTap: hasFix ? () => setState(() => _selectedRegNumber = regNumber) : null,
           child: AppCard(
-            child: Row(
+            child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: !hasFix ? const Color(0xFFF3F4F6) : (isStale ? AppColors.amberLight : AppColors.greenLight),
-                  shape: BoxShape.circle,
+              Row(
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: !hasFix ? const Color(0xFFF3F4F6) : (isStale ? AppColors.amberLight : AppColors.greenLight),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(!hasFix ? '📡' : (isStale ? '⏱️' : '🟢'), style: const TextStyle(fontSize: 16)),
                 ),
-                alignment: Alignment.center,
-                child: Text(!hasFix ? '📡' : (isStale ? '⏱️' : '🟢'), style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(v['registration_number']?.toString() ?? 'Vehicle',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+                      Text(
+                        v['route_name'] != null
+                            ? '${v['route_name']} · ${!hasFix ? 'no GPS signal yet' : (isStale ? 'signal stale' : '${v['speed_kmh'] ?? 0} km/h')}'
+                            : (!hasFix ? 'No route linked · no GPS signal yet' : (isStale ? 'No route linked · signal stale' : 'No route linked · ${v['speed_kmh'] ?? 0} km/h')),
+                        style: TextStyle(fontSize: 12, color: !hasFix ? AppColors.muted : (isStale ? const Color(0xFF92400E) : AppColors.muted)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(v['registration_number']?.toString() ?? 'Vehicle',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
-                    Text(
-                      v['route_name'] != null
-                          ? '${v['route_name']} · ${!hasFix ? 'no GPS signal yet' : (isStale ? 'signal stale' : '${v['speed_kmh'] ?? 0} km/h')}'
-                          : (!hasFix ? 'No route linked · no GPS signal yet' : (isStale ? 'No route linked · signal stale' : 'No route linked · ${v['speed_kmh'] ?? 0} km/h')),
-                      style: TextStyle(fontSize: 12, color: !hasFix ? AppColors.muted : (isStale ? const Color(0xFF92400E) : AppColors.muted)),
+              if (isAdminOrAbove && vehicleId != null) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => isSimulating ? _stopSimulation(vehicleId) : _startSimulation(vehicleId),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isSimulating ? AppColors.coral : AppColors.teal,
+                      side: BorderSide(color: isSimulating ? AppColors.coral : AppColors.teal),
                     ),
-                  ],
+                    child: Text(isSimulating ? '⏹ Stop Simulation' : '▶ Start Simulation',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                  ),
                 ),
-              ),
+              ],
             ],
             ),
           ),

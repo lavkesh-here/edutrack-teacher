@@ -4,19 +4,24 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 
 /// EDR-0020: a teacher assigned bus-dispatch responsibility for a route
-/// (school off-time duty, not a role) opens this from the More tab, picks
-/// their route if they have more than one, then works through the same
-/// dispatch workflow the Admin Transport dashboard offers — scoped by the
-/// backend to only the route(s) they're actually assigned to.
+/// (school off-time duty, not a role) works through this dispatch workflow —
+/// scoped by the backend to only the route(s) they're actually assigned to.
+///
+/// EDR-0026 (2026-09-06): this used to be its own screen (`DispatchListScreen`,
+/// with its own AppBar/Scaffold), reached from its own tile. It's now the
+/// "Dispatch" tab embedded inside the single unified `TransportScreen`
+/// (`admin_transport.dart`) — `DispatchTab` below is exactly the same body,
+/// just without the Scaffold/AppBar a tab doesn't own. `DispatchDetailScreen`
+/// (pushed on tap) is unchanged.
 
-class DispatchListScreen extends StatefulWidget {
-  const DispatchListScreen({super.key});
+class DispatchTab extends StatefulWidget {
+  const DispatchTab({super.key});
 
   @override
-  State<DispatchListScreen> createState() => _DispatchListScreenState();
+  State<DispatchTab> createState() => _DispatchTabState();
 }
 
-class _DispatchListScreenState extends State<DispatchListScreen> {
+class _DispatchTabState extends State<DispatchTab> {
   List<Map<String, dynamic>> _routes = [];
   bool _loading = true;
   String? _error;
@@ -41,40 +46,26 @@ class _DispatchListScreenState extends State<DispatchListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.text),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Bus Dispatch',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.text)),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _ErrorState(message: _error!, onRetry: _load)
-                : _routes.isEmpty
-                    ? const _NoResponsibility()
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _routes.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, i) => _RouteCard(
-                          route: _routes[i],
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => DispatchDetailScreen(route: _routes[i])),
-                          ),
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _ErrorState(message: _error!, onRetry: _load)
+              : _routes.isEmpty
+                  ? const _NoResponsibility()
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _routes.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) => _RouteCard(
+                        route: _routes[i],
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => DispatchDetailScreen(route: _routes[i])),
                         ),
                       ),
-      ),
+                    ),
     );
   }
 }
@@ -199,6 +190,12 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
   bool _saving = false;
   String? _error;
 
+  // TR-015: "which stops are covered, what's next" -- a separate, lighter
+  // load than the full student roster above, so a slow/failed fetch here
+  // never blocks the actual dispatch workflow.
+  List<Map<String, dynamic>> _stopProgress = [];
+  bool _loadingStopProgress = true;
+
   String get _routeId => widget.route['id'].toString();
 
   @override
@@ -206,6 +203,17 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
     super.initState();
     _loadStatus();
     _loadStudents();
+    _loadStopProgress();
+  }
+
+  Future<void> _loadStopProgress() async {
+    setState(() => _loadingStopProgress = true);
+    try {
+      final data = await ApiClient.getRouteStopProgress(_routeId, direction: _direction);
+      if (mounted) setState(() { _stopProgress = data; _loadingStopProgress = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingStopProgress = false); // silent -- a secondary view, never blocks dispatch
+    }
   }
 
   Future<void> _loadStatus() async {
@@ -236,6 +244,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
     if (d == _direction) return;
     setState(() => _direction = d);
     _loadStudents();
+    _loadStopProgress();
   }
 
   /// Mirrors the backend's own validate_transition() (app/services/
@@ -347,6 +356,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
         );
       }
       await _loadStudents();
+      _loadStopProgress();
     } on ApiError catch (e) {
       _showSnack(e.message, isError: true);
     } catch (_) {
@@ -376,11 +386,13 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.text)),
       ),
       body: RefreshIndicator(
-        onRefresh: () => Future.wait([_loadStatus(), _loadStudents()]),
+        onRefresh: () => Future.wait([_loadStatus(), _loadStudents(), _loadStopProgress()]),
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
             _DirectionToggle(direction: _direction, onChanged: _switchDirection),
+            if (!_loadingStopProgress && _stopProgress.isNotEmpty)
+              _StopProgressSection(stops: _stopProgress),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -485,6 +497,74 @@ class _ToggleTab extends StatelessWidget {
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? AppColors.text : AppColors.muted)),
         ),
       );
+}
+
+// ── TR-015: stop progress ("which stops are done, what's next") ─────────────
+
+class _StopProgressSection extends StatelessWidget {
+  final List<Map<String, dynamic>> stops;
+  const _StopProgressSection({required this.stops});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('STOP PROGRESS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.6)),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 74,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: stops.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) => _StopChip(stop: stops[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StopChip extends StatelessWidget {
+  final Map<String, dynamic> stop;
+  const _StopChip({required this.stop});
+
+  @override
+  Widget build(BuildContext context) {
+    final isCovered = stop['is_covered'] == true;
+    final isNext = stop['is_next'] == true;
+    final total = stop['total_students'] ?? 0;
+    final completed = stop['completed_count'] ?? 0;
+    final (bg, fg, icon) = isCovered
+        ? (AppColors.greenLight, const Color(0xFF15803D), '✅')
+        : isNext
+            ? (AppColors.amberLight, const Color(0xFF92400E), '📍')
+            : (const Color(0xFFF3F4F6), AppColors.muted, '⏳');
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: isNext ? Border.all(color: fg, width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 16)),
+          const SizedBox(height: 4),
+          Text(stop['name']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+          Text('$completed/$total', style: TextStyle(fontSize: 10, color: fg)),
+        ],
+      ),
+    );
+  }
 }
 
 class _StatusSection extends StatelessWidget {

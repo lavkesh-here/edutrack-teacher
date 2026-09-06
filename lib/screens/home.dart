@@ -23,8 +23,6 @@ import 'bank_accounts.dart';
 import 'my_students.dart';
 import 'admin_parents.dart';
 import 'admin_transport.dart';
-import 'dispatch.dart';
-import 'transport_coordinator.dart';
 import 'admin_school_settings.dart';
 import 'admin_work_logs.dart';
 import 'admin_attenders.dart';
@@ -782,7 +780,7 @@ class _HomeTabState extends State<_HomeTab> {
                         _LockedFeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments', planRequired: config.planRequired('teacher', 'feature.transport'))
                       else
                         _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
-                            onTap: () => _openScreen(context, const AdminTransportScreen(), recentId: 'transport')),
+                            onTap: () => _openScreen(context, const TransportScreen(), recentId: 'transport')),
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
                           onTap: () => _openScreen(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
                       // Work Log Overview — always shown for admin; locked if plan doesn't include it
@@ -990,7 +988,7 @@ class _HomeTabState extends State<_HomeTab> {
     switch (id) {
       case 'schedule':        _openScreen(context, const TimetableScreen(), recentId: id);
       case 'parents':         _openScreen(context, const AdminParentsScreen(), recentId: id);
-      case 'transport':       _openScreen(context, const AdminTransportScreen(), recentId: id);
+      case 'transport':       _openScreen(context, const TransportScreen(), recentId: id);
       case 'school_settings': _openScreen(context, const AdminSchoolSettingsScreen(), recentId: id);
       case 'admin_worklogs':  _openScreen(context, const AdminWorkLogsScreen(), recentId: id);
       case 'attenders':       _openScreen(context, const AdminAttendersScreen(), recentId: id);
@@ -1013,8 +1011,11 @@ class _HomeTabState extends State<_HomeTab> {
       case 'circulars':       _openScreen(context, const CircularsScreen(), recentId: id);
       case 'enquiries':       _openScreen(context, const EnquiriesScreen(), recentId: id);
       case 'app_permissions': _openScreen(context, const PermissionsScreen(), recentId: id);
-      case 'dispatch':        _openScreen(context, const DispatchListScreen(), recentId: id);
-      case 'transport_coordinator': _openScreen(context, const TransportCoordinatorScreen(), recentId: id);
+      // 'dispatch' and 'transport_coordinator' are pre-EDR-0026 recentIds --
+      // routed to the same unified screen so an existing recorded recent
+      // still opens something real instead of silently doing nothing.
+      case 'dispatch':        _openScreen(context, const TransportScreen(), recentId: id);
+      case 'transport_coordinator': _openScreen(context, const TransportScreen(), recentId: id);
     }
   }
 
@@ -2101,12 +2102,15 @@ class _MoreTabState extends State<_MoreTab> {
                         onTap: () => _push(context, const SubstitutesScreen(), recentId: 'substitutes')),
                     _FeatureRow(icon: '⚠️', iconBg: AppColors.amberLight, title: 'Predictive Alerts', sub: 'At-risk students flagged by smart rules',
                         onTap: () => _push(context, const AlertsScreen(), recentId: 'alerts')),
+                    // EDR-0026: was 3 separately-gated tiles (Bus Dispatch,
+                    // Transport Overview, and the Admin-section Transport
+                    // tile below) -- collapsed to one, always visible when
+                    // the feature flag is on; TransportScreen itself resolves
+                    // admin-or-above vs. dispatch-assigned-teacher vs.
+                    // neither, tab by tab.
                     if (flags.transport)
-                      _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Bus Dispatch', sub: 'Only shown if you have a dispatch assignment',
-                          onTap: () => _push(context, const DispatchListScreen(), recentId: 'dispatch')),
-                    if (flags.transport && !isAdminOrAbove && user.hasTag('transport_coordinator'))
-                      _FeatureRow(icon: '🗺️', iconBg: AppColors.violetLight, title: 'Transport Overview', sub: 'Monitor every route, bus, and GPS status',
-                          onTap: () => _push(context, const TransportCoordinatorScreen(), recentId: 'transport_coordinator')),
+                      _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, dispatch & live GPS',
+                          onTap: () => _push(context, const TransportScreen(), recentId: 'transport')),
                     if (!isAdminOrAbove && (user.hasTag('attender')))
                       _FeatureRow(icon: '🏠', iconBg: AppColors.skyLight, title: 'Visitor Log', sub: 'Log and manage school visitors',
                           onTap: () => _push(context, const VisitorLogScreen(), recentId: 'visitor_log')),
@@ -2132,9 +2136,10 @@ class _MoreTabState extends State<_MoreTab> {
                       const SizedBox(height: 8),
                       _FeatureRow(icon: '👨‍👩‍👦', iconBg: AppColors.tealLight, title: 'Parent Accounts', sub: 'Create, link & manage parent access',
                           onTap: () => _push(context, const AdminParentsScreen(), recentId: 'parents')),
-                      if (flags.transport)
-                        _FeatureRow(icon: '🚌', iconBg: AppColors.skyLight, title: 'Transport', sub: 'Routes, stops & student assignments',
-                            onTap: () => _push(context, const AdminTransportScreen(), recentId: 'transport')),
+                      // Transport's admin-section tile removed here, EDR-0026
+                      // -- the single tile above (always visible when
+                      // flags.transport) already reaches TransportScreen for
+                      // admin-or-above too, with every tab unlocked.
                       _FeatureRow(icon: '🏫', iconBg: AppColors.violetLight, title: 'School Settings', sub: 'Contact info, branding & preferences',
                           onTap: () => _push(context, const AdminSchoolSettingsScreen(), recentId: 'school_settings')),
                       if (flags.workLogs)

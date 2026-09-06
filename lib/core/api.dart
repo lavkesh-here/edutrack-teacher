@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cache.dart';
 import 'device_context.dart';
@@ -1738,6 +1739,25 @@ class ApiClient {
     return data as Map<String, dynamic>;
   }
 
+  // EDR-0027 (TR-014 Decision B): admin-entered pickup address, on a parent's
+  // behalf, with an explicit confirmation that the parent's own permission
+  // was obtained. Write-only — the backend never echoes the saved value
+  // back, and this client makes no GET call for it (no admin-facing read
+  // path exists, by design — see decisions/0027 §5).
+  static Future<void> adminSetStudentPickupAddress(
+    String studentId, {
+    required String addressText,
+    required double latitude,
+    required double longitude,
+  }) async {
+    await _put('/api/v1/admin/students/$studentId/pickup-address', {
+      'address_text': addressText,
+      'latitude': latitude,
+      'longitude': longitude,
+      'parent_permission_confirmed': true, // gated on an explicit in-app confirmation dialog before this call
+    });
+  }
+
   static Future<void> adminLinkParent(String parentId, {required String studentId, String relationType = 'parent'}) async {
     await _post('/api/v1/admin/parents/$parentId/link', {'student_id': studentId, 'relation_type': relationType});
   }
@@ -1761,6 +1781,36 @@ class ApiClient {
     if (driverPhone != null && driverPhone.isNotEmpty) body['driver_phone'] = driverPhone;
     final data = await _post('/api/v1/admin/transport/routes', body);
     return data as Map<String, dynamic>;
+  }
+
+  /// TR-014 Decision D: Edit Route. The backend's PUT endpoint (RouteUpdate)
+  /// already supported this — it was only ever missing from this app's UI.
+  /// Mirrors adminCreateRoute's exact field set (name/vehicle/driver
+  /// name+phone/capacity) rather than exposing driver_id/helper_ids/
+  /// dispatch_teacher_id here, which already have their own dedicated flows
+  /// elsewhere and would conflict with driver_name/phone if sent together
+  /// (see the backend's own _reject_conflicting_driver_fields validator).
+  ///
+  /// Note: the backend only applies a field when it's present AND non-null
+  /// (`if payload.field is not None`) — there's no way to CLEAR an
+  /// already-set vehicle_number/driver_name/driver_phone back to empty via
+  /// this endpoint, only to overwrite it with a different value. Pre-existing
+  /// backend behavior, not something this change alters — a blank field here
+  /// is simply omitted from the request rather than sent as null, since the
+  /// two have identical effect server-side.
+  static Future<void> adminUpdateRoute(
+    String routeId, {
+    required String name,
+    String? vehicleNumber,
+    String? driverName,
+    String? driverPhone,
+    required int capacity,
+  }) async {
+    final body = <String, dynamic>{'name': name, 'capacity': capacity};
+    if (vehicleNumber != null && vehicleNumber.isNotEmpty) body['vehicle_number'] = vehicleNumber;
+    if (driverName != null && driverName.isNotEmpty) body['driver_name'] = driverName;
+    if (driverPhone != null && driverPhone.isNotEmpty) body['driver_phone'] = driverPhone;
+    await _put('/api/v1/admin/transport/routes/$routeId', body);
   }
 
   static Future<List<Map<String, dynamic>>> adminListTransportAssignments() async {
@@ -1791,6 +1841,16 @@ class ApiClient {
     final data = await _get('/api/v1/admin/transport/vehicles');
     return ((data as Map<String, dynamic>)['vehicles'] as List<dynamic>)
         .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  // TR-014 Decision C: the selected vehicle's road-snapped route polyline
+  // (backend: route_points_for_stop_names, previously simulator-internal-only).
+  static Future<List<LatLng>> getVehicleRoutePath(String vehicleId) async {
+    final data = await _get('/api/v1/admin/transport/vehicles/$vehicleId/route-path');
+    final points = (data as Map<String, dynamic>)['points'] as List<dynamic>;
+    return points
+        .map((p) => LatLng((p['latitude'] as num).toDouble(), (p['longitude'] as num).toDouble()))
         .toList();
   }
 
@@ -1858,6 +1918,15 @@ class ApiClient {
   static Future<List<Map<String, dynamic>>> getDispatchRouteStudents(String routeId, {required String direction}) async {
     final data = await _get('/api/v1/admin/transport/routes/$routeId/events?direction=$direction');
     return ((data as Map<String, dynamic>)['students'] as List<dynamic>)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
+  /// TR-015: "which stops on this route are done, what's next" -- derived
+  /// entirely from existing dispatch data, no new personal-data category.
+  static Future<List<Map<String, dynamic>>> getRouteStopProgress(String routeId, {required String direction}) async {
+    final data = await _get('/api/v1/admin/transport/routes/$routeId/stop-progress?direction=$direction');
+    return ((data as Map<String, dynamic>)['stops'] as List<dynamic>)
         .map((e) => e as Map<String, dynamic>)
         .toList();
   }

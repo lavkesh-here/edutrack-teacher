@@ -437,6 +437,7 @@ class _ParentDetailSheetState extends State<_ParentDetailSheet> {
                     else
                       ...children.map((c) {
                         final child = c as Map<String, dynamic>;
+                        final studentId = child['student_id']?.toString();
                         return Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -468,6 +469,21 @@ class _ParentDetailSheetState extends State<_ParentDetailSheet> {
                                   ],
                                 ),
                               ),
+                              // EDR-0027 (TR-014 Decision B): admin-entry surface,
+                              // deliberately here (Parent Accounts) and NOT on
+                              // TransportScreen (decisions/0026) — see that EDR's
+                              // routing-separation constraint.
+                              if (studentId != null)
+                                IconButton(
+                                  icon: const Icon(Icons.location_on_outlined, size: 20, color: AppColors.teal),
+                                  tooltip: 'Set pickup address',
+                                  onPressed: () => showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) => AdminPickupAddressSheet(studentId: studentId),
+                                  ),
+                                ),
                             ],
                           ),
                         );
@@ -699,4 +715,120 @@ class _FieldLabel extends StatelessWidget {
           letterSpacing: 0.5,
         ),
       );
+}
+
+// ── Admin-entered pickup address (EDR-0027, TR-014 Decision B) ───────────────
+//
+// Write-only from the admin's own perspective (per decisions/0027 §5) — this
+// sheet never pre-fills a previously-saved value, since there is no
+// admin-facing read endpoint for it at all, by design.
+
+class AdminPickupAddressSheet extends StatefulWidget {
+  final String studentId;
+  const AdminPickupAddressSheet({super.key, required this.studentId});
+
+  @override
+  State<AdminPickupAddressSheet> createState() => _AdminPickupAddressSheetState();
+}
+
+class _AdminPickupAddressSheetState extends State<AdminPickupAddressSheet> {
+  final _addressCtrl = TextEditingController();
+  final _latCtrl = TextEditingController();
+  final _lonCtrl = TextEditingController();
+  bool _permissionConfirmed = false;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _addressCtrl.dispose();
+    _latCtrl.dispose();
+    _lonCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final address = _addressCtrl.text.trim();
+    final lat = double.tryParse(_latCtrl.text.trim());
+    final lon = double.tryParse(_lonCtrl.text.trim());
+    if (address.isEmpty || lat == null || lon == null) {
+      showSnack(context, 'Enter an address and valid coordinates', error: true);
+      return;
+    }
+    if (!_permissionConfirmed) {
+      showSnack(context, "Please confirm the parent's permission was obtained", error: true);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ApiClient.adminSetStudentPickupAddress(widget.studentId, addressText: address, latitude: lat, longitude: lon);
+      if (mounted) {
+        showSnack(context, 'Pickup address saved');
+        Navigator.pop(context);
+      }
+    } on ApiError catch (e) {
+      if (mounted) showSnack(context, e.message, error: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Set Pickup Address', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.text)),
+                const SizedBox(height: 4),
+                const Text(
+                  "Only for the parent-facing ETA/arrival-alert feature — never shown on any Transport or Dispatch screen.",
+                  style: TextStyle(fontSize: 11, color: AppColors.muted),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: _addressCtrl, decoration: const InputDecoration(labelText: 'Address')),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: TextField(controller: _latCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true), decoration: const InputDecoration(labelText: 'Latitude'))),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextField(controller: _lonCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true), decoration: const InputDecoration(labelText: 'Longitude'))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  value: _permissionConfirmed,
+                  onChanged: (v) => setState(() => _permissionConfirmed = v ?? false),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text(
+                    "I confirm the parent has given permission to store this child's pickup address.",
+                    style: TextStyle(fontSize: 12, color: AppColors.muted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _submit,
+                    child: _saving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                        : const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

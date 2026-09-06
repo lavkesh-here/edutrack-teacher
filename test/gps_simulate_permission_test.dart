@@ -4,12 +4,16 @@
 // check exactly (a transport_coordinator-tagged plain teacher gets read
 // access to this screen but must never see or be able to trigger this
 // control). Logic replicated here per this project's test convention (see
-// worklog_chapter_chip_test.dart) — canOperateGpsSimulation() itself lives in
-// lib/screens/transport_coordinator.dart; this is a client-side convenience
-// check only, never the real authorization boundary (that's the backend's
+// worklog_chapter_chip_test.dart) — this is a client-side convenience check
+// only, never the real authorization boundary (that's the backend's
 // get_write_access + feature.gps_simulate, covered by
 // backend/tests/modules/test_gps_demo_tick.py's
 // test_tick_requires_write_access and test_tick_requires_gps_simulate_feature_flag).
+//
+// EDR-0026 (2026-09-06): canOperateGpsSimulation() moved from the
+// now-deleted lib/screens/transport_coordinator.dart to
+// lib/screens/admin_transport.dart (the unified TransportScreen) — same
+// function, same signature, this test's replicated copy is unaffected.
 import 'package:flutter_test/flutter_test.dart';
 
 bool canOperateGpsSimulation(String? role) {

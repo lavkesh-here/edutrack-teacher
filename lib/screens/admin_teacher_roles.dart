@@ -21,12 +21,19 @@ class _AdminTeacherRolesScreenState extends State<AdminTeacherRolesScreen> {
   // anywhere on the backend -- selecting it silently did nothing. The real
   // mechanism for health-incident access is the dedicated is_nurse flag
   // (PATCH .../toggle-nurse), surfaced as its own switch below instead.
+  //
+  // 'transport_coordinator' removed 2026-09-06 (EDR-0026): not a distinct
+  // Responsibility -- superseded by assigning a teacher as a route's
+  // dispatch_teacher_id (Transport screen's Routes tab), which already
+  // grants the same GPS/exceptions/dispatch access, scoped to that route.
+  // The tag is still admissible server-side for any teacher who already has
+  // it (get_transport_coordinator_read_access) -- it just isn't offered for
+  // new assignment anymore.
   static const _allTags = [
     ('attender', '🏠 Attender', 'Records visitors'),
     ('sports_teacher', '🏆 Sports Teacher', 'Sports activities'),
     ('hostel_warden', '🏨 Hostel Warden', 'Manages hostel'),
     ('librarian', '📚 Librarian', 'Manages library'),
-    ('transport_coordinator', '🚌 Transport Coordinator', 'Read-only view of every bus, route, GPS status, and dispatch across the school'),
   ];
 
   // Core-teaching sections that can be individually hidden for a plain

@@ -1266,8 +1266,16 @@ class _GpsTabState extends State<_GpsTab> {
   // ticks driven by someone else (Admin Web, or another device's Start
   // Simulation) without needing to pull-to-refresh manually -- this tab
   // previously only ever loaded once, on open.
+  //
+  // Shortened 10s -> 4s -> 2s (2026-09-06, live-verified feedback): with
+  // Admin Web's own simulation ticking every 3s (SIM_TICK_MS), a slower poll
+  // here meant this tab sat frozen between glides while Admin Web looked
+  // continuously live. 2s (below the 3s tick rate) is as close to real-time
+  // as polling gets without WebSockets/SSE -- explicitly not pursued for
+  // this simulator-only feature (real-time push infra deferred, decided
+  // 2026-09-06 -- see parent_app's transport.dart for the same reasoning).
   Timer? _pollTimer;
-  static const _pollInterval = Duration(seconds: 10);
+  static const _pollInterval = Duration(seconds: 2);
 
   // TR-014 Decision C: the selected vehicle's road-snapped route polyline,
   // fetched once per selection (not re-fetched on every poll -- a route's

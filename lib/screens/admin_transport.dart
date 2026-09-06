@@ -63,8 +63,21 @@ class _TransportScreenState extends State<TransportScreen> with SingleTickerProv
     if (!mounted) return;
     setState(() {
       _isAdminOrAbove = isAdminOrAbove;
+      // Live-verified feedback (2026-09-06): 5 tabs for admin/coordinator was
+      // too many to take in at a glance. Dispatch's own workflow (mark
+      // dispatched, roster, stop progress) is now reached from a route's own
+      // card in the Routes tab instead of a separate tab -- same screen
+      // (DispatchDetailScreen), no logic duplicated, one fewer tab.
+      //
+      // TR-022 (2026-09-06): 4 was still one too many -- Routes and
+      // Assignments are both low-frequency setup tasks (term-start, route
+      // changes), while GPS and Exceptions are both high-frequency and
+      // checked *together* during live pickup/drop windows, so those two
+      // stay separate top-level tabs. Routes+Assignments merge into one
+      // "Setup" tab (segmented sub-view below, _SetupTab) -- same pattern
+      // already used to fold Dispatch under Routes, above.
       _tab = isAdminOrAbove
-          ? TabController(length: 5, vsync: this)
+          ? TabController(length: 3, vsync: this)
           : (hasDispatchRoute ? TabController(length: 3, vsync: this) : null);
       _resolving = false;
     });
@@ -102,18 +115,19 @@ class _TransportScreenState extends State<TransportScreen> with SingleTickerProv
         centerTitle: false,
         bottom: TabBar(
           controller: _tab,
-          isScrollable: _isAdminOrAbove,
+          // TR-022: both branches are now 3 short labels each -- no longer
+          // needs `isScrollable`/`tabAlignment` (the fix an earlier revision
+          // of this file needed for a 4-tab admin bar; moot once the tab
+          // count matches the non-admin branch).
           labelColor: null,
           unselectedLabelColor: AppColors.muted,
           indicatorColor: null,
           labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           tabs: _isAdminOrAbove
               ? const [
-                  Tab(text: 'Routes'),
-                  Tab(text: 'Assignments'),
+                  Tab(text: 'Setup'),
                   Tab(text: 'GPS'),
                   Tab(text: 'Exceptions'),
-                  Tab(text: 'Dispatch'),
                 ]
               : const [
                   Tab(text: 'GPS'),
@@ -125,11 +139,69 @@ class _TransportScreenState extends State<TransportScreen> with SingleTickerProv
       body: TabBarView(
         controller: _tab,
         children: _isAdminOrAbove
-            ? const [_RoutesTab(), _AssignmentsTab(), _GpsTab(), _ExceptionsTab(), DispatchTab()]
+            ? const [_SetupTab(), _GpsTab(), _ExceptionsTab()]
             : const [_GpsTab(), _ExceptionsTab(), DispatchTab()],
       ),
     );
   }
+}
+
+// ── Setup Tab (TR-022: Routes + Assignments, merged) ──────────────────────────
+
+class _SetupTab extends StatefulWidget {
+  const _SetupTab();
+
+  @override
+  State<_SetupTab> createState() => _SetupTabState();
+}
+
+class _SetupTabState extends State<_SetupTab> {
+  int _sub = 0; // 0 = Routes, 1 = Assignments
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Row(
+            children: [
+              Expanded(child: _SetupSegment(label: 'Routes', selected: _sub == 0, onTap: () => setState(() => _sub = 0))),
+              const SizedBox(width: 8),
+              Expanded(child: _SetupSegment(label: 'Assignments', selected: _sub == 1, onTap: () => setState(() => _sub = 1))),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: AppColors.border),
+        Expanded(child: _sub == 0 ? const _RoutesTab() : const _AssignmentsTab()),
+      ],
+    );
+  }
+}
+
+class _SetupSegment extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _SetupSegment({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? context.primary : AppColors.bg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? Colors.white : AppColors.muted),
+          ),
+        ),
+      );
 }
 
 // ── Routes Tab ────────────────────────────────────────────────────────────────
@@ -289,6 +361,19 @@ class _RoutesTabState extends State<_RoutesTab> {
                                       ],
                                     ),
                                     const SizedBox(width: 4),
+                                    // Live-verified feedback (2026-09-06):
+                                    // dispatch (mark dispatched, roster,
+                                    // stop progress) now opens from here
+                                    // instead of its own tab -- reuses
+                                    // DispatchDetailScreen unchanged.
+                                    IconButton(
+                                      icon: const Icon(Icons.local_shipping_outlined, size: 18, color: AppColors.muted),
+                                      tooltip: 'Dispatch',
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => DispatchDetailScreen(route: route)),
+                                      ),
+                                    ),
                                     // TR-014 Decision D: the backend's PUT
                                     // endpoint already supported this -- it
                                     // was only ever missing from this UI.
@@ -1211,7 +1296,7 @@ class _GpsTabState extends State<_GpsTab> {
     setState(() { _loading = true; _error = null; });
     try {
       final data = await ApiClient.getTransportVehicles();
-      if (mounted) setState(() { _vehicles = data; _loading = false; });
+      if (mounted) setState(() { _vehicles = data; _loading = false; _applyIgnitionAutoZoom(); });
     } on ApiError catch (e) {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (_) {
@@ -1225,10 +1310,42 @@ class _GpsTabState extends State<_GpsTab> {
   Future<void> _loadSilently() async {
     try {
       final data = await ApiClient.getTransportVehicles();
-      if (mounted) setState(() => _vehicles = data);
+      if (mounted) setState(() { _vehicles = data; _applyIgnitionAutoZoom(); });
     } catch (_) {
       // Silent -- the next poll tries again; the initial _load()'s own
       // error state already covers "can't load at all".
+    }
+  }
+
+  // Live-verified feedback (2026-09-06): the map should be zoomed OUT
+  // (fit-all view) whenever no vehicle's engine is actually running, and
+  // auto zoom IN to follow whichever vehicle's engine is on -- previously
+  // the map only ever zoomed in response to a manual tap on a vehicle card,
+  // so a coordinator watching an already-running simulation (started from
+  // this device or another) saw the same zoomed-out view until they zoomed
+  // in by hand. This never overrides a manual selection unless that exact
+  // vehicle's own engine has since turned off (so tapping a parked bus to
+  // inspect its route still works as before).
+  void _applyIgnitionAutoZoom() {
+    bool ignitionOnFor(Map<String, dynamic> v) {
+      final override = _liveOverrides[v['id']?.toString()];
+      return (override?['ignition_on'] ?? v['ignition_on']) == true;
+    }
+
+    if (_selectedRegNumber != null) {
+      final selected = _vehicles.where((v) => v['registration_number']?.toString() == _selectedRegNumber);
+      if (selected.isEmpty || !ignitionOnFor(selected.first)) {
+        _selectedRegNumber = null;
+      } else {
+        return; // still validly selected and running -- leave it as-is
+      }
+    }
+    for (final v in _vehicles) {
+      if (v['latitude'] != null && v['longitude'] != null && ignitionOnFor(v)) {
+        _selectedRegNumber = v['registration_number']?.toString();
+        if (v['id'] != null) _loadRoutePathFor(v['id'].toString());
+        break;
+      }
     }
   }
 
@@ -1262,14 +1379,27 @@ class _GpsTabState extends State<_GpsTab> {
 
   void _startSimulation(String vehicleId) {
     if (_timers.containsKey(vehicleId)) return; // never a duplicate timer for the same vehicle
-    setState(() => _simulatingIds.add(vehicleId));
+    setState(() {
+      _simulatingIds.add(vehicleId);
+      // Zoom in immediately on press rather than waiting for the first
+      // tick's response -- "once it's started ... zoomed in on the bus".
+      final v = _vehicles.where((v) => v['id']?.toString() == vehicleId);
+      if (v.isNotEmpty) {
+        _selectedRegNumber = v.first['registration_number']?.toString();
+        _loadRoutePathFor(vehicleId);
+      }
+    });
     _tick(vehicleId, sessionStart: true);
     _timers[vehicleId] = Timer.periodic(_tickInterval, (_) => _tick(vehicleId));
   }
 
   void _stopSimulation(String vehicleId) {
     _timers.remove(vehicleId)?.cancel();
-    if (mounted) setState(() => _simulatingIds.remove(vehicleId));
+    if (!mounted) return;
+    setState(() {
+      _simulatingIds.remove(vehicleId);
+      _applyIgnitionAutoZoom(); // engine now off for this vehicle -- zoom back out unless another is still running
+    });
   }
 
   Future<void> _tick(String vehicleId, {bool sessionStart = false}) async {
@@ -1281,10 +1411,12 @@ class _GpsTabState extends State<_GpsTab> {
           'latitude': step['latitude'],
           'longitude': step['longitude'],
           'speed_kmh': step['speed_kmh'],
+          'heading_deg': step['heading_deg'],
           'ignition_on': step['ignition_on'],
           'is_stale': false,
           'last_update': step['fix_time'],
         };
+        _applyIgnitionAutoZoom();
       });
     } catch (_) {
       // Role/flag disabled mid-session, network failure, etc. — never keep
@@ -1339,6 +1471,11 @@ class _GpsTabState extends State<_GpsTab> {
           BusMap(
             vehicles: vehicles, selectedId: _selectedRegNumber,
             routePath: _selectedVehicleId == null ? null : _routePathCache[_selectedVehicleId],
+            onVehicleTap: (reg) {
+              setState(() => _selectedRegNumber = reg);
+              final v = vehicles.where((v) => v['registration_number']?.toString() == reg);
+              if (v.isNotEmpty && v.first['id'] != null) _loadRoutePathFor(v.first['id'].toString());
+            },
           ),
           const SizedBox(height: 12),
         ],

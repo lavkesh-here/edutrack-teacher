@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -33,9 +34,13 @@ class BusMap extends StatefulWidget {
   final List<LatLng>? routePath; // the selected vehicle's road-snapped path, if loaded
   final double height;
   final bool fullscreenEnabled;
+  // TR-016: tapping a bus marker directly on the map selects it, same as tapping
+  // its card in the list below -- null (FullscreenBusMap's own default) means
+  // the map manages selection locally instead of deferring to a parent.
+  final void Function(String registrationNumber)? onVehicleTap;
   const BusMap({
     super.key, required this.vehicles, this.selectedId, this.routePath,
-    this.height = 220, this.fullscreenEnabled = true,
+    this.height = 220, this.fullscreenEnabled = true, this.onVehicleTap,
   });
 
   @override
@@ -190,6 +195,39 @@ class _BusMapState extends State<BusMap> with SingleTickerProviderStateMixin {
     )));
   }
 
+  // TR-017: explicit, user-initiated recenter -- unlike _tryLocateSelf (silent,
+  // never prompts), this is a deliberate button press so prompting for
+  // permission here is appropriate.
+  Future<void> _recenterOnMe() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    final granted = permission == LocationPermission.always || permission == LocationPermission.whileInUse;
+    final serviceEnabled = granted && await Geolocator.isLocationServiceEnabled();
+    if (!mounted) return;
+    if (!granted || !serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location unavailable -- check permission and GPS')),
+      );
+      return;
+    }
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+      );
+      if (!mounted) return;
+      setState(() => _myLocation = LatLng(pos.latitude, pos.longitude));
+      _controller.move(_myLocation!, 13);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not get your location')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final positioned = _positioned;
@@ -242,33 +280,45 @@ class _BusMapState extends State<BusMap> with SingleTickerProviderStateMixin {
                       Polyline(points: widget.routePath!, strokeWidth: 4, color: AppColors.violet.withOpacity(0.6)),
                     ]),
                   MarkerLayer(
-                    markers: positioned.map((v) {
+                    markers: [
+                      ...positioned.map((v) {
                       final key = _keyOf(v);
                       final rawPos = LatLng((v['latitude'] as num).toDouble(), (v['longitude'] as num).toDouble());
                       final displayed = _displayedPosition(key, rawPos);
                       final isStale = v['is_stale'] == true;
                       final ignitionOn = v['ignition_on'] as bool?;
-                      final isSelected = widget.selectedId != null && v['registration_number']?.toString() == widget.selectedId;
+                      final regNumber = v['registration_number']?.toString();
+                      final isSelected = widget.selectedId != null && regNumber == widget.selectedId;
                       final color = ignitionOn == false ? AppColors.muted : (isSelected ? AppColors.violet : AppColors.teal);
+                      final heading = (v['heading_deg'] as num?)?.toDouble();
+                      final size = isSelected ? 34.0 : 26.0;
                       return Marker(
                         point: displayed,
-                        width: isSelected ? 44 : 34,
-                        height: isSelected ? 44 : 34,
-                        child: Opacity(
-                          opacity: isStale ? 0.55 : 1,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(Icons.directions_bus, color: Colors.white, size: isSelected ? 22 : 16),
+                        width: size, height: size,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: regNumber == null ? null : () => widget.onVehicleTap?.call(regNumber),
+                          child: Opacity(
+                            opacity: isStale ? 0.55 : 1,
+                            child: BusGlyph(color: color, headingDeg: heading, size: size),
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
+                      if (_myLocation != null)
+                        Marker(
+                          point: _myLocation!,
+                          width: 18, height: 18,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.sky,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   RichAttributionWidget(
                     attributions: [TextSourceAttribution('OpenStreetMap contributors', onTap: () {})],
@@ -290,19 +340,106 @@ class _BusMapState extends State<BusMap> with SingleTickerProviderStateMixin {
               ),
             ),
           ),
+        Positioned(
+          right: 8, top: widget.fullscreenEnabled ? 44 : 8,
+          child: GestureDetector(
+            onTap: _recenterOnMe,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)]),
+              child: const Icon(Icons.my_location, size: 20, color: AppColors.text),
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
+/// Live-verified feedback (2026-09-06): "use a proper bus image, like a car
+/// image on Google Maps" -- replaces the old plain circle-with-a-generic-
+/// icon marker with a small drawn bus silhouette (body + windshield +
+/// headlights) that rotates to face the vehicle's actual heading, the same
+/// way Google Maps' own car marker turns to face the direction of travel.
+/// Still a vector drawing (CustomPainter), not a bitmap asset -- no new
+/// asset pipeline/licensing question, same reasoning as the rest of this
+/// file's deliberately-lightweight map layer. `headingDeg` is null for a
+/// vehicle with no recent fix; the glyph then stays upright (north) rather
+/// than guessing a direction with no data behind it.
+class BusGlyph extends StatelessWidget {
+  final Color color;
+  final double? headingDeg;
+  final double size;
+  const BusGlyph({super.key, required this.color, required this.headingDeg, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: (headingDeg ?? 0) * math.pi / 180,
+      child: CustomPaint(
+        size: Size(size, size),
+        painter: _BusGlyphPainter(color: color),
+      ),
+    );
+  }
+}
+
+class _BusGlyphPainter extends CustomPainter {
+  final Color color;
+  const _BusGlyphPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.22, h * 0.06, w * 0.56, h * 0.88),
+      Radius.circular(w * 0.14),
+    );
+    canvas.drawRRect(body, Paint()..color = Colors.black26..style = PaintingStyle.fill);
+    canvas.drawRRect(
+      body.shift(const Offset(0, -1)),
+      Paint()..color = color..style = PaintingStyle.fill,
+    );
+    canvas.drawRRect(
+      body.shift(const Offset(0, -1)),
+      Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = w * 0.045,
+    );
+    // Windshield -- the "front" of the bus, at the top (north) before rotation.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.30, h * 0.12, w * 0.40, h * 0.16),
+        Radius.circular(w * 0.05),
+      ),
+      Paint()..color = Colors.white.withOpacity(0.85),
+    );
+    // Two headlights at the front corners.
+    final headlightPaint = Paint()..color = const Color(0xFFFFE58A);
+    canvas.drawCircle(Offset(w * 0.30, h * 0.10), w * 0.045, headlightPaint);
+    canvas.drawCircle(Offset(w * 0.70, h * 0.10), w * 0.045, headlightPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BusGlyphPainter old) => old.color != color;
+}
+
 /// TR-014 Decision C: fullscreen view, reusing BusMap itself (fullscreenEnabled:
 /// false to avoid a recursive fullscreen button) rather than duplicating the
 /// map-rendering logic.
-class FullscreenBusMap extends StatelessWidget {
+///
+/// TR-016: stateful so a marker tap here can select/zoom locally -- this view
+/// has no parent tab to report a selection back to, unlike the inline BusMap.
+class FullscreenBusMap extends StatefulWidget {
   final List<Map<String, dynamic>> vehicles;
   final String? selectedId;
   final List<LatLng>? routePath;
   const FullscreenBusMap({super.key, required this.vehicles, this.selectedId, this.routePath});
+
+  @override
+  State<FullscreenBusMap> createState() => _FullscreenBusMapState();
+}
+
+class _FullscreenBusMapState extends State<FullscreenBusMap> {
+  late String? _selectedId = widget.selectedId;
 
   @override
   Widget build(BuildContext context) {
@@ -317,8 +454,13 @@ class FullscreenBusMap extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         child: BusMap(
-          vehicles: vehicles, selectedId: selectedId, routePath: routePath,
+          vehicles: widget.vehicles, selectedId: _selectedId,
+          // A different vehicle selected in here has no fetched route path of
+          // its own to show -- avoid drawing the original selection's path
+          // against a now-different bus.
+          routePath: _selectedId == widget.selectedId ? widget.routePath : null,
           height: MediaQuery.of(context).size.height, fullscreenEnabled: false,
+          onVehicleTap: (reg) => setState(() => _selectedId = reg),
         ),
       ),
     );
